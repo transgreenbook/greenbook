@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import { useMapLayers } from "@/hooks/useMapLayers";
+import { useMapPOIs } from "@/hooks/useMapPOIs";
 
 const INITIAL_CENTER: [number, number] = [-95.7129, 37.0902];
 const INITIAL_ZOOM = 4;
@@ -12,6 +13,7 @@ export default function Map() {
   const mapRef = useRef<maplibregl.Map | null>(null);
 
   useMapLayers(mapRef);
+  useMapPOIs(mapRef);
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
