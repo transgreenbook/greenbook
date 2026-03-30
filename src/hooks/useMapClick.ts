@@ -4,6 +4,7 @@ import { useMapStore } from "@/store/mapStore";
 
 export function useMapClick(map: maplibregl.Map | null) {
   const setSelectedPOI = useMapStore((s) => s.setSelectedPOI);
+  const flyTo = useMapStore((s) => s.flyTo);
 
   useEffect(() => {
     if (!map) return;
@@ -29,8 +30,9 @@ export function useMapClick(map: maplibregl.Map | null) {
         return;
       }
 
-      // Individual POI — open detail panel
+      // Individual POI — zoom to it and open detail panel
       const p = feature.properties!;
+      flyTo({ lng: center[0], lat: center[1], zoom: 14 });
       setSelectedPOI({
         id: p.id,
         title: p.title,
@@ -57,5 +59,5 @@ export function useMapClick(map: maplibregl.Map | null) {
       map.off("click", handleClick);
       map.off("mousemove", setCursor);
     };
-  }, [map, setSelectedPOI]);
+  }, [map, setSelectedPOI, flyTo]);
 }

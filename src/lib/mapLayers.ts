@@ -96,6 +96,8 @@ export const LAYERS: LayerSpecification[] = [
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
       "text-size": ["interpolate", ["linear"], ["zoom"], 3, 10, 6, 13],
       "text-anchor": "center",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
     },
     paint: {
       "text-color": "#334155",
@@ -153,6 +155,8 @@ export const LAYERS: LayerSpecification[] = [
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
       "text-size": ["interpolate", ["linear"], ["zoom"], 8, 9, 11, 12],
       "text-anchor": "center",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
     },
     paint: {
       "text-color": "#475569",
