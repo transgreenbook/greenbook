@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import { useMapLayers } from "@/hooks/useMapLayers";
@@ -11,15 +11,14 @@ const INITIAL_ZOOM = 4;
 
 export default function Map() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const [map, setMap] = useState<maplibregl.Map | null>(null);
 
-  useMapLayers(mapRef);
-  useMapPOIs(mapRef);
+  useMapLayers(map);
+  useMapPOIs(map);
 
   useEffect(() => {
-    if (mapRef.current || !containerRef.current) return;
+    if (!containerRef.current) return;
 
-    // Register the pmtiles:// protocol handler once, before the map loads.
     const protocol = new Protocol();
     maplibregl.addProtocol("pmtiles", protocol.tile.bind(protocol));
 
@@ -28,7 +27,7 @@ export default function Map() {
       ? `https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=${apiKey}`
       : "https://demotiles.maplibre.org/style.json";
 
-    const map = new maplibregl.Map({
+    const instance = new maplibregl.Map({
       container: containerRef.current,
       style: styleUrl,
       center: INITIAL_CENTER,
@@ -36,21 +35,23 @@ export default function Map() {
       minZoom: 3,
     });
 
-    mapRef.current = map;
-
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
-    map.addControl(
+    instance.addControl(new maplibregl.NavigationControl(), "top-right");
+    instance.addControl(
       new maplibregl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
       }),
       "top-right"
     );
-    map.addControl(new maplibregl.ScaleControl(), "bottom-left");
+    instance.addControl(new maplibregl.ScaleControl(), "bottom-left");
+
+    // Setting state triggers a re-render, which re-runs useMapLayers/useMapPOIs
+    // with the real map instance instead of null.
+    setMap(instance);
 
     return () => {
-      mapRef.current = null;
-      map.remove();
+      setMap(null);
+      instance.remove();
       maplibregl.removeProtocol("pmtiles");
     };
   }, []);
