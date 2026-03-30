@@ -8,13 +8,29 @@ export function useMapClick(map: maplibregl.Map | null) {
   useEffect(() => {
     if (!map) return;
 
-    const handlePOIClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-      const feature = e.features?.[0];
-      if (!feature || feature.geometry.type !== "Point") return;
+    const handleClick = (e: maplibregl.MapMouseEvent) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ["pois-cluster", "pois-unclustered"],
+      });
 
-      const [lng, lat] = feature.geometry.coordinates;
-      const p = feature.properties;
+      if (!features.length) return;
 
+      const feature = features[0];
+      if (feature.geometry.type !== "Point") return;
+      const center = feature.geometry.coordinates as [number, number];
+
+      // Cluster — zoom to expand
+      if (feature.properties?.cluster_id != null) {
+        const source = map.getSource("pois") as maplibregl.GeoJSONSource;
+        source
+          .getClusterExpansionZoom(feature.properties.cluster_id)
+          .then((zoom) => map.easeTo({ center, zoom: zoom + 1 }))
+          .catch(() => {});
+        return;
+      }
+
+      // Individual POI — open detail panel
+      const p = feature.properties!;
       setSelectedPOI({
         id: p.id,
         title: p.title,
@@ -22,42 +38,24 @@ export function useMapClick(map: maplibregl.Map | null) {
         category_id: p.category_id ?? null,
         is_verified: p.is_verified,
         tags: p.tags ? JSON.parse(p.tags) : null,
-        lng,
-        lat,
+        lng: center[0],
+        lat: center[1],
       });
     };
 
-    const handleClusterClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-      const feature = e.features?.[0];
-      if (!feature || feature.geometry.type !== "Point") return;
-
-      const clusterId = feature.properties?.cluster_id;
-      const source = map.getSource("pois") as maplibregl.GeoJSONSource;
-      if (feature.geometry.type !== "Point") return;
-      const center = feature.geometry.coordinates as [number, number];
-      source.getClusterExpansionZoom(clusterId).then((zoom) => {
-        map.easeTo({ center, zoom });
-      }).catch(() => {});
+    const setCursor = (e: maplibregl.MapMouseEvent) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ["pois-cluster", "pois-unclustered"],
+      });
+      map.getCanvas().style.cursor = features.length ? "pointer" : "";
     };
 
-    // Pointer cursor on hover
-    const setCursor = () => { map.getCanvas().style.cursor = "pointer"; };
-    const clearCursor = () => { map.getCanvas().style.cursor = ""; };
-
-    map.on("click", "pois-unclustered", handlePOIClick);
-    map.on("click", "pois-cluster", handleClusterClick);
-    map.on("mouseenter", "pois-unclustered", setCursor);
-    map.on("mouseleave", "pois-unclustered", clearCursor);
-    map.on("mouseenter", "pois-cluster", setCursor);
-    map.on("mouseleave", "pois-cluster", clearCursor);
+    map.on("click", handleClick);
+    map.on("mousemove", setCursor);
 
     return () => {
-      map.off("click", "pois-unclustered", handlePOIClick);
-      map.off("click", "pois-cluster", handleClusterClick);
-      map.off("mouseenter", "pois-unclustered", setCursor);
-      map.off("mouseleave", "pois-unclustered", clearCursor);
-      map.off("mouseenter", "pois-cluster", setCursor);
-      map.off("mouseleave", "pois-cluster", clearCursor);
+      map.off("click", handleClick);
+      map.off("mousemove", setCursor);
     };
   }, [map, setSelectedPOI]);
 }
