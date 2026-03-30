@@ -180,6 +180,12 @@ export const LAYERS: LayerSpecification[] = [
       ],
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
+      "circle-stroke-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        8, 0,
+        9, 1,
+        12, 1,
+      ],
     },
   },
   {
@@ -214,6 +220,11 @@ export const LAYERS: LayerSpecification[] = [
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
       "circle-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        11, 0,
+        12, 1,
+      ],
+      "circle-stroke-opacity": [
         "interpolate", ["linear"], ["zoom"],
         11, 0,
         12, 1,
