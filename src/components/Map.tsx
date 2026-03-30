@@ -8,8 +8,11 @@ import { useMapPOIs } from "@/hooks/useMapPOIs";
 import { useMapClick } from "@/hooks/useMapClick";
 import { useMapStore } from "@/store/mapStore";
 
-const INITIAL_CENTER: [number, number] = [-95.7129, 37.0902];
-const INITIAL_ZOOM = 4;
+// Bounding box of the continental US
+const CONUS_BOUNDS: [[number, number], [number, number]] = [
+  [-124.848974, 24.396308], // SW
+  [-66.885444,  49.384358], // NE
+];
 
 export default function Map() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,9 +49,9 @@ export default function Map() {
     const instance = new maplibregl.Map({
       container: containerRef.current,
       style: styleUrl,
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
-      minZoom: 3,
+      bounds: CONUS_BOUNDS,
+      fitBoundsOptions: { padding: 24 },
+      minZoom: 2,
     });
 
     instance.addControl(new maplibregl.NavigationControl(), "top-right");
