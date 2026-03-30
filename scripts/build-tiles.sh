@@ -66,10 +66,8 @@ tippecanoe \
   --no-tile-compression \
   --minimum-zoom=2 \
   --maximum-zoom=12 \
-  --layer=states \
-  --named-layer=states:"$TMP/states.geojson" \
-  --layer=counties \
-  --named-layer=counties:"$TMP/counties.geojson" \
+  -L states:"$TMP/states.geojson" \
+  -L counties:"$TMP/counties.geojson" \
   --drop-densest-as-needed \
   --extend-zooms-if-still-dropping
 
