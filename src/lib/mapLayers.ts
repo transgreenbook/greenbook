@@ -30,6 +30,10 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: "/state-centroids.geojson",
   },
+  "counties-centroids": {
+    type: "geojson",
+    data: "/county-centroids.geojson",
+  },
   counties: boundarySource("counties"),
   cities: {
     type: "geojson",
@@ -133,6 +137,30 @@ export const LAYERS: LayerSpecification[] = [
         "interpolate", ["linear"], ["zoom"],
         5, 0,
         7, 1,
+        12, 1,
+      ],
+    },
+  },
+
+  // --- County labels (zoom 8–12) ---
+  {
+    id: "counties-label",
+    type: "symbol",
+    source: "counties-centroids",
+    layout: {
+      "text-field": ["get", "NAME"],
+      "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 8, 9, 11, 12],
+      "text-anchor": "center",
+    },
+    paint: {
+      "text-color": "#475569",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 1.5,
+      "text-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        7, 0,
+        8, 1,
         12, 1,
       ],
     },
