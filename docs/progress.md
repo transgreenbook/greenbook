@@ -104,3 +104,29 @@ Hard refresh the browser. You should see:
   - Clicking an individual dot (zoom in past level 12) opens a panel on the right with the POI's title, description, coordinates, and the test-data tag
   - Clicking × closes the panel
 
+Eight phase:
+Here's what was added:                                                                                                                                                                                                                    
+                                                                                          
+  Auth:
+  - /login — email/password login form
+  - src/middleware.ts — redirects unauthenticated users away from /admin, and logged-in users away from /login
+  - src/lib/supabase-server.ts — server-side Supabase client for Server Components
+
+  Admin panel (all behind session + admin role check):
+  - /admin/pois — table of all POIs, click "Verified/Unverified" to toggle visibility on the map, Edit and Delete links
+  - /admin/pois/new — create a new POI (title, description, lat/lng, category, tags, verified checkbox)
+  - /admin/pois/[id]/edit — edit an existing POI
+  - /admin/categories — list categories, add new ones with name/icon slug/color picker, delete
+
+  Admin credentials:
+  - Email: admin@greenbook.com
+  - Password: Greenbook2026!
+
+  Go to http://192.168.50.233:3000/login to try it.
+
+ ● Now you can manage POIs through the UI. A few things to note about the current state:
+
+  - The 10 test POIs already in the database will show up in the list
+  - Clicking "Verified/Unverified" toggles map visibility instantly
+  - The Edit page pulls lat/lng from the database so you can correct any test data coordinates
+

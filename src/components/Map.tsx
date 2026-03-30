@@ -6,6 +6,7 @@ import { Protocol } from "pmtiles";
 import { useMapLayers } from "@/hooks/useMapLayers";
 import { useMapPOIs } from "@/hooks/useMapPOIs";
 import { useMapClick } from "@/hooks/useMapClick";
+import { useMapStore } from "@/store/mapStore";
 
 const INITIAL_CENTER: [number, number] = [-95.7129, 37.0902];
 const INITIAL_ZOOM = 4;
@@ -14,9 +15,22 @@ export default function Map() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<maplibregl.Map | null>(null);
 
+  const pendingFlyTo = useMapStore((s) => s.pendingFlyTo);
+  const clearFlyTo = useMapStore((s) => s.clearFlyTo);
+
   useMapLayers(map);
   useMapPOIs(map);
   useMapClick(map);
+
+  useEffect(() => {
+    if (!map || !pendingFlyTo) return;
+    map.flyTo({
+      center: [pendingFlyTo.lng, pendingFlyTo.lat],
+      zoom: pendingFlyTo.zoom ?? map.getZoom(),
+      duration: 1200,
+    });
+    clearFlyTo();
+  }, [map, pendingFlyTo, clearFlyTo]);
 
   useEffect(() => {
     if (!containerRef.current) return;

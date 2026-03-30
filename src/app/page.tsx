@@ -1,5 +1,6 @@
 import MapLoader from "@/components/MapLoader";
 import POIPanel from "@/components/POIPanel";
+import SearchBar from "@/components/SearchBar";
 
 export default function Home() {
   return (
@@ -9,6 +10,7 @@ export default function Home() {
       </header>
       <div className="flex-1 relative">
         <MapLoader />
+        <SearchBar />
         <POIPanel />
       </div>
     </main>
