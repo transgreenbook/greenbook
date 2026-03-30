@@ -35,10 +35,12 @@ download() {
 
 download "${BASE}/STATE/tl_${YEAR}_us_state.zip"   "$TMP/state.zip"
 download "${BASE}/COUNTY/tl_${YEAR}_us_county.zip" "$TMP/county.zip"
+download "https://www2.census.gov/geo/tiger/GENZ${YEAR}/shp/cb_${YEAR}_us_place_500k.zip" "$TMP/place.zip"
 
 echo "==> Unzipping..."
 unzip -qo "$TMP/state.zip"  -d "$TMP/state"
 unzip -qo "$TMP/county.zip" -d "$TMP/county"
+unzip -qo "$TMP/place.zip"  -d "$TMP/place"
 
 echo "==> Converting shapefiles to GeoJSON..."
 
@@ -58,6 +60,15 @@ ogr2ogr \
   "$TMP/counties.geojson" \
   "$TMP/county/tl_${YEAR}_us_county.shp"
 
+# Places — incorporated cities/towns only (exclude CDPs, LSAD=57)
+ogr2ogr \
+  -f GeoJSON \
+  -t_srs EPSG:4326 \
+  -select "NAME,STATEFP,PLACEFP,LSAD" \
+  -where "LSAD IN ('25','47','21','37','53')" \
+  "$TMP/places.geojson" \
+  "$TMP/place/cb_${YEAR}_us_place_500k.shp"
+
 echo "==> Generating state label centroids..."
 ogr2ogr \
   -f GeoJSON \
@@ -76,6 +87,17 @@ ogr2ogr \
   "$ROOT/public/county-centroids.geojson" \
   "$TMP/county/tl_${YEAR}_us_county.shp"
 
+echo "==> Generating city label centroids..."
+ogr2ogr \
+  -f GeoJSON \
+  -t_srs EPSG:4326 \
+  -dialect SQLite \
+  -sql "SELECT ST_Centroid(geometry) AS geometry, NAME, STATEFP, LSAD
+        FROM \"cb_${YEAR}_us_place_500k\"
+        WHERE LSAD IN ('25','47','21','37','53')" \
+  "$ROOT/public/city-centroids.geojson" \
+  "$TMP/place/cb_${YEAR}_us_place_500k.shp"
+
 echo "==> Building PMTiles with Tippecanoe..."
 
 tippecanoe \
@@ -86,6 +108,7 @@ tippecanoe \
   --maximum-zoom=12 \
   -L states:"$TMP/states.geojson" \
   -L counties:"$TMP/counties.geojson" \
+  -L places:"$TMP/places.geojson" \
   --drop-densest-as-needed \
   --extend-zooms-if-still-dropping
 

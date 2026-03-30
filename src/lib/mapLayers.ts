@@ -35,9 +35,10 @@ export const SOURCES: Record<string, SourceSpecification> = {
     data: "/county-centroids.geojson",
   },
   counties: boundarySource("counties"),
-  cities: {
+  places: boundarySource("places"),
+  "cities-centroids": {
     type: "geojson",
-    data: { type: "FeatureCollection", features: [] },
+    data: "/city-centroids.geojson",
   },
   // POIs are loaded dynamically from Supabase — data is swapped in by the POI hook.
   pois: {
@@ -166,17 +167,55 @@ export const LAYERS: LayerSpecification[] = [
     },
   },
 
-  // --- City boundaries (zoom 9–12) ---
+  // --- City/place boundaries (zoom 9–12) ---
   {
     id: "cities-fill",
     type: "fill",
-    source: "cities",
+    source: "places",
+    ...(pmtilesUrl ? { "source-layer": "places" } : {}),
     paint: {
       "fill-color": "#e2e8f0",
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
         8, 0,
-        10, 0.3,
+        10, 0.15,
+      ],
+    },
+  },
+  {
+    id: "cities-line",
+    type: "line",
+    source: "places",
+    ...(pmtilesUrl ? { "source-layer": "places" } : {}),
+    paint: {
+      "line-color": "#94a3b8",
+      "line-width": 0.8,
+      "line-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        8, 0,
+        10, 0.8,
+      ],
+    },
+  },
+  {
+    id: "cities-label",
+    type: "symbol",
+    source: "cities-centroids",
+    layout: {
+      "text-field": ["get", "NAME"],
+      "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 9, 10, 13, 14],
+      "text-anchor": "center",
+      "text-max-width": 8,
+    },
+    paint: {
+      "text-color": "#1e3a5f",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 1.5,
+      "text-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        9, 0,
+        10, 1,
       ],
     },
   },
