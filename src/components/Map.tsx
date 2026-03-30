@@ -5,6 +5,7 @@ import maplibregl from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import { useMapLayers } from "@/hooks/useMapLayers";
 import { useMapPOIs } from "@/hooks/useMapPOIs";
+import { useMapClick } from "@/hooks/useMapClick";
 
 const INITIAL_CENTER: [number, number] = [-95.7129, 37.0902];
 const INITIAL_ZOOM = 4;
@@ -15,6 +16,7 @@ export default function Map() {
 
   useMapLayers(map);
   useMapPOIs(map);
+  useMapClick(map);
 
   useEffect(() => {
     if (!containerRef.current) return;
