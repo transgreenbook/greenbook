@@ -10,6 +10,7 @@ export function useMapClick(map: maplibregl.Map | null) {
     if (!map) return;
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
+      if (!map.getLayer("pois-cluster") || !map.getLayer("pois-unclustered")) return;
       const features = map.queryRenderedFeatures(e.point, {
         layers: ["pois-cluster", "pois-unclustered"],
       });
@@ -46,6 +47,7 @@ export function useMapClick(map: maplibregl.Map | null) {
     };
 
     const setCursor = (e: maplibregl.MapMouseEvent) => {
+      if (!map.getLayer("pois-cluster") || !map.getLayer("pois-unclustered")) return;
       const features = map.queryRenderedFeatures(e.point, {
         layers: ["pois-cluster", "pois-unclustered"],
       });

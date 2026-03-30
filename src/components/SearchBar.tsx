@@ -207,6 +207,7 @@ export default function SearchBar() {
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Search places or POIs…"
           className="flex-1 ml-2 text-sm text-gray-800 placeholder-gray-400 bg-transparent focus:outline-none"
+          suppressHydrationWarning
         />
         {loading && (
           <span className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin shrink-0" />
