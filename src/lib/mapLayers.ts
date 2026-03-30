@@ -40,6 +40,10 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: "/city-centroids.geojson",
   },
+  "major-cities-centroids": {
+    type: "geojson",
+    data: "/major-city-centroids.geojson",
+  },
   // POIs are loaded dynamically from Supabase — data is swapped in by the POI hook.
   pois: {
     type: "geojson",
@@ -167,6 +171,34 @@ export const LAYERS: LayerSpecification[] = [
         7, 0,
         8, 1,
         12, 1,
+      ],
+    },
+  },
+
+  // --- Major US city labels (zoom 4–9) ---
+  // text-allow-overlap + text-ignore-placement required to override Stadia base map collision grid.
+  // Static filter keeps only the top 25 cities so the map isn't cluttered at low zoom.
+  {
+    id: "major-cities-label",
+    type: "symbol",
+    source: "major-cities-centroids",
+    filter: ["<=", ["get", "rank"], 25],
+    layout: {
+      "text-field": ["get", "NAME"],
+      "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 4, 10, 8, 13],
+      "text-anchor": "center",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#1e3a5f",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 1.5,
+      "text-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        4, 1,
+        9, 0,
       ],
     },
   },
