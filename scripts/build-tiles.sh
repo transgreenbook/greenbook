@@ -2,6 +2,11 @@
 # Build boundary PMTiles from US Census TIGER/Line shapefiles.
 # Output: tiles/boundaries.pmtiles
 #
+# Strategy: build states and counties+places separately, then merge with
+# tile-join. This prevents tippecanoe's --drop-densest-as-needed from
+# dropping state polygon features (which caused NE, KS, GA to not render
+# at zoom 4 when built in a single pass).
+#
 # Usage:
 #   bash scripts/build-tiles.sh
 #
@@ -98,19 +103,36 @@ ogr2ogr \
   "$ROOT/public/city-centroids.geojson" \
   "$TMP/place/cb_${YEAR}_us_place_500k.shp"
 
-echo "==> Building PMTiles with Tippecanoe..."
-
+echo "==> Building states PMTiles (zoom 2-8, no feature dropping)..."
 tippecanoe \
-  --output="$OUT/boundaries.pmtiles" \
+  --output="$OUT/states.pmtiles" \
   --force \
   --no-tile-compression \
   --minimum-zoom=2 \
+  --maximum-zoom=8 \
+  --no-feature-limit \
+  --no-simplification-of-shared-nodes \
+  -L states:"$TMP/states.geojson"
+
+echo "==> Building counties + places PMTiles (zoom 5-12)..."
+tippecanoe \
+  --output="$OUT/counties-places.pmtiles" \
+  --force \
+  --no-tile-compression \
+  --minimum-zoom=5 \
   --maximum-zoom=12 \
-  -L states:"$TMP/states.geojson" \
   -L counties:"$TMP/counties.geojson" \
   -L places:"$TMP/places.geojson" \
   --drop-densest-as-needed \
   --extend-zooms-if-still-dropping
+
+echo "==> Merging with tile-join..."
+tile-join \
+  --output="$OUT/boundaries.pmtiles" \
+  --force \
+  --no-tile-compression \
+  "$OUT/states.pmtiles" \
+  "$OUT/counties-places.pmtiles"
 
 echo "==> Copying to public/tiles/ for local dev serving..."
 mkdir -p "$ROOT/public/tiles"
