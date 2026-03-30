@@ -13,7 +13,7 @@
     {"type":"Feature","properties":{"NAME":"San Jose","rank":10},"geometry":{"type":"Point","coordinates":[-121.8863,37.3382]}},
     {"type":"Feature","properties":{"NAME":"Austin","rank":11},"geometry":{"type":"Point","coordinates":[-97.7431,30.2672]}},
     {"type":"Feature","properties":{"NAME":"Jacksonville","rank":12},"geometry":{"type":"Point","coordinates":[-81.6557,30.3322]}},
-    {"type":"Feature","properties":{"NAME":"Fort Worth","rank":13},"geometry":{"type":"Point","coordinates":[-97.3308,32.7555]}},
+    {"type":"Feature","properties":{"NAME":"Fort Worth","rank":28},"geometry":{"type":"Point","coordinates":[-97.3308,32.7555]}},
     {"type":"Feature","properties":{"NAME":"Columbus","rank":14},"geometry":{"type":"Point","coordinates":[-82.9988,39.9612]}},
     {"type":"Feature","properties":{"NAME":"Charlotte","rank":15},"geometry":{"type":"Point","coordinates":[-80.8431,35.2271]}},
     {"type":"Feature","properties":{"NAME":"Indianapolis","rank":16},"geometry":{"type":"Point","coordinates":[-86.1581,39.7684]}},

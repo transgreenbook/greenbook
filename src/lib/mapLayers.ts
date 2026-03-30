@@ -175,19 +175,37 @@ export const LAYERS: LayerSpecification[] = [
     },
   },
 
-  // --- Major US city labels (zoom 4–9) ---
-  // text-allow-overlap + text-ignore-placement required to override Stadia base map collision grid.
-  // Static filter keeps only the top 25 cities so the map isn't cluttered at low zoom.
+  // --- Major US city dots + labels ---
+  // Two tiers by population rank. text-allow-overlap + text-ignore-placement are required
+  // to override Stadia's base-map collision grid. Zoom-based density is achieved via
+  // separate layers with static rank filters and different opacity fade-in points.
+
+  // Tier 1: top 10 cities — visible from zoom 4
+  {
+    id: "major-cities-dot",
+    type: "circle",
+    source: "major-cities-centroids",
+    filter: ["<=", ["get", "rank"], 27],
+    paint: {
+      "circle-radius": 3,
+      "circle-color": "#1e3a5f",
+      "circle-stroke-width": 1,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": ["interpolate", ["linear"], ["zoom"], 4, 1, 9, 0],
+      "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 4, 1, 9, 0],
+    },
+  },
   {
     id: "major-cities-label",
     type: "symbol",
     source: "major-cities-centroids",
-    filter: ["<=", ["get", "rank"], 25],
+    filter: ["<=", ["get", "rank"], 27],
     layout: {
       "text-field": ["get", "NAME"],
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
       "text-size": ["interpolate", ["linear"], ["zoom"], 4, 10, 8, 13],
-      "text-anchor": "center",
+      "text-anchor": "left",
+      "text-offset": [0.6, 0],
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
@@ -195,11 +213,44 @@ export const LAYERS: LayerSpecification[] = [
       "text-color": "#1e3a5f",
       "text-halo-color": "#ffffff",
       "text-halo-width": 1.5,
-      "text-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        4, 1,
-        9, 0,
-      ],
+      "text-opacity": ["interpolate", ["linear"], ["zoom"], 4, 1, 9, 0],
+    },
+  },
+
+  // Tier 2: ranks 11–25 — fade in at zoom 6
+  {
+    id: "major-cities-dot-2",
+    type: "circle",
+    source: "major-cities-centroids",
+    filter: ["all", [">", ["get", "rank"], 27], ["<=", ["get", "rank"], 50]],
+    paint: {
+      "circle-radius": 3,
+      "circle-color": "#1e3a5f",
+      "circle-stroke-width": 1,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0, 6, 1, 9, 0],
+      "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0, 6, 1, 9, 0],
+    },
+  },
+  {
+    id: "major-cities-label-2",
+    type: "symbol",
+    source: "major-cities-centroids",
+    filter: ["all", [">", ["get", "rank"], 27], ["<=", ["get", "rank"], 50]],
+    layout: {
+      "text-field": ["get", "NAME"],
+      "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 8, 13],
+      "text-anchor": "left",
+      "text-offset": [0.6, 0],
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#1e3a5f",
+      "text-halo-color": "#ffffff",
+      "text-halo-width": 1.5,
+      "text-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0, 6, 1, 9, 0],
     },
   },
 
