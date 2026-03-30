@@ -88,6 +88,7 @@ export const LAYERS: LayerSpecification[] = [
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
       "text-size": ["interpolate", ["linear"], ["zoom"], 3, 10, 6, 13],
       "text-anchor": "center",
+      "symbol-avoid-edges": true,
     },
     paint: {
       "text-color": "#334155",
