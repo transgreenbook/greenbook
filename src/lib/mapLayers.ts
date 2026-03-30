@@ -84,8 +84,8 @@ export const LAYERS: LayerSpecification[] = [
     source: "states",
     ...(pmtilesUrl ? { "source-layer": "states" } : {}),
     layout: {
-      "text-field": ["get", "abbreviation"],
-      "text-font": ["Open Sans Regular"],
+      "text-field": ["get", "STUSPS"],
+      "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
       "text-size": ["interpolate", ["linear"], ["zoom"], 3, 10, 6, 13],
       "text-anchor": "center",
     },
