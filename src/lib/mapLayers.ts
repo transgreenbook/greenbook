@@ -3,23 +3,30 @@ import type { Map, LayerSpecification, SourceSpecification } from "maplibre-gl";
 // ---------------------------------------------------------------------------
 // Sources
 // ---------------------------------------------------------------------------
-// Boundary sources are empty GeoJSON placeholders. When the PMTiles file is
-// built and uploaded to R2, swap each source to:
+// NEXT_PUBLIC_PMTILES_URL points to the boundaries PMTiles file.
+// Locally: http://localhost:3000/tiles/boundaries.pmtiles (served from public/)
+// Production: pmtiles://https://your-r2-url/boundaries.pmtiles
 //
-//   { type: "vector", url: "pmtiles://https://your-r2-url/boundaries.pmtiles" }
-//
-// and update the layer "source-layer" fields to match the Tippecanoe layer names.
+// Layer names ("states", "counties") match the --named-layer values used in
+// the tippecanoe command in scripts/build-tiles.sh.
 // ---------------------------------------------------------------------------
 
+const pmtilesUrl = process.env.NEXT_PUBLIC_PMTILES_URL;
+
+function boundarySource(layer: string): SourceSpecification {
+  if (pmtilesUrl) {
+    const url = pmtilesUrl.startsWith("http")
+      ? `pmtiles://${pmtilesUrl}`
+      : pmtilesUrl;
+    return { type: "vector", url };
+  }
+  // Fallback: empty GeoJSON until PMTiles URL is configured
+  return { type: "geojson", data: { type: "FeatureCollection", features: [] } };
+}
+
 export const SOURCES: Record<string, SourceSpecification> = {
-  states: {
-    type: "geojson",
-    data: { type: "FeatureCollection", features: [] },
-  },
-  counties: {
-    type: "geojson",
-    data: { type: "FeatureCollection", features: [] },
-  },
+  states:   boundarySource("states"),
+  counties: boundarySource("counties"),
   cities: {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
@@ -44,6 +51,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "states-fill",
     type: "fill",
     source: "states",
+    ...(pmtilesUrl ? { "source-layer": "states" } : {}),
     paint: {
       "fill-color": ["coalesce", ["get", "fill_color"], "#e0e7ef"],
       // Full opacity at zoom 5, fades out by zoom 8
@@ -59,6 +67,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "states-line",
     type: "line",
     source: "states",
+    ...(pmtilesUrl ? { "source-layer": "states" } : {}),
     paint: {
       "line-color": "#94a3b8",
       "line-width": 1,
@@ -73,6 +82,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "states-label",
     type: "symbol",
     source: "states",
+    ...(pmtilesUrl ? { "source-layer": "states" } : {}),
     layout: {
       "text-field": ["get", "abbreviation"],
       "text-font": ["Open Sans Regular"],
@@ -96,6 +106,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "counties-fill",
     type: "fill",
     source: "counties",
+    ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
     paint: {
       "fill-color": ["coalesce", ["get", "fill_color"], "#f1f5f9"],
       // Fades in as state fills fade out
@@ -111,6 +122,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "counties-line",
     type: "line",
     source: "counties",
+    ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
     paint: {
       "line-color": "#cbd5e1",
       "line-width": 0.5,

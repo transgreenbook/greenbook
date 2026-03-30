@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tile build artifacts (large binary files — rebuild with scripts/build-tiles.sh)
+/tiles/
+/tmp/
+/public/tiles/

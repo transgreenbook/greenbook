@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
+import { Protocol } from "pmtiles";
 import { useMapLayers } from "@/hooks/useMapLayers";
 import { useMapPOIs } from "@/hooks/useMapPOIs";
 
@@ -17,6 +18,10 @@ export default function Map() {
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
+
+    // Register the pmtiles:// protocol handler once, before the map loads.
+    const protocol = new Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile.bind(protocol));
 
     const apiKey = process.env.NEXT_PUBLIC_STADIA_API_KEY;
     const styleUrl = apiKey
@@ -46,6 +51,7 @@ export default function Map() {
     return () => {
       mapRef.current = null;
       map.remove();
+      maplibregl.removeProtocol("pmtiles");
     };
   }, []);
 
