@@ -25,7 +25,11 @@ function boundarySource(layer: string): SourceSpecification {
 }
 
 export const SOURCES: Record<string, SourceSpecification> = {
-  states:   boundarySource("states"),
+  states:           boundarySource("states"),
+  "states-centroids": {
+    type: "geojson",
+    data: "/state-centroids.geojson",
+  },
   counties: boundarySource("counties"),
   cities: {
     type: "geojson",
@@ -81,14 +85,12 @@ export const LAYERS: LayerSpecification[] = [
   {
     id: "states-label",
     type: "symbol",
-    source: "states",
-    ...(pmtilesUrl ? { "source-layer": "states" } : {}),
+    source: "states-centroids",
     layout: {
       "text-field": ["get", "STUSPS"],
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
       "text-size": ["interpolate", ["linear"], ["zoom"], 3, 10, 6, 13],
       "text-anchor": "center",
-      "symbol-avoid-edges": true,
     },
     paint: {
       "text-color": "#334155",

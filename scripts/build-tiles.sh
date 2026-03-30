@@ -58,6 +58,15 @@ ogr2ogr \
   "$TMP/counties.geojson" \
   "$TMP/county/tl_${YEAR}_us_county.shp"
 
+echo "==> Generating state label centroids..."
+ogr2ogr \
+  -f GeoJSON \
+  -t_srs EPSG:4326 \
+  -dialect SQLite \
+  -sql "SELECT ST_Centroid(geometry) AS geometry, NAME, STUSPS FROM \"tl_${YEAR}_us_state\"" \
+  "$ROOT/public/state-centroids.geojson" \
+  "$TMP/state/tl_${YEAR}_us_state.shp"
+
 echo "==> Building PMTiles with Tippecanoe..."
 
 tippecanoe \
