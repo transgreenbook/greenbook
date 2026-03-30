@@ -40,7 +40,7 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
     cluster: true,
-    clusterMaxZoom: 11,
+    clusterMaxZoom: 14,
     clusterRadius: 50,
   },
 };
@@ -172,20 +172,10 @@ export const LAYERS: LayerSpecification[] = [
         10, 22,
         50, 28,
       ],
-      "circle-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        8, 0,
-        9, 1,
-        12, 1,
-      ],
+      "circle-opacity": 1,
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
-      "circle-stroke-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        8, 0,
-        9, 1,
-        12, 1,
-      ],
+      "circle-stroke-opacity": 1,
     },
   },
   {
@@ -200,11 +190,7 @@ export const LAYERS: LayerSpecification[] = [
     },
     paint: {
       "text-color": "#ffffff",
-      "text-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        8, 0,
-        9, 1,
-      ],
+      "text-opacity": 1,
     },
   },
 
@@ -219,16 +205,8 @@ export const LAYERS: LayerSpecification[] = [
       "circle-radius": 6,
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
-      "circle-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        11, 0,
-        12, 1,
-      ],
-      "circle-stroke-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        11, 0,
-        12, 1,
-      ],
+      "circle-opacity": 1,
+      "circle-stroke-opacity": 1,
     },
   },
 ];
