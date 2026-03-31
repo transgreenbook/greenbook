@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { boundsKey, cachePOIs, getCachedPOIs } from "@/lib/poiCache";
 import type { FeatureCollection, Point } from "geojson";
 
 export interface Bounds {
@@ -27,26 +28,39 @@ function roundBounds(b: Bounds): Bounds {
 }
 
 async function fetchPOIs(bounds: Bounds): Promise<FeatureCollection<Point, POIProperties>> {
-  const { data, error } = await supabase.rpc("pois_in_viewport", bounds);
+  const rounded = roundBounds(bounds);
+  const key = boundsKey(rounded);
 
-  if (error) throw new Error(error.message);
+  try {
+    const { data, error } = await supabase.rpc("pois_in_viewport", rounded);
+    if (error) throw new Error(error.message);
 
-  return {
-    type: "FeatureCollection",
-    features: (data ?? []).map((row: POIProperties & { lng: number; lat: number }) => ({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [row.lng, row.lat] },
-      properties: {
-        id: row.id,
-        title: row.title,
-        description: row.description,
-        category_id: row.category_id,
-        is_verified: row.is_verified,
-        tags: row.tags,
-        color: row.color ?? null,
-      },
-    })),
-  };
+    const geojson: FeatureCollection<Point, POIProperties> = {
+      type: "FeatureCollection",
+      features: (data ?? []).map((row: POIProperties & { lng: number; lat: number }) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [row.lng, row.lat] },
+        properties: {
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          category_id: row.category_id,
+          is_verified: row.is_verified,
+          tags: row.tags,
+          color: row.color ?? null,
+        },
+      })),
+    };
+
+    // Write to IndexedDB for offline use
+    cachePOIs(key, geojson);
+    return geojson;
+  } catch (err) {
+    // Network failure — try IndexedDB fallback
+    const cached = await getCachedPOIs(key);
+    if (cached) return cached;
+    throw err;
+  }
 }
 
 export function usePOIs(bounds: Bounds | null) {

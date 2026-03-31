@@ -41,6 +41,7 @@ export function useMapClick(map: maplibregl.Map | null) {
         category_id: p.category_id ?? null,
         is_verified: p.is_verified,
         tags: p.tags ? JSON.parse(p.tags) : null,
+        color: p.color ?? null,
         lng: center[0],
         lat: center[1],
       });

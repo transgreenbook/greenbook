@@ -162,6 +162,7 @@ export default function SearchBar() {
         category_id: result.category_id ?? null,
         is_verified: result.is_verified,
         tags: result.tags ?? null,
+        color: null,
         lng: result.lng,
         lat: result.lat,
       });
