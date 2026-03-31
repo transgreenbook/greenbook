@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type maplibregl from "maplibre-gl";
 import { useMapStore } from "@/store/mapStore";
+import { useRouteStore } from "@/store/routeStore";
 
 export function useMapClick(map: maplibregl.Map | null) {
   const setSelectedPOI = useMapStore((s) => s.setSelectedPOI);
@@ -10,9 +11,24 @@ export function useMapClick(map: maplibregl.Map | null) {
     if (!map) return;
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
+      const { isRoutingMode, start, end, setStart, setEnd } = useRouteStore.getState();
+
+      // Routing mode — drop a waypoint on the map click
+      if (isRoutingMode) {
+        const { lng, lat } = e.lngLat;
+        const label = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        if (!start) {
+          setStart({ lng, lat, label });
+        } else if (!end) {
+          setEnd({ lng, lat, label });
+        }
+        return;
+      }
+
+      // Normal mode — select POI
       if (!map.getLayer("pois-cluster") || !map.getLayer("pois-unclustered")) return;
       const features = map.queryRenderedFeatures(e.point, {
-        layers: ["pois-cluster", "pois-unclustered"],
+        layers: ["pois-cluster", "pois-unclustered", "pois-along-route"],
       });
 
       if (!features.length) return;
@@ -48,9 +64,14 @@ export function useMapClick(map: maplibregl.Map | null) {
     };
 
     const setCursor = (e: maplibregl.MapMouseEvent) => {
+      const { isRoutingMode } = useRouteStore.getState();
+      if (isRoutingMode) {
+        map.getCanvas().style.cursor = "crosshair";
+        return;
+      }
       if (!map.getLayer("pois-cluster") || !map.getLayer("pois-unclustered")) return;
       const features = map.queryRenderedFeatures(e.point, {
-        layers: ["pois-cluster", "pois-unclustered"],
+        layers: ["pois-cluster", "pois-unclustered", "pois-along-route"],
       });
       map.getCanvas().style.cursor = features.length ? "pointer" : "";
     };

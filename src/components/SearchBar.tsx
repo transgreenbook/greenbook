@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useMapStore } from "@/store/mapStore";
+import { geocode as geocodePlace } from "@/lib/geocoding";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,40 +29,6 @@ interface POIResult {
 }
 
 type SearchResult = GeocodingResult | POIResult;
-
-// ---------------------------------------------------------------------------
-// Photon geocoding (OSM-based, free, no key required)
-// ---------------------------------------------------------------------------
-
-async function geocode(
-  query: string,
-  signal: AbortSignal
-): Promise<GeocodingResult[]> {
-  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&bbox=-180,18,-60,72`;
-  const res = await fetch(url, { signal });
-  if (!res.ok) return [];
-  const json = await res.json();
-  return (json.features ?? []).map(
-    (f: {
-      geometry: { coordinates: [number, number] };
-      properties: {
-        name?: string;
-        city?: string;
-        state?: string;
-        country?: string;
-      };
-    }) => {
-      const p = f.properties;
-      const parts = [p.name, p.city, p.state].filter(Boolean);
-      return {
-        type: "geocoding" as const,
-        label: parts.join(", ") || p.country || "Unknown place",
-        lng: f.geometry.coordinates[0],
-        lat: f.geometry.coordinates[1],
-      };
-    }
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -106,7 +73,7 @@ export default function SearchBar() {
 
     try {
       const [geoResults, poiData] = await Promise.allSettled([
-        geocode(q, signal),
+        geocodePlace(q, signal).then((res) => res.map((r) => ({ type: "geocoding" as const, ...r }))),
         supabase.rpc("search_pois", { query: q }),
       ]);
 

@@ -2,9 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useMapStore } from "@/store/mapStore";
+import { useRouteStore } from "@/store/routeStore";
 
 export default function POIPanel() {
   const { selectedPOI, setSelectedPOI } = useMapStore();
+  const setRoutingMode = useRouteStore((s) => s.setRoutingMode);
+  const setEnd = useRouteStore((s) => s.setEnd);
+
+  function handleRouteToHere() {
+    if (!selectedPOI) return;
+    setEnd({ lng: selectedPOI.lng, lat: selectedPOI.lat, label: selectedPOI.title });
+    setRoutingMode(true);
+  }
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
 
@@ -39,6 +48,15 @@ export default function POIPanel() {
           </div>
         )}
       </div>
+      <button
+        onClick={handleRouteToHere}
+        className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+        </svg>
+        Route to here
+      </button>
     </>
   );
 

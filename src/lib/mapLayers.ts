@@ -52,6 +52,19 @@ export const SOURCES: Record<string, SourceSpecification> = {
     clusterMaxZoom: 14,
     clusterRadius: 50,
   },
+  // Route sources — data is swapped in by useRouteLayer.
+  route: {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  },
+  "route-waypoints": {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  },
+  "pois-along-route": {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -304,6 +317,64 @@ export const LAYERS: LayerSpecification[] = [
         9, 0,
         10, 1,
       ],
+    },
+  },
+
+  // --- Route line ---
+  {
+    id: "route-line",
+    type: "line",
+    source: "route",
+    layout: { "line-join": "round", "line-cap": "round" },
+    paint: {
+      "line-color": "#3b82f6",
+      "line-width": 4,
+      "line-opacity": 0.85,
+    },
+  },
+
+  // --- POIs along route (highlighted) ---
+  {
+    id: "pois-along-route",
+    type: "circle",
+    source: "pois-along-route",
+    paint: {
+      "circle-color": ["coalesce", ["get", "color"], "#f59e0b"],
+      "circle-radius": 9,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 1,
+      "circle-stroke-opacity": 1,
+    },
+  },
+
+  // --- Route waypoint pins ---
+  {
+    id: "route-start",
+    type: "circle",
+    source: "route-waypoints",
+    filter: ["==", ["get", "type"], "start"],
+    paint: {
+      "circle-radius": 9,
+      "circle-color": "#22c55e",
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 1,
+      "circle-stroke-opacity": 1,
+    },
+  },
+  {
+    id: "route-end",
+    type: "circle",
+    source: "route-waypoints",
+    filter: ["==", ["get", "type"], "end"],
+    paint: {
+      "circle-radius": 9,
+      "circle-color": "#ef4444",
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 1,
+      "circle-stroke-opacity": 1,
     },
   },
 
