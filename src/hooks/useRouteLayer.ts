@@ -117,10 +117,20 @@ export function useRouteLayer(map: maplibregl.Map | null) {
     return () => { cancelled = true; };
   }, [start, end]);
 
-  // Sync route line to map
+  // Sync route line to map and fit the viewport to the route
   useEffect(() => {
     if (!map) return;
-    setRouteSource(map, route?.coordinates ?? null);
+    const coords = route?.coordinates ?? null;
+    setRouteSource(map, coords);
+
+    if (coords && coords.length > 0) {
+      const lngs = coords.map(([lng]) => lng);
+      const lats = coords.map(([, lat]) => lat);
+      map.fitBounds(
+        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+        { padding: 60, duration: 800 }
+      );
+    }
   }, [map, route]);
 
   // Sync waypoints to map

@@ -39,13 +39,11 @@ function decodePolyline(encoded: string): [number, number][] {
   return coords;
 }
 
-const VALHALLA_URL = "https://valhalla1.openstreetmap.de/route";
-
 export async function fetchRoute(
   start: RouteWaypoint,
   end: RouteWaypoint
 ): Promise<RouteResult> {
-  const res = await fetch(VALHALLA_URL, {
+  const res = await fetch("/api/route", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -58,10 +56,8 @@ export async function fetchRoute(
     }),
   });
 
-  if (!res.ok) throw new Error("Routing request failed — check your start and end points.");
-
   const data = await res.json();
-  if (data.error) throw new Error(data.error);
+  if (!res.ok) throw new Error(data.error ?? "Routing request failed — check your start and end points.");
 
   return {
     coordinates: decodePolyline(data.trip.legs[0].shape),
