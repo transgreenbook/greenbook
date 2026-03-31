@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Providers from "@/components/Providers";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,6 +46,7 @@ export default function RootLayout({
       </head>
       <body className="h-full flex flex-col">
         <Providers>{children}</Providers>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );
