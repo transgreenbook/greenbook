@@ -355,7 +355,7 @@ export const LAYERS: LayerSpecification[] = [
     source: "pois",
     filter: ["!", ["has", "point_count"]],
     paint: {
-      "circle-color": "#3b82f6",
+      "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
       "circle-radius": 6,
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",

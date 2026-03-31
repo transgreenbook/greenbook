@@ -16,6 +16,7 @@ export interface POIProperties {
   category_id: number | null;
   is_verified: boolean;
   tags: string[] | null;
+  color: string | null;
 }
 
 // Rounds bounds to 3 decimal places (~110m precision) so that small pans
@@ -42,6 +43,7 @@ async function fetchPOIs(bounds: Bounds): Promise<FeatureCollection<Point, POIPr
         category_id: row.category_id,
         is_verified: row.is_verified,
         tags: row.tags,
+        color: row.color ?? null,
       },
     })),
   };
