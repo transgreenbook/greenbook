@@ -15,10 +15,10 @@ const pmtilesUrl = process.env.NEXT_PUBLIC_PMTILES_URL;
 
 function boundarySource(layer: string): SourceSpecification {
   if (pmtilesUrl) {
-    const url = pmtilesUrl.startsWith("http")
-      ? `pmtiles://${pmtilesUrl}`
+    const absolute = pmtilesUrl.startsWith("/")
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}${pmtilesUrl}`
       : pmtilesUrl;
-    return { type: "vector", url };
+    return { type: "vector", url: `pmtiles://${absolute}` };
   }
   // Fallback: empty GeoJSON until PMTiles URL is configured
   return { type: "geojson", data: { type: "FeatureCollection", features: [] } };
