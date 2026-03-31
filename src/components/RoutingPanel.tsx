@@ -9,6 +9,7 @@ function WaypointInput({
   value,
   onChange,
   onSelect,
+  onClear,
   placeholder,
   pinColor,
 }: {
@@ -16,6 +17,7 @@ function WaypointInput({
   value: string;
   onChange: (v: string) => void;
   onSelect: (r: GeocodingResult) => void;
+  onClear: () => void;
   placeholder: string;
   pinColor: string;
 }) {
@@ -59,7 +61,7 @@ function WaypointInput({
         />
         {value && (
           <button
-            onClick={() => { onChange(""); setResults([]); setOpen(false); }}
+            onClick={() => { onChange(""); setResults([]); setOpen(false); onClear(); }}
             className="text-gray-400 hover:text-gray-600 shrink-0"
             aria-label="Clear"
           >
@@ -133,6 +135,7 @@ export default function RoutingPanel() {
           value={startQuery}
           onChange={setStartQuery}
           onSelect={(r) => setStart({ lng: r.lng, lat: r.lat, label: r.label })}
+          onClear={() => setStart(null)}
           placeholder="Starting point…"
           pinColor="bg-green-500"
         />
@@ -142,6 +145,7 @@ export default function RoutingPanel() {
           value={endQuery}
           onChange={setEndQuery}
           onSelect={(r) => setEnd({ lng: r.lng, lat: r.lat, label: r.label })}
+          onClear={() => setEnd(null)}
           placeholder="Destination…"
           pinColor="bg-red-500"
         />
