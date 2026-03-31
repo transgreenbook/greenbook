@@ -3,6 +3,23 @@
 import { useState, useRef, useCallback } from "react";
 import { useRouteStore } from "@/store/routeStore";
 import { geocode, type GeocodingResult } from "@/lib/geocoding";
+import { supabase } from "@/lib/supabase";
+
+interface POIResult {
+  type: "poi";
+  label: string;
+  lng: number;
+  lat: number;
+}
+
+interface PlaceResult {
+  type: "place";
+  label: string;
+  lng: number;
+  lat: number;
+}
+
+type WaypointResult = POIResult | PlaceResult;
 
 function WaypointInput({
   label,
@@ -21,7 +38,8 @@ function WaypointInput({
   placeholder: string;
   pinColor: string;
 }) {
-  const [results, setResults] = useState<GeocodingResult[]>([]);
+  const [pois, setPois] = useState<POIResult[]>([]);
+  const [places, setPlaces] = useState<PlaceResult[]>([]);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -30,19 +48,48 @@ function WaypointInput({
     (q: string) => {
       onChange(q);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (q.length < 2) { setResults([]); setOpen(false); return; }
+      if (q.length < 2) { setPois([]); setPlaces([]); setOpen(false); return; }
       debounceRef.current = setTimeout(async () => {
         abortRef.current?.abort();
         abortRef.current = new AbortController();
+        const signal = abortRef.current.signal;
         try {
-          const res = await geocode(q, abortRef.current.signal);
-          setResults(res);
-          setOpen(res.length > 0);
+          const [geoRes, poiRes] = await Promise.allSettled([
+            geocode(q, signal),
+            supabase.rpc("search_pois", { query: q }),
+          ]);
+
+          if (signal.aborted) return;
+
+          const newPlaces: PlaceResult[] =
+            geoRes.status === "fulfilled"
+              ? geoRes.value.map((r) => ({ type: "place" as const, ...r }))
+              : [];
+
+          const newPois: POIResult[] =
+            poiRes.status === "fulfilled" && poiRes.value.data
+              ? poiRes.value.data.map((row: { title: string; lng: number; lat: number }) => ({
+                  type: "poi" as const,
+                  label: row.title,
+                  lng: row.lng,
+                  lat: row.lat,
+                }))
+              : [];
+
+          setPois(newPois);
+          setPlaces(newPlaces);
+          setOpen(newPois.length > 0 || newPlaces.length > 0);
         } catch { /* aborted */ }
       }, 250);
     },
     [onChange]
   );
+
+  function handleSelect(r: WaypointResult) {
+    onSelect({ label: r.label, lng: r.lng, lat: r.lat });
+    onChange(r.label);
+    setOpen(false);
+  }
 
   return (
     <div className="relative">
@@ -52,7 +99,7 @@ function WaypointInput({
           type="text"
           value={value}
           onChange={(e) => handleChange(e.target.value)}
-          onFocus={() => results.length > 0 && setOpen(true)}
+          onFocus={() => (pois.length > 0 || places.length > 0) && setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder={placeholder}
           className="flex-1 ml-2 text-sm text-gray-800 placeholder-gray-400 bg-transparent focus:outline-none"
@@ -61,7 +108,7 @@ function WaypointInput({
         />
         {value && (
           <button
-            onClick={() => { onChange(""); setResults([]); setOpen(false); onClear(); }}
+            onClick={() => { onChange(""); setPois([]); setPlaces([]); setOpen(false); onClear(); }}
             className="text-gray-400 hover:text-gray-600 shrink-0"
             aria-label="Clear"
           >
@@ -72,16 +119,39 @@ function WaypointInput({
         )}
       </div>
       {open && (
-        <div className="absolute top-full mt-0.5 left-0 right-0 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-20">
-          {results.map((r, i) => (
-            <button
-              key={i}
-              onMouseDown={() => { onSelect(r); onChange(r.label); setOpen(false); }}
-              className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-blue-50 border-b border-gray-50 last:border-0 truncate"
-            >
-              {r.label}
-            </button>
-          ))}
+        <div className="absolute top-full mt-0.5 left-0 right-0 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-20 max-h-60 overflow-y-auto">
+          {pois.length > 0 && (
+            <>
+              <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                Points of Interest
+              </div>
+              {pois.map((r, i) => (
+                <button
+                  key={`poi-${i}`}
+                  onMouseDown={() => handleSelect(r)}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-blue-50 border-b border-gray-50 truncate"
+                >
+                  {r.label}
+                </button>
+              ))}
+            </>
+          )}
+          {places.length > 0 && (
+            <>
+              <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                Places
+              </div>
+              {places.map((r, i) => (
+                <button
+                  key={`place-${i}`}
+                  onMouseDown={() => handleSelect(r)}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-blue-50 border-b border-gray-50 last:border-0 truncate"
+                >
+                  {r.label}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
