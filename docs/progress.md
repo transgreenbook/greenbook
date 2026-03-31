@@ -104,8 +104,8 @@ Hard refresh the browser. You should see:
   - Clicking an individual dot (zoom in past level 12) opens a panel on the right with the POI's title, description, coordinates, and the test-data tag
   - Clicking × closes the panel
 
-Eight phase:
-Here's what was added:                                                                                                                                                                                                                    
+Eighth phase:
+Here's what was added:
                                                                                           
   Auth:
   - /login — email/password login form
@@ -130,3 +130,26 @@ Here's what was added:
   - Clicking "Verified/Unverified" toggles map visibility instantly
   - The Edit page pulls lat/lng from the database so you can correct any test data coordinates
 
+Ninth Phase:
+POI dots will now use the color field from their category, falling back to blue if the category has no color set. Hard-refresh and any POIs with a category that has a color assigned in the admin panel should appear in that color.
+
+Tenth Phase:
+Done. To test the PWA in production mode (the service worker only runs in production builds):
+                                                                                          
+  npm run build && npm start
+
+  Then visit the app in Chrome — you should see an install icon in the address bar. On mobile, "Add to Home Screen" will appear in the browser menu. Previously-viewed POIs and map tiles will be available offline.                              
+                                            
+The service worker is disabled in development mode (process.env.NODE_ENV === "development") because it interferes with hot reloading. You're currently running npm run dev.
+
+  To test the PWA, run:
+   
+  npm run build && npm start
+
+  npm start serves the production build on port 3000, the service worker will be active, and you'll see the install prompt.
+
+To switch back to dev:
+Run 'npm run dev' again. The production build files stay in .next/ but don't affect the dev server.
+
+To kill and restart npm:
+!  fuser -k 3000/tcp && npm start 
