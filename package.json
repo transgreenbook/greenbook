@@ -13,6 +13,7 @@
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.100.1",
     "@tanstack/react-query": "^5.95.2",
+    "googleapis": "^171.4.0",
     "idb": "^8.0.3",
     "maplibre-gl": "^5.21.1",
     "next": "16.2.1",
