@@ -16,13 +16,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Greenbook",
+  title: "TransGreenbook",
   description: "Interactive US travel map",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Greenbook",
+    title: "TransGreenbook",
   },
   other: {
     "mobile-web-app-capable": "yes",

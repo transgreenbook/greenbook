@@ -28,7 +28,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-lg shadow p-8 w-full max-w-sm">
-        <h1 className="text-xl font-semibold text-gray-800 mb-6">Greenbook Admin</h1>
+        <h1 className="text-xl font-semibold text-gray-800 mb-6">TransGreenbook Admin</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
