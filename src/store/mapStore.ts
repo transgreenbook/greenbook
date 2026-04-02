@@ -23,6 +23,7 @@ interface FlyToTarget {
   lng: number;
   lat: number;
   zoom?: number;
+  bounds?: [[number, number], [number, number]];
 }
 
 interface MapStore {

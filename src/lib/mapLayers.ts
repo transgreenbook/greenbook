@@ -111,13 +111,13 @@ export const LAYERS: LayerSpecification[] = [
     layout: {
       "text-field": ["get", "STUSPS"],
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
-      "text-size": ["interpolate", ["linear"], ["zoom"], 3, 10, 6, 13],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 3, 12, 6, 16],
       "text-anchor": "center",
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
     paint: {
-      "text-color": "#334155",
+      "text-color": "#0f172a",
       "text-halo-color": "#ffffff",
       "text-halo-width": 1.5,
       "text-opacity": [
@@ -170,13 +170,13 @@ export const LAYERS: LayerSpecification[] = [
     layout: {
       "text-field": ["get", "NAME"],
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
-      "text-size": ["interpolate", ["linear"], ["zoom"], 8, 9, 11, 12],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 8, 11, 11, 14],
       "text-anchor": "center",
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
     paint: {
-      "text-color": "#475569",
+      "text-color": "#0f172a",
       "text-halo-color": "#ffffff",
       "text-halo-width": 1.5,
       "text-opacity": [
@@ -216,14 +216,14 @@ export const LAYERS: LayerSpecification[] = [
     layout: {
       "text-field": ["get", "NAME"],
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
-      "text-size": ["interpolate", ["linear"], ["zoom"], 4, 10, 8, 13],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 4, 12, 8, 15],
       "text-anchor": "left",
       "text-offset": [0.6, 0],
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
     paint: {
-      "text-color": "#1e3a5f",
+      "text-color": "#0f172a",
       "text-halo-color": "#ffffff",
       "text-halo-width": 1.5,
       "text-opacity": ["interpolate", ["linear"], ["zoom"], 4, 1, 9, 0],
@@ -253,14 +253,14 @@ export const LAYERS: LayerSpecification[] = [
     layout: {
       "text-field": ["get", "NAME"],
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
-      "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 8, 13],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 5, 12, 8, 15],
       "text-anchor": "left",
       "text-offset": [0.6, 0],
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
     paint: {
-      "text-color": "#1e3a5f",
+      "text-color": "#0f172a",
       "text-halo-color": "#ffffff",
       "text-halo-width": 1.5,
       "text-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0, 6, 1, 9, 0],
@@ -304,12 +304,12 @@ export const LAYERS: LayerSpecification[] = [
     layout: {
       "text-field": ["get", "NAME"],
       "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
-      "text-size": ["interpolate", ["linear"], ["zoom"], 9, 10, 13, 14],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 9, 12, 13, 16],
       "text-anchor": "center",
       "text-max-width": 8,
     },
     paint: {
-      "text-color": "#1e3a5f",
+      "text-color": "#0f172a",
       "text-halo-color": "#ffffff",
       "text-halo-width": 1.5,
       "text-opacity": [

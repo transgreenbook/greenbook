@@ -1,7 +1,48 @@
 import { useEffect, useRef } from "react";
 import type maplibregl from "maplibre-gl";
+import type { Geometry } from "geojson";
 import { useMapStore } from "@/store/mapStore";
 import { useRouteStore } from "@/store/routeStore";
+import stateBboxes from "@/data/state-bboxes.json";
+
+// Extract all [lng, lat] pairs from a polygon or multipolygon geometry.
+function extractCoords(geometry: Geometry): [number, number][] {
+  if (geometry.type === "Polygon") {
+    return geometry.coordinates.flat() as [number, number][];
+  }
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates.flat(2) as [number, number][];
+  }
+  return [];
+}
+
+// Compute the bounding box of all source features matching a filter.
+// Works for both vector tile (PMTiles) and GeoJSON sources.
+function sourceBounds(
+  map: maplibregl.Map,
+  source: string,
+  sourceLayer: string,
+  filter: maplibregl.FilterSpecification,
+): [[number, number], [number, number]] | null {
+  const src = map.getSource(source);
+  const opts = src?.type === "vector" ? { sourceLayer, filter } : { filter };
+  const features = map.querySourceFeatures(source, opts);
+
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  for (const f of features) {
+    for (const [lng, lat] of extractCoords(f.geometry)) {
+      if (lng < w) w = lng;
+      if (lng > e) e = lng;
+      if (lat < s) s = lat;
+      if (lat > n) n = lat;
+    }
+  }
+  if (!isFinite(w)) return null;
+  // Expand by 8% in each direction to account for tile-clipped polygon edges
+  const lngPad = (e - w) * 0.08;
+  const latPad = (n - s) * 0.08;
+  return [[w - lngPad, s - latPad], [e + lngPad, n + latPad]];
+}
 
 export function useMapClick(map: maplibregl.Map | null) {
   const setSelectedPOI    = useMapStore((s) => s.setSelectedPOI);
@@ -100,13 +141,12 @@ export function useMapClick(map: maplibregl.Map | null) {
         const statefp = props.STATEFP ?? "";
         if (!name) return;
 
-        const centroids = map.querySourceFeatures("cities-centroids");
-        const centroid  = centroids.find(
-          (f) => f.properties?.NAME === name && f.properties?.STATEFP === statefp
+        const bounds = sourceBounds(
+          map, "places", "places",
+          ["all", ["==", ["get", "NAME"], name], ["==", ["get", "STATEFP"], statefp]] as maplibregl.FilterSpecification,
         );
-        if (centroid?.geometry.type === "Point") {
-          const [lng, lat] = centroid.geometry.coordinates as [number, number];
-          flyTo({ lng, lat, zoom: 12 });
+        if (bounds) {
+          flyTo({ lng: 0, lat: 0, bounds });
         }
         setSelectedPOI(null);
         setSelectedRegion({ type: "city", name, statefp });
@@ -121,13 +161,12 @@ export function useMapClick(map: maplibregl.Map | null) {
         const fips5    = props.GEOID    ?? (statefp + countyfp);
         if (!fips5) return;
 
-        const centroids = map.querySourceFeatures("counties-centroids");
-        const centroid  = centroids.find(
-          (f) => f.properties?.STATEFP === statefp && f.properties?.COUNTYFP === countyfp
+        const bounds = sourceBounds(
+          map, "counties", "counties",
+          ["==", ["get", "GEOID"], fips5] as maplibregl.FilterSpecification,
         );
-        if (centroid?.geometry.type === "Point") {
-          const [lng, lat] = centroid.geometry.coordinates as [number, number];
-          flyTo({ lng, lat, zoom: 10 });
+        if (bounds) {
+          flyTo({ lng: 0, lat: 0, bounds });
         }
         setSelectedPOI(null);
         setSelectedRegion({ type: "county", name, fips5 });
@@ -140,11 +179,16 @@ export function useMapClick(map: maplibregl.Map | null) {
         const name      = props.NAME   ?? props.name ?? stateAbbr;
         if (!stateAbbr) return;
 
-        const centroids = map.querySourceFeatures("states-centroids");
-        const centroid  = centroids.find((f) => f.properties?.STUSPS === stateAbbr);
-        if (centroid?.geometry.type === "Point") {
-          const [lng, lat] = centroid.geometry.coordinates as [number, number];
-          flyTo({ lng, lat, zoom: 6 });
+        const bbox = (stateBboxes as unknown as Record<string, [number, number, number, number]>)[stateAbbr];
+        if (bbox) {
+          flyTo({ lng: 0, lat: 0, bounds: [[bbox[0], bbox[1]], [bbox[2], bbox[3]]] });
+        } else {
+          const centroids = map.querySourceFeatures("states-centroids");
+          const centroid  = centroids.find((f) => f.properties?.STUSPS === stateAbbr);
+          if (centroid?.geometry.type === "Point") {
+            const [lng, lat] = centroid.geometry.coordinates as [number, number];
+            flyTo({ lng, lat, zoom: 6 });
+          }
         }
         setSelectedPOI(null);
         setSelectedRegion({ type: "state", name, stateAbbr });

@@ -31,11 +31,15 @@ export default function Map() {
 
   useEffect(() => {
     if (!map || !pendingFlyTo) return;
-    map.flyTo({
-      center: [pendingFlyTo.lng, pendingFlyTo.lat],
-      zoom: pendingFlyTo.zoom ?? map.getZoom(),
-      duration: 1200,
-    });
+    if (pendingFlyTo.bounds) {
+      map.fitBounds(pendingFlyTo.bounds, { padding: 32, duration: 1200 });
+    } else {
+      map.flyTo({
+        center: [pendingFlyTo.lng, pendingFlyTo.lat],
+        zoom: pendingFlyTo.zoom ?? map.getZoom(),
+        duration: 1200,
+      });
+    }
     clearFlyTo();
   }, [map, pendingFlyTo, clearFlyTo]);
 
