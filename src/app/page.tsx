@@ -1,5 +1,6 @@
 import MapLoader from "@/components/MapLoader";
 import POIPanel from "@/components/POIPanel";
+import RegionPOIPanel from "@/components/RegionPOIPanel";
 import SearchBar from "@/components/SearchBar";
 import RoutingPanel from "@/components/RoutingPanel";
 import RouteResults from "@/components/RouteResults";
@@ -16,6 +17,7 @@ export default function Home() {
         <MapLoader />
         <SearchBar />
         <RoutingPanel />
+        <RegionPOIPanel />
         <POIPanel />
       </div>
       <RouteResults />

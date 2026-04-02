@@ -320,6 +320,32 @@ export const LAYERS: LayerSpecification[] = [
     },
   },
 
+  // --- Region selection highlights ---
+  {
+    id: "states-highlight",
+    type: "fill",
+    source: "states",
+    ...(pmtilesUrl ? { "source-layer": "states" } : {}),
+    filter: ["==", ["get", "STUSPS"], ""],
+    paint: { "fill-color": "#f59e0b", "fill-opacity": 0.3 },
+  },
+  {
+    id: "counties-highlight",
+    type: "fill",
+    source: "counties",
+    ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
+    filter: ["==", ["get", "GEOID"], ""],
+    paint: { "fill-color": "#f59e0b", "fill-opacity": 0.4 },
+  },
+  {
+    id: "cities-highlight",
+    type: "fill",
+    source: "places",
+    ...(pmtilesUrl ? { "source-layer": "places" } : {}),
+    filter: ["all", ["==", ["get", "NAME"], ""], ["==", ["get", "STATEFP"], ""]],
+    paint: { "fill-color": "#f59e0b", "fill-opacity": 0.4 },
+  },
+
   // --- Route line ---
   {
     id: "route-line",
