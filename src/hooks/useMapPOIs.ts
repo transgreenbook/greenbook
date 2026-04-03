@@ -10,6 +10,7 @@ function getBounds(map: maplibregl.Map): Bounds {
     south: b.getSouth(),
     east: b.getEast(),
     north: b.getNorth(),
+    zoom: map.getZoom(),
   };
 }
 

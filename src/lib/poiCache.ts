@@ -16,11 +16,12 @@ function getDB() {
   });
 }
 
-// Key is a stable string derived from rounded bounds
+// Key is a stable string derived from rounded bounds + zoom
 export function boundsKey(bounds: {
-  west: number; south: number; east: number; north: number;
+  west: number; south: number; east: number; north: number; zoom?: number;
 }): string {
-  return `${bounds.west},${bounds.south},${bounds.east},${bounds.north}`;
+  const z = bounds.zoom != null ? `,z${bounds.zoom}` : '';
+  return `${bounds.west},${bounds.south},${bounds.east},${bounds.north}${z}`;
 }
 
 export async function cachePOIs(

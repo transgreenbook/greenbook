@@ -17,6 +17,9 @@
  *   website_url      – Optional URL
  *   phone            – Phone number
  *   icon             – Icon slug
+ *   color            – Hex color override (falls back to category color if blank)
+ *   effect_scope     – point | city | county | state  (default: point)
+ *   prominence       – neighborhood | local | regional | national  (default: local)
  *   severity         – Integer -10 to 10 (default 0)
  *   visible_start    – ISO date e.g. 2026-06-01 (leave blank = always visible)
  *   visible_end      – ISO date e.g. 2026-08-31 (leave blank = no expiry)
@@ -48,7 +51,9 @@ function loadEnvFile(filePath) {
     const eq = trimmed.indexOf('=');
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
-    const val = trimmed.slice(eq + 1).trim();
+    const raw = trimmed.slice(eq + 1).trim();
+    // Strip trailing inline comment (space + #)
+    const val = raw.replace(/\s+#.*$/, '');
     if (!(key in process.env)) process.env[key] = val;
   }
 }
@@ -181,6 +186,9 @@ async function main() {
     website_url:      col('website_url'),
     phone:            col('phone'),
     icon:             col('icon'),
+    color:            col('color', false),
+    effect_scope:     col('effect_scope', false),
+    prominence:       col('prominence', false),
     severity:         col('severity'),
     visible_start:    col('visible_start'),
     visible_end:      col('visible_end'),
@@ -223,10 +231,12 @@ async function main() {
       website_url:      get(row, C.website_url)  || null,
       phone:            get(row, C.phone)         || null,
       icon:             get(row, C.icon)          || null,
+      color:            get(row, C.color)         || null,
+      effect_scope:     (['point','city','county','state'].includes(get(row, C.effect_scope)) ? get(row, C.effect_scope) : 'point'),
+      prominence:       (['neighborhood','local','regional','national'].includes(get(row, C.prominence)) ? get(row, C.prominence) : 'local'),
       severity:         parseSeverity(get(row, C.severity)),
       visible_start:    parseTimestamp(get(row, C.visible_start)),
       visible_end:      parseTimestamp(get(row, C.visible_end)),
-      scope:            'point',
     };
 
     const poiId = get(row, C.poi_id);

@@ -8,6 +8,7 @@ export interface Bounds {
   south: number;
   east: number;
   north: number;
+  zoom: number;
 }
 
 export interface POIProperties {
@@ -24,7 +25,7 @@ export interface POIProperties {
 // don't bust the cache and trigger a new fetch unnecessarily.
 function roundBounds(b: Bounds): Bounds {
   const r = (n: number) => Math.round(n * 1000) / 1000;
-  return { west: r(b.west), south: r(b.south), east: r(b.east), north: r(b.north) };
+  return { west: r(b.west), south: r(b.south), east: r(b.east), north: r(b.north), zoom: Math.round(b.zoom * 10) / 10 };
 }
 
 async function fetchPOIs(bounds: Bounds): Promise<FeatureCollection<Point, POIProperties>> {
@@ -32,7 +33,7 @@ async function fetchPOIs(bounds: Bounds): Promise<FeatureCollection<Point, POIPr
   const key = boundsKey(rounded);
 
   try {
-    const { data, error } = await supabase.rpc("pois_in_viewport", rounded);
+    const { data, error } = await supabase.rpc("pois_in_viewport", { ...rounded, zoom: rounded.zoom });
     if (error) throw new Error(error.message);
 
     const geojson: FeatureCollection<Point, POIProperties> = {
