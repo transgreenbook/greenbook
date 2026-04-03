@@ -98,15 +98,28 @@ const HEADERS = [
   'visible_end',
 ];
 
+async function fetchAllPOIs() {
+  const PAGE = 200;
+  let all = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('points_of_interest')
+      .select('id, title, description, long_description, geom, category_id, tags, is_verified, website_url, phone, icon, color, effect_scope, prominence, severity, visible_start, visible_end, categories(name)')
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
 async function main() {
   console.log(`Fetching POIs from database…`);
 
-  const { data: pois, error } = await supabase
-    .from('points_of_interest')
-    .select('id, title, description, long_description, geom, category_id, tags, is_verified, website_url, phone, icon, severity, visible_start, visible_end, categories(name)')
-    .order('id');
-
-  if (error) throw error;
+  const pois = await fetchAllPOIs();
   console.log(`  Found ${pois.length} POI(s).`);
 
   // Build sheet rows
