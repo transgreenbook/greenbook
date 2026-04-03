@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync-pois": "node scripts/sync-pois.mjs"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-geocoder": "^1.9.4",

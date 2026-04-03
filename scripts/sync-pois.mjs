@@ -5,15 +5,21 @@
  * Reads POI data from a Google Sheet and syncs it to Supabase.
  *
  * Expected sheet columns (header row, case-insensitive):
- *   poi_id       – DB id written back by this script. Leave blank for new rows.
- *   title        – POI name (required)
- *   description  – Short description
- *   lat          – Latitude  (required)
- *   lng          – Longitude (required)
- *   category     – Category name (must match a row in the categories table)
- *   tags         – Comma-separated tags  e.g. "food, outdoor"
- *   is_verified  – TRUE / FALSE  (controls public visibility)
- *   website_url  – Optional URL
+ *   poi_id           – DB id written back by this script. Leave blank for new rows.
+ *   title            – POI name (required)
+ *   description      – Short description
+ *   long_description – Full detail text
+ *   lat              – Latitude  (required)
+ *   lng              – Longitude (required)
+ *   category         – Category name (must match a row in the categories table)
+ *   tags             – Comma-separated tags  e.g. "food, outdoor"
+ *   is_verified      – TRUE / FALSE  (controls public visibility)
+ *   website_url      – Optional URL
+ *   phone            – Phone number
+ *   icon             – Icon slug
+ *   severity         – Integer -10 to 10 (default 0)
+ *   visible_start    – ISO date e.g. 2026-06-01 (leave blank = always visible)
+ *   visible_end      – ISO date e.g. 2026-08-31 (leave blank = no expiry)
  *
  * Run manually:  node scripts/sync-pois.mjs
  * Run via timer: systemctl --user start greenbook-sync.service
@@ -112,6 +118,19 @@ function parseTags(val) {
   return tags.length ? tags : null;
 }
 
+function parseTimestamp(val) {
+  if (!val?.trim()) return null;
+  const d = new Date(val.trim());
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function parseSeverity(val) {
+  if (!val?.trim()) return 0;
+  const n = parseInt(val.trim(), 10);
+  if (isNaN(n)) return 0;
+  return Math.max(-10, Math.min(10, n));
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -142,38 +161,44 @@ async function main() {
   const [headerRow, ...dataRows] = rows;
   const headers = headerRow.map(h => String(h).trim().toLowerCase());
 
-  const col = (name) => {
+  // Required columns throw; optional columns return -1
+  const col = (name, required = true) => {
     const idx = headers.indexOf(name.toLowerCase());
-    if (idx === -1) throw new Error(`Sheet is missing required column: "${name}"`);
+    if (idx === -1 && required) throw new Error(`Sheet is missing required column: "${name}"`);
     return idx;
   };
 
-  // Resolve column indices once
   const C = {
-    poi_id:      col('poi_id'),
-    title:       col('title'),
-    description: col('description'),
-    lat:         col('lat'),
-    lng:         col('lng'),
-    category:    col('category'),
-    tags:        col('tags'),
-    is_verified: col('is_verified'),
-    website_url: col('website_url'),
+    poi_id:           col('poi_id'),
+    title:            col('title'),
+    description:      col('description'),
+    long_description: col('long_description'),
+    lat:              col('lat'),
+    lng:              col('lng'),
+    category:         col('category'),
+    tags:             col('tags'),
+    is_verified:      col('is_verified'),
+    website_url:      col('website_url'),
+    phone:            col('phone'),
+    icon:             col('icon'),
+    severity:         col('severity'),
+    visible_start:    col('visible_start'),
+    visible_end:      col('visible_end'),
   };
 
-  const get = (row, c) => String(row[c] ?? '').trim();
+  const get = (row, c) => c === -1 ? '' : String(row[c] ?? '').trim();
 
   // ── Process rows ─────────────────────────────────────────────────────────
   let upserted = 0;
   let inserted = 0;
-  const presentSheetIds = new Set(); // DB ids seen in this sheet run
-  const writebacks = [];             // poi_id values to write back for new rows
+  const presentSheetIds = new Set();
+  const writebacks = [];
 
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
     const sheetRowNumber = i + 2; // 1-based; row 1 is the header
 
-    const title = get(row, C.title);
+    const title  = get(row, C.title);
     const latStr = get(row, C.lat);
     const lngStr = get(row, C.lng);
 
@@ -189,13 +214,19 @@ async function main() {
     const categoryName = get(row, C.category);
     const poi = {
       title,
-      description: get(row, C.description) || null,
-      geom:        `SRID=4326;POINT(${lng} ${lat})`,   // longitude first
-      category_id: categoryName ? (categoryMap.get(categoryName.toLowerCase()) ?? null) : null,
-      tags:        parseTags(get(row, C.tags)),
-      is_verified: parseBool(get(row, C.is_verified)),
-      website_url: get(row, C.website_url) || null,
-      scope:       'point',
+      description:      get(row, C.description)      || null,
+      long_description: get(row, C.long_description) || null,
+      geom:             `SRID=4326;POINT(${lng} ${lat})`,
+      category_id:      categoryName ? (categoryMap.get(categoryName.toLowerCase()) ?? null) : null,
+      tags:             parseTags(get(row, C.tags)),
+      is_verified:      parseBool(get(row, C.is_verified)),
+      website_url:      get(row, C.website_url)  || null,
+      phone:            get(row, C.phone)         || null,
+      icon:             get(row, C.icon)          || null,
+      severity:         parseSeverity(get(row, C.severity)),
+      visible_start:    parseTimestamp(get(row, C.visible_start)),
+      visible_end:      parseTimestamp(get(row, C.visible_end)),
+      scope:            'point',
     };
 
     const poiId = get(row, C.poi_id);
@@ -228,13 +259,11 @@ async function main() {
       const newId = String(newRow.id);
       presentSheetIds.add(newId);
 
-      // Set sheet_id now that we have the DB id
       await supabase
         .from('points_of_interest')
         .update({ sheet_id: newId })
         .eq('id', newRow.id);
 
-      // Queue write-back to sheet
       writebacks.push({
         range: `${GOOGLE_SHEET_TAB}!${colLetter(C.poi_id)}${sheetRowNumber}`,
         values: [[newId]],
