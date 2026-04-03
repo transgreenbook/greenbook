@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "sync-pois": "node scripts/sync-pois.mjs",
-    "seed-sheet": "node scripts/seed-sheet-from-db.mjs"
+    "seed-sheet": "node scripts/seed-sheet-from-db.mjs",
+    "import-venues": "node scripts/import-lgbtq-venues.mjs"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-geocoder": "^1.9.4",
