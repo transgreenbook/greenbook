@@ -57,12 +57,14 @@ const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KE
   auth: { persistSession: false },
 });
 
-const API_BASE   = 'https://www.refugerestrooms.org/api/v1/restrooms';
-const PER_PAGE   = 100;
-const MIN_RATING = 0.75;
-const SOURCE     = 'refuge_restrooms';
-const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 10_000;
+const API_BASE        = 'https://www.refugerestrooms.org/api/v1/restrooms';
+const PER_PAGE        = 100;
+const MIN_RATING      = 0.75;
+const SOURCE          = 'refuge_restrooms';
+const MAX_RETRIES     = 5;
+const RETRY_DELAY_MS  = 10_000;
+const NOMINATIM_BASE  = 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_UA    = 'greenbook-poi-importer/1.0 (zerosquaredio@gmail.com)';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -84,6 +86,26 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Nominatim requires ≤1 req/sec — track last call time.
+let lastGeocode = 0;
+
+async function geocode(street, city, state, country) {
+  // Enforce 1 req/sec
+  const wait = 1000 - (Date.now() - lastGeocode);
+  if (wait > 0) await sleep(wait);
+  lastGeocode = Date.now();
+
+  const q = [street, city, state, country].filter(Boolean).join(', ');
+  const qs = new URLSearchParams({ q, format: 'json', limit: 1 }).toString();
+  const res = await fetch(`${NOMINATIM_BASE}?${qs}`, {
+    headers: { 'User-Agent': NOMINATIM_UA },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.length) return null;
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+}
+
 async function fetchPageWithRetry(url) {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     const res = await fetch(url);
@@ -100,18 +122,20 @@ async function fetchPageWithRetry(url) {
   }
 }
 
-function toPoiRecord(r) {
+function toPoiRecord(r, coords = null) {
   const tags = ['unisex'];
   if (r.accessible)     tags.push('ada-accessible');
   if (r.changing_table) tags.push('changing-table');
 
+  const lat = coords ? coords.lat : r.latitude;
+  const lng = coords ? coords.lng : r.longitude;
   const rating = computeRating(r);
 
   return {
     title:            `RefugeRestroom - ${r.name}`,
     description:      r.directions || null,
     long_description: r.comment    || null,
-    geom:             `SRID=4326;POINT(${r.longitude} ${r.latitude})`,
+    geom:             `SRID=4326;POINT(${lng} ${lat})`,
     tags,
     is_verified:      r.approved === true && meetsRating(r),
     effect_scope:     'point',
@@ -120,10 +144,20 @@ function toPoiRecord(r) {
       upvotes:   r.upvote,
       downvotes: r.downvote,
       ...(rating !== null && { rating }),
+      ...(coords ? { geocoded: true } : {}),
     },
     source:    SOURCE,
     source_id: String(r.id),
   };
+}
+
+function hasValidCoords(r) {
+  const lat = parseFloat(r.latitude);
+  const lng = parseFloat(r.longitude);
+  return !isNaN(lat) && !isNaN(lng) &&
+    lat >= -90 && lat <= 90 &&
+    lng >= -180 && lng <= 180 &&
+    (lat !== 0 || lng !== 0);
 }
 
 // Upsert a batch of raw API records into Supabase.
@@ -131,7 +165,16 @@ function toPoiRecord(r) {
 async function upsertBatch(records, existingMap, counters, seenIds = null) {
   for (const r of records) {
     if (!meetsRating(r)) continue;
-    const poi = toPoiRecord(r);
+    let coords = null;
+    if (!hasValidCoords(r)) {
+      coords = await geocode(r.street, r.city, r.state, r.country);
+      if (!coords) {
+        counters.skipped = (counters.skipped ?? 0) + 1;
+        continue;
+      }
+      counters.geocoded = (counters.geocoded ?? 0) + 1;
+    }
+    const poi = toPoiRecord(r, coords);
     seenIds?.add(poi.source_id);
     const existingId = existingMap.get(poi.source_id);
 
@@ -195,7 +238,7 @@ async function main() {
 
       console.log(`  Page ${page} fetched (${data.length} records), upserting…`);
       await upsertBatch(data, existingMap, counters, seenIds);
-      console.log(`    → inserted: ${counters.inserted}  updated: ${counters.updated}  failed: ${counters.failed}`);
+      console.log(`    → inserted: ${counters.inserted}  updated: ${counters.updated}  geocoded: ${counters.geocoded ?? 0}  skipped: ${counters.skipped ?? 0}  failed: ${counters.failed}`);
 
       if (data.length < PER_PAGE) break;
       page++;
