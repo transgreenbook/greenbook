@@ -9,6 +9,8 @@
  * Modes:
  *   --full   Paginate through all unisex restrooms and upsert everything.
  *            Use this for the initial import or a periodic full refresh.
+ *            Pages are upserted as they arrive so progress is never lost
+ *            if the API goes down mid-run.
  *   (default) Fetch records created or updated since yesterday and upsert
  *            only those. Use this for the daily cron.
  *
@@ -55,10 +57,12 @@ const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KE
   auth: { persistSession: false },
 });
 
-const API_BASE    = 'https://www.refugerestrooms.org/api/v1/restrooms';
-const PER_PAGE    = 100;
-const MIN_RATING  = 0.75;
-const SOURCE      = 'refuge_restrooms';
+const API_BASE   = 'https://www.refugerestrooms.org/api/v1/restrooms';
+const PER_PAGE   = 100;
+const MIN_RATING = 0.75;
+const SOURCE     = 'refuge_restrooms';
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 10_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,7 +70,7 @@ const SOURCE      = 'refuge_restrooms';
 
 function meetsRating(r) {
   const total = r.upvote + r.downvote;
-  if (total === 0) return true; // unrated — include by default
+  if (total === 0) return true;
   return r.upvote / total >= MIN_RATING;
 }
 
@@ -76,24 +80,24 @@ function computeRating(r) {
   return Math.round((r.upvote / total) * 100) / 100;
 }
 
-async function fetchPage(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`API error ${res.status}: ${url}`);
-  return res.json();
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchAllPages(endpoint, params = {}) {
-  const results = [];
-  let page = 1;
-  while (true) {
-    const qs = new URLSearchParams({ ...params, per_page: PER_PAGE, page }).toString();
-    const data = await fetchPage(`${API_BASE}${endpoint}?${qs}`);
-    if (!Array.isArray(data) || data.length === 0) break;
-    results.push(...data);
-    if (data.length < PER_PAGE) break;
-    page++;
+async function fetchPageWithRetry(url) {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) return res.json();
+    if (res.status === 503 || res.status === 429) {
+      if (attempt < MAX_RETRIES) {
+        const wait = RETRY_DELAY_MS * attempt;
+        console.warn(`  API ${res.status} on attempt ${attempt}/${MAX_RETRIES}, retrying in ${wait / 1000}s…`);
+        await sleep(wait);
+        continue;
+      }
+    }
+    throw new Error(`API error ${res.status}: ${url}`);
   }
-  return results;
 }
 
 function toPoiRecord(r) {
@@ -113,13 +117,50 @@ function toPoiRecord(r) {
     effect_scope:     'point',
     is_user_submitted: false,
     attributes: {
-      upvotes:  r.upvote,
+      upvotes:   r.upvote,
       downvotes: r.downvote,
       ...(rating !== null && { rating }),
     },
     source:    SOURCE,
     source_id: String(r.id),
   };
+}
+
+// Upsert a batch of raw API records into Supabase.
+// seenIds, if provided, will be populated with every source_id processed.
+async function upsertBatch(records, existingMap, counters, seenIds = null) {
+  for (const r of records) {
+    if (!meetsRating(r)) continue;
+    const poi = toPoiRecord(r);
+    seenIds?.add(poi.source_id);
+    const existingId = existingMap.get(poi.source_id);
+
+    if (existingId) {
+      const { error } = await supabase
+        .from('points_of_interest')
+        .update(poi)
+        .eq('id', existingId);
+      if (error) {
+        console.warn(`  Update failed for source_id ${poi.source_id}: ${error.message}`);
+        counters.failed++;
+      } else {
+        counters.updated++;
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('points_of_interest')
+        .insert(poi)
+        .select('id, source_id')
+        .single();
+      if (error) {
+        console.warn(`  Insert failed for source_id ${poi.source_id}: ${error.message}`);
+        counters.failed++;
+      } else {
+        existingMap.set(data.source_id, data.id);
+        counters.inserted++;
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -130,78 +171,74 @@ async function main() {
   const isFullImport = process.argv.includes('--full');
   console.log(`Starting Refuge Restrooms import (${isFullImport ? 'full' : 'daily'})…`);
 
-  // ── Fetch from API ───────────────────────────────────────────────────────
-  let raw;
+  // ── Load existing source_ids up front ────────────────────────────────────
+  console.log('  Loading existing refuge_restrooms records from DB…');
+  const { data: existing, error: fetchErr } = await supabase
+    .from('points_of_interest')
+    .select('id, source_id')
+    .eq('source', SOURCE);
+  if (fetchErr) throw fetchErr;
+  const existingMap = new Map((existing ?? []).map(r => [r.source_id, r.id]));
+  console.log(`  ${existingMap.size} already in DB.`);
+
+  const counters = { inserted: 0, updated: 0, failed: 0 };
+
+  // ── Full import: fetch + upsert page by page, then prune deletions ──────────
   if (isFullImport) {
-    console.log('  Fetching all unisex restrooms…');
-    raw = await fetchAllPages('', { unisex: 'true' });
+    const seenIds = new Set();
+    console.log('  Fetching and upserting all unisex restrooms page by page…');
+    let page = 1;
+    while (true) {
+      const qs = new URLSearchParams({ unisex: 'true', per_page: PER_PAGE, page }).toString();
+      const data = await fetchPageWithRetry(`${API_BASE}?${qs}`);
+      if (!Array.isArray(data) || data.length === 0) break;
+
+      console.log(`  Page ${page} fetched (${data.length} records), upserting…`);
+      await upsertBatch(data, existingMap, counters, seenIds);
+      console.log(`    → inserted: ${counters.inserted}  updated: ${counters.updated}  failed: ${counters.failed}`);
+
+      if (data.length < PER_PAGE) break;
+      page++;
+    }
+
+    // ── Prune records no longer in the API ─────────────────────────────────
+    const staleIds = [...existingMap.keys()].filter(sid => !seenIds.has(sid));
+    if (staleIds.length > 0) {
+      console.log(`  Pruning ${staleIds.length} record(s) no longer in the API…`);
+      const { error } = await supabase
+        .from('points_of_interest')
+        .delete()
+        .eq('source', SOURCE)
+        .in('source_id', staleIds);
+      if (error) console.warn(`  Prune failed: ${error.message}`);
+      else console.log(`  Pruned ${staleIds.length} stale record(s).`);
+    } else {
+      console.log('  No stale records to prune.');
+    }
+
+  // ── Daily update: fetch all updated records, then upsert ─────────────────
   } else {
     const yesterday = new Date(Date.now() - 86_400_000);
     const day   = yesterday.getUTCDate();
     const month = yesterday.getUTCMonth() + 1;
     const year  = yesterday.getUTCFullYear();
     console.log(`  Fetching records updated since ${year}-${month}-${day}…`);
-    raw = await fetchAllPages('/by_date', {
-      unisex:  'true',
-      updated: 'true',
-      day, month, year,
-    });
-  }
 
-  console.log(`  Fetched ${raw.length} record(s) from API.`);
-
-  // ── Filter by rating ─────────────────────────────────────────────────────
-  const filtered = raw.filter(meetsRating);
-  console.log(`  ${filtered.length} record(s) meet the ≥${MIN_RATING * 100}% rating threshold.`);
-
-  if (filtered.length === 0) {
-    console.log('Nothing to import.');
-    return;
-  }
-
-  // ── Load existing source_ids so we know insert vs update ─────────────────
-  const { data: existing, error: fetchErr } = await supabase
-    .from('points_of_interest')
-    .select('id, source_id')
-    .eq('source', SOURCE);
-  if (fetchErr) throw fetchErr;
-
-  const existingMap = new Map((existing ?? []).map(r => [r.source_id, r.id]));
-
-  // ── Upsert ───────────────────────────────────────────────────────────────
-  let inserted = 0;
-  let updated  = 0;
-  let failed   = 0;
-
-  for (const r of filtered) {
-    const poi = toPoiRecord(r);
-    const existingId = existingMap.get(poi.source_id);
-
-    if (existingId) {
-      const { error } = await supabase
-        .from('points_of_interest')
-        .update(poi)
-        .eq('id', existingId);
-      if (error) {
-        console.warn(`  Update failed for source_id ${poi.source_id}: ${error.message}`);
-        failed++;
-      } else {
-        updated++;
-      }
-    } else {
-      const { error } = await supabase
-        .from('points_of_interest')
-        .insert(poi);
-      if (error) {
-        console.warn(`  Insert failed for source_id ${poi.source_id}: ${error.message}`);
-        failed++;
-      } else {
-        inserted++;
-      }
+    let page = 1;
+    let total = 0;
+    while (true) {
+      const qs = new URLSearchParams({ unisex: 'true', updated: 'true', day, month, year, per_page: PER_PAGE, page }).toString();
+      const data = await fetchPageWithRetry(`${API_BASE}/by_date?${qs}`);
+      if (!Array.isArray(data) || data.length === 0) break;
+      total += data.length;
+      await upsertBatch(data, existingMap, counters);
+      if (data.length < PER_PAGE) break;
+      page++;
     }
+    console.log(`  Fetched ${total} record(s) from API.`);
   }
 
-  console.log(`  Inserted: ${inserted}  Updated: ${updated}  Failed: ${failed}`);
+  console.log(`  Inserted: ${counters.inserted}  Updated: ${counters.updated}  Failed: ${counters.failed}`);
   console.log('Done.');
 }
 
