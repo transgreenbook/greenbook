@@ -96,6 +96,9 @@ const HEADERS = [
   'severity',
   'visible_start',
   'visible_end',
+  'state_abbr',
+  'county_name',
+  'city_name',
 ];
 
 async function fetchAllPOIs() {
@@ -105,7 +108,7 @@ async function fetchAllPOIs() {
   while (true) {
     const { data, error } = await supabase
       .from('points_of_interest')
-      .select('id, title, description, long_description, geom, category_id, tags, is_verified, website_url, phone, icon, color, effect_scope, prominence, severity, visible_start, visible_end, categories(name)')
+      .select('id, title, description, long_description, geom, category_id, tags, is_verified, website_url, phone, icon, color, effect_scope, prominence, severity, visible_start, visible_end, state_abbr, county_name, city_name, categories(name)')
       .order('id')
       .range(from, from + PAGE - 1);
     if (error) throw error;
@@ -147,6 +150,9 @@ async function main() {
       p.severity != null ? String(p.severity) : '0',
       p.visible_start ? p.visible_start.slice(0, 10) : '',
       p.visible_end   ? p.visible_end.slice(0, 10)   : '',
+      p.state_abbr  ?? '',
+      p.county_name ?? '',
+      p.city_name   ?? '',
     ];
   });
 

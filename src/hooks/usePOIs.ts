@@ -19,6 +19,7 @@ export interface POIProperties {
   is_verified: boolean;
   tags: string[] | null;
   color: string | null;
+  icon: string | null;
 }
 
 // Rounds bounds to 3 decimal places (~110m precision) so that small pans

@@ -153,3 +153,12 @@ Run 'npm run dev' again. The production build files stay in .next/ but don't aff
 
 To kill and restart npm:
 !  fuser -k 3000/tcp && npm start 
+
+Eleventh Phase - Here's what's working now:                                                         
+                                                                                          
+  - Point POIs (nightlife venues etc.) — trigger fills in state_abbr, county_name,         
+  city_name automatically from the lat/lng                                                 
+  - Region POIs (like the bathroom laws) — enter a state name or abbreviation (and         
+  optionally county/city), trigger resolves the centroid and fills everything else in      
+  - 4 warning POIs inserted for FL, ID, UT, KS with severity 8, tagged legal, trans-safety,
+   bathroom 
