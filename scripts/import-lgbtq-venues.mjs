@@ -239,6 +239,11 @@ async function main() {
   }
 
   console.log(`\nDone. ${inserted} upserted, ${skipped} skipped (no name/coords), ${failed} failed.`);
+
+  // Sync the ID sequence in case rows were inserted with explicit IDs (e.g. via spreadsheet seed).
+  if (!DRY_RUN) {
+    await supabase.rpc('sync_poi_sequence').catch(() => null);
+  }
 }
 
 main().catch(err => {

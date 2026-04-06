@@ -51,4 +51,8 @@ supabase db query "
 "
 
 echo ""
+echo "==> Step 4: Syncing ID sequence…"
+supabase db query "SELECT sync_poi_sequence();"
+
+echo ""
 echo "Done. Local DB is ready."
