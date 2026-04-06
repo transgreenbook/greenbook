@@ -21,14 +21,24 @@ export default async function EditPOIPage({
       <h1 className="text-lg font-semibold text-gray-800 mb-6">Edit POI</h1>
       <POIForm
         initialData={{
-          id: poi.id,
-          title: poi.title,
-          description: poi.description ?? "",
-          lat: String(poi.lat),
-          lng: String(poi.lng),
-          category_id: poi.category_id ? String(poi.category_id) : "",
-          is_verified: poi.is_verified,
-          tags: poi.tags ? poi.tags.join(", ") : "",
+          id:               poi.id,
+          title:            poi.title,
+          description:      poi.description ?? "",
+          long_description: poi.long_description ?? "",
+          lat:              String(poi.lat),
+          lng:              String(poi.lng),
+          category_id:      poi.category_id ? String(poi.category_id) : "",
+          is_verified:      poi.is_verified,
+          tags:             poi.tags ? poi.tags.join(", ") : "",
+          website_url:      poi.website_url ?? "",
+          phone:            poi.phone ?? "",
+          icon:             poi.icon ?? "",
+          color:            poi.color ?? "",
+          effect_scope:     poi.effect_scope ?? "point",
+          prominence:       poi.prominence ?? "local",
+          severity:         poi.severity != null ? String(poi.severity) : "",
+          visible_start:    poi.visible_start ?? "",
+          visible_end:      poi.visible_end ?? "",
         }}
       />
     </div>

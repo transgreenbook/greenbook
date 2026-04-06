@@ -9,11 +9,21 @@ type Category = { id: number; name: string };
 type POIFormData = {
   title: string;
   description: string;
+  long_description: string;
   lat: string;
   lng: string;
   category_id: string;
   is_verified: boolean;
   tags: string;
+  website_url: string;
+  phone: string;
+  icon: string;
+  color: string;
+  effect_scope: string;
+  prominence: string;
+  severity: string;
+  visible_start: string;
+  visible_end: string;
 };
 
 type Props = {
@@ -23,11 +33,21 @@ type Props = {
 const EMPTY: POIFormData = {
   title: "",
   description: "",
+  long_description: "",
   lat: "",
   lng: "",
   category_id: "",
   is_verified: false,
   tags: "",
+  website_url: "",
+  phone: "",
+  icon: "",
+  color: "",
+  effect_scope: "point",
+  prominence: "local",
+  severity: "",
+  visible_start: "",
+  visible_end: "",
 };
 
 export default function POIForm({ initialData }: Props) {
@@ -49,7 +69,7 @@ export default function POIForm({ initialData }: Props) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setSaving(true);
@@ -64,17 +84,24 @@ export default function POIForm({ initialData }: Props) {
     }
 
     const payload = {
-      title: form.title.trim(),
-      description: form.description.trim() || null,
-      geom: `POINT(${lng} ${lat})`,
-      category_id: form.category_id ? parseInt(form.category_id) : null,
-      is_verified: form.is_verified,
-      tags: form.tags
-        ? form.tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean)
+      title:            form.title.trim(),
+      description:      form.description.trim() || null,
+      long_description: form.long_description.trim() || null,
+      geom:             `POINT(${lng} ${lat})`,
+      category_id:      form.category_id ? parseInt(form.category_id) : null,
+      is_verified:      form.is_verified,
+      tags:             form.tags
+        ? form.tags.split(",").map((t) => t.trim()).filter(Boolean)
         : null,
+      website_url:  form.website_url.trim() || null,
+      phone:        form.phone.trim() || null,
+      icon:         form.icon.trim() || null,
+      color:        form.color.trim() || null,
+      effect_scope: form.effect_scope || "point",
+      prominence:   form.prominence || "local",
+      severity:     form.severity !== "" ? parseInt(form.severity) : null,
+      visible_start: form.visible_start || null,
+      visible_end:   form.visible_end || null,
     };
 
     let err;
@@ -98,38 +125,48 @@ export default function POIForm({ initialData }: Props) {
     }
   }
 
+  const inputCls = "w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const labelCls = "block text-sm font-medium text-gray-700 mb-1";
+
   return (
-    <form onSubmit={handleSubmit} className="max-w-lg space-y-4">
+    <form onSubmit={handleSubmit} className="max-w-2xl space-y-5">
+
+      {/* ── Basic info ─────────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Title *
-        </label>
+        <label className={labelCls}>Title *</label>
         <input
           type="text"
           value={form.title}
           onChange={(e) => set("title", e.target.value)}
           required
-          className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={inputCls}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Description
-        </label>
+        <label className={labelCls}>Description</label>
         <textarea
           value={form.description}
           onChange={(e) => set("description", e.target.value)}
-          rows={3}
-          className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows={2}
+          className={inputCls}
         />
       </div>
 
+      <div>
+        <label className={labelCls}>Long description</label>
+        <textarea
+          value={form.long_description}
+          onChange={(e) => set("long_description", e.target.value)}
+          rows={4}
+          className={inputCls}
+        />
+      </div>
+
+      {/* ── Location ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Latitude *
-          </label>
+          <label className={labelCls}>Latitude *</label>
           <input
             type="number"
             step="any"
@@ -137,13 +174,11 @@ export default function POIForm({ initialData }: Props) {
             onChange={(e) => set("lat", e.target.value)}
             required
             placeholder="37.7749"
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={inputCls}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Longitude *
-          </label>
+          <label className={labelCls}>Longitude *</label>
           <input
             type="number"
             step="any"
@@ -151,43 +186,164 @@ export default function POIForm({ initialData }: Props) {
             onChange={(e) => set("lng", e.target.value)}
             required
             placeholder="-122.4194"
-            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      {/* ── Classification ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>Category</label>
+          <select
+            value={form.category_id}
+            onChange={(e) => set("category_id", e.target.value)}
+            className={inputCls}
+          >
+            <option value="">None</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>Scope</label>
+          <select
+            value={form.effect_scope}
+            onChange={(e) => set("effect_scope", e.target.value)}
+            className={inputCls}
+          >
+            <option value="point">Point</option>
+            <option value="city">City</option>
+            <option value="county">County</option>
+            <option value="state">State</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>Prominence</label>
+          <select
+            value={form.prominence}
+            onChange={(e) => set("prominence", e.target.value)}
+            className={inputCls}
+          >
+            <option value="neighborhood">Neighborhood</option>
+            <option value="local">Local</option>
+            <option value="regional">Regional</option>
+            <option value="national">National</option>
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>
+            Severity{" "}
+            <span className="text-gray-400 font-normal">(0–10, warnings only)</span>
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={10}
+            value={form.severity}
+            onChange={(e) => set("severity", e.target.value)}
+            placeholder="—"
+            className={inputCls}
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Category
-        </label>
-        <select
-          value={form.category_id}
-          onChange={(e) => set("category_id", e.target.value)}
-          className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">None</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Tags{" "}
-          <span className="text-gray-400 font-normal">(comma-separated)</span>
+        <label className={labelCls}>
+          Tags <span className="text-gray-400 font-normal">(comma-separated)</span>
         </label>
         <input
           type="text"
           value={form.tags}
           onChange={(e) => set("tags", e.target.value)}
           placeholder="hiking, waterfall, national-park"
-          className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={inputCls}
         />
       </div>
 
+      {/* ── Contact ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>Website URL</label>
+          <input
+            type="url"
+            value={form.website_url}
+            onChange={(e) => set("website_url", e.target.value)}
+            placeholder="https://example.com"
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Phone</label>
+          <input
+            type="text"
+            value={form.phone}
+            onChange={(e) => set("phone", e.target.value)}
+            placeholder="+1 555-555-5555"
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      {/* ── Appearance ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>Icon slug</label>
+          <input
+            type="text"
+            value={form.icon}
+            onChange={(e) => set("icon", e.target.value)}
+            placeholder="star"
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Color override</label>
+          <div className="flex gap-2 items-center">
+            <input
+              type="color"
+              value={form.color || "#3b82f6"}
+              onChange={(e) => set("color", e.target.value)}
+              className="h-9 w-12 rounded border border-gray-300 cursor-pointer p-0.5"
+            />
+            <input
+              type="text"
+              value={form.color}
+              onChange={(e) => set("color", e.target.value)}
+              placeholder="(use category color)"
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Visibility window ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>Visible from</label>
+          <input
+            type="date"
+            value={form.visible_start}
+            onChange={(e) => set("visible_start", e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Visible until</label>
+          <input
+            type="date"
+            value={form.visible_end}
+            onChange={(e) => set("visible_end", e.target.value)}
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      {/* ── Status ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
         <input
           type="checkbox"
@@ -197,8 +353,7 @@ export default function POIForm({ initialData }: Props) {
           className="rounded border-gray-300"
         />
         <label htmlFor="is_verified" className="text-sm font-medium text-gray-700">
-          Verified{" "}
-          <span className="text-gray-400 font-normal">(visible on map)</span>
+          Verified <span className="text-gray-400 font-normal">(visible on map)</span>
         </label>
       </div>
 
