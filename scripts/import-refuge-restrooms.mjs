@@ -148,6 +148,7 @@ function toPoiRecord(r, coords = null) {
     },
     source:    SOURCE,
     source_id: String(r.id),
+    icon:      'poi-restroom',
   };
 }
 
@@ -214,14 +215,22 @@ async function main() {
   const isFullImport = process.argv.includes('--full');
   console.log(`Starting Refuge Restrooms import (${isFullImport ? 'full' : 'daily'})…`);
 
-  // ── Load existing source_ids up front ────────────────────────────────────
+  // ── Load ALL existing source_ids (paginate past Supabase's 1000-row default) ─
   console.log('  Loading existing refuge_restrooms records from DB…');
-  const { data: existing, error: fetchErr } = await supabase
-    .from('points_of_interest')
-    .select('id, source_id')
-    .eq('source', SOURCE);
-  if (fetchErr) throw fetchErr;
-  const existingMap = new Map((existing ?? []).map(r => [r.source_id, r.id]));
+  const existingMap = new Map();
+  let from = 0;
+  const LOAD_PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('points_of_interest')
+      .select('id, source_id')
+      .eq('source', SOURCE)
+      .range(from, from + LOAD_PAGE - 1);
+    if (error) throw error;
+    for (const r of (data ?? [])) existingMap.set(r.source_id, r.id);
+    if (!data || data.length < LOAD_PAGE) break;
+    from += LOAD_PAGE;
+  }
   console.log(`  ${existingMap.size} already in DB.`);
 
   const counters = { inserted: 0, updated: 0, failed: 0 };

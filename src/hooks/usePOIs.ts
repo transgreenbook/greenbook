@@ -50,6 +50,7 @@ async function fetchPOIs(bounds: Bounds): Promise<FeatureCollection<Point, POIPr
           is_verified: row.is_verified,
           tags: row.tags,
           color: row.color ?? null,
+          icon: row.icon ?? null,
         },
       })),
     };

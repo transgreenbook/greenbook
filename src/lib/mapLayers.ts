@@ -445,12 +445,12 @@ export const LAYERS: LayerSpecification[] = [
     },
   },
 
-  // --- Individual POI icons (zoom 12+) ---
+  // --- Individual POI circles — POIs without a named icon (zoom 12+) ---
   {
     id: "pois-unclustered",
     type: "circle",
     source: "pois",
-    filter: ["!", ["has", "point_count"]],
+    filter: ["all", ["!", ["has", "point_count"]], ["any", ["!", ["has", "icon"]], ["==", ["get", "icon"], null]]],
     paint: {
       "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
       "circle-radius": 6,
@@ -460,6 +460,20 @@ export const LAYERS: LayerSpecification[] = [
       "circle-stroke-opacity": 1,
     },
   },
+
+  // --- Individual POI symbols — POIs with a named icon (zoom 12+) ---
+  {
+    id: "pois-unclustered-icons",
+    type: "symbol",
+    source: "pois",
+    filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "icon"], null]],
+    layout: {
+      "icon-image": ["get", "icon"],
+      "icon-size": 1,
+      "icon-allow-overlap": true,
+      "icon-anchor": "bottom",
+    },
+  } as LayerSpecification,
 ];
 
 // ---------------------------------------------------------------------------

@@ -49,4 +49,5 @@ Prominence controls when a POI becomes visible as the user zooms in.
 3. **Remove a POI** — delete the row (or set `is_verified` to `FALSE` to hide it without deleting).
 4. **Sync** — run `npm run sync-pois` to push changes to the database. New rows get their `poi_id` written back automatically.
 
-To export all current database records into the sheet (e.g. after a direct DB edit), run `npm run seed-sheet`. This overwrites the sheet content with the current database state.
+To export all current database records into the sheet (e.g. after a direct DB edit), run `npm run seed-sheet`. This overwrites the existing sheet content with the current database state.
+Edit the contents, then run `npm run sync-pois` to repopulate the database with your modified POIs.

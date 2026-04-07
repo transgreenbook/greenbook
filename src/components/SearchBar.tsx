@@ -130,6 +130,7 @@ export default function SearchBar() {
         is_verified: result.is_verified,
         tags: result.tags ?? null,
         color: null,
+        icon: null,
         lng: result.lng,
         lat: result.lat,
       });

@@ -30,6 +30,7 @@ export default function RegionPOIPanel() {
       is_verified: poi.is_verified,
       tags: poi.tags,
       color: poi.color,
+      icon: poi.icon ?? null,
       lng: poi.lng,
       lat: poi.lat,
     });

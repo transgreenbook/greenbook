@@ -105,6 +105,7 @@ export function useRouteLayer(map: maplibregl.Map | null) {
               is_verified: row.is_verified,
               tags: row.tags,
               color: row.color,
+              icon: row.icon ?? null,
               lng: row.lng,
               lat: row.lat,
             }))

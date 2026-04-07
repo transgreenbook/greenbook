@@ -1,5 +1,10 @@
 # Map Icons
 
+### Icon Sources
+Free use:
+https://uxwing.com/transgender-symbol-icon/
+
+
 ## POI Category Icons
 
 The `categories` table already has an `icon_slug` field designed for this.
