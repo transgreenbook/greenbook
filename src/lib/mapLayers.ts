@@ -49,7 +49,7 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
     cluster: true,
-    clusterMaxZoom: 14,
+    clusterMaxZoom: 12,
     clusterRadius: 50,
   },
   // Route sources — data is swapped in by useRouteLayer.
@@ -450,7 +450,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "pois-unclustered",
     type: "circle",
     source: "pois",
-    filter: ["all", ["!", ["has", "point_count"]], ["any", ["!", ["has", "icon"]], ["==", ["get", "icon"], null]]],
+    filter: ["!", ["has", "point_count"]],
     paint: {
       "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
       "circle-radius": 6,
@@ -466,7 +466,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "pois-unclustered-icons",
     type: "symbol",
     source: "pois",
-    filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "icon"], null]],
+    filter: ["all", ["!", ["has", "point_count"]], ["to-boolean", ["get", "icon"]]],
     layout: {
       "icon-image": ["get", "icon"],
       "icon-size": 1,

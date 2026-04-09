@@ -19,6 +19,7 @@ const CONUS_BOUNDS: [[number, number], [number, number]] = [
 export default function Map() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<maplibregl.Map | null>(null);
+  const [zoom, setZoom] = useState<number | null>(null);
 
   const pendingFlyTo = useMapStore((s) => s.pendingFlyTo);
   const clearFlyTo = useMapStore((s) => s.clearFlyTo);
@@ -72,6 +73,9 @@ export default function Map() {
     );
     instance.addControl(new maplibregl.ScaleControl(), "bottom-left");
 
+    instance.on("zoom", () => setZoom(instance.getZoom()));
+    instance.once("load", () => setZoom(instance.getZoom()));
+
     // Setting state triggers a re-render, which re-runs useMapLayers/useMapPOIs
     // with the real map instance instead of null.
     setMap(instance);
@@ -84,9 +88,14 @@ export default function Map() {
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      style={{ position: "absolute", inset: 0 }}
-    />
+    <>
+      <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
+      {zoom !== null && (
+        <div style={{ position: "absolute", bottom: 32, right: 8, pointerEvents: "none" }}
+          className="bg-white/80 text-gray-700 text-xs font-mono px-2 py-0.5 rounded shadow">
+          z{zoom.toFixed(1)}
+        </div>
+      )}
+    </>
   );
 }
