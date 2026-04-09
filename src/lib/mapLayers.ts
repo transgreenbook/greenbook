@@ -39,7 +39,7 @@ export const SOURCES: Record<string, SourceSpecification> = {
     data: "/county-centroids.geojson",
   },
   counties: boundarySource({ counties: "GEOID" }),
-  places:   boundarySource(),
+  places:   boundarySource({ places: "PLACEFP" }),
   "cities-centroids": {
     type: "geojson",
     data: "/city-centroids.geojson",
@@ -278,11 +278,11 @@ export const LAYERS: LayerSpecification[] = [
     source: "places",
     ...(pmtilesUrl ? { "source-layer": "places" } : {}),
     paint: {
-      "fill-color": "#e2e8f0",
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], "#e2e8f0"],
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
         8, 0,
-        10, 0.15,
+        10, ["case", ["!=", ["feature-state", "severity_color"], null], 0.55, 0.15],
       ],
     },
   },

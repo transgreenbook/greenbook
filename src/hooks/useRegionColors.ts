@@ -61,6 +61,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       const statePOIs  = (pois as RegionPOI[]).filter((p) => p.effect_scope === "state");
       const countyPOIs = (pois as RegionPOI[]).filter((p) => p.effect_scope === "county");
+      const cityPOIs   = (pois as RegionPOI[]).filter((p) => p.effect_scope === "city");
 
       // ── States ────────────────────────────────────────────────────────
       if (statePOIs.length) {
@@ -79,6 +80,29 @@ export function useRegionColors(map: maplibregl.Map | null) {
           if (color) {
             mapRef.setFeatureState(
               { source: "states", sourceLayer: "states", id: c.abbr },
+              { severity_color: color },
+            );
+          }
+        }
+      }
+
+      // ── Cities ────────────────────────────────────────────────────────
+      if (cityPOIs.length) {
+        const geo = await fetch("/city-centroids.geojson").then((r) => r.json());
+        const centroids = (geo.features as { properties: { NAME: string; STATEFP: string; PLACEFP: string }; geometry: { coordinates: [number, number] } }[])
+          .map((f) => ({
+            placefp: f.properties.PLACEFP,
+            lat:     f.geometry.coordinates[1],
+            lng:     f.geometry.coordinates[0],
+          }));
+
+        for (const poi of cityPOIs) {
+          const c = nearest(centroids, poi.lat, poi.lng);
+          if (!c) continue;
+          const color = severityColor(poi.severity, poi.color);
+          if (color) {
+            mapRef.setFeatureState(
+              { source: "places", sourceLayer: "places", id: c.placefp },
               { severity_color: color },
             );
           }

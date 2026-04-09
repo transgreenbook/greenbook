@@ -97,7 +97,7 @@ ogr2ogr \
   -f GeoJSON \
   -t_srs EPSG:4326 \
   -dialect SQLite \
-  -sql "SELECT ST_Centroid(geometry) AS geometry, NAME, STATEFP, LSAD
+  -sql "SELECT ST_Centroid(geometry) AS geometry, NAME, STATEFP, PLACEFP, LSAD
         FROM \"cb_${YEAR}_us_place_500k\"
         WHERE LSAD IN ('25','47','21','37','53')" \
   "$ROOT/public/city-centroids.geojson" \
