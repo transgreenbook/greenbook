@@ -13,19 +13,23 @@ import type { Map, LayerSpecification, SourceSpecification } from "maplibre-gl";
 
 const pmtilesUrl = process.env.NEXT_PUBLIC_PMTILES_URL;
 
-function boundarySource(layer: string): SourceSpecification {
+function boundarySource(promoteId?: Record<string, string>): SourceSpecification {
   if (pmtilesUrl) {
     const absolute = pmtilesUrl.startsWith("/")
       ? `${typeof window !== "undefined" ? window.location.origin : ""}${pmtilesUrl}`
       : pmtilesUrl;
-    return { type: "vector", url: `pmtiles://${absolute}` };
+    return {
+      type: "vector",
+      url: `pmtiles://${absolute}`,
+      ...(promoteId ? { promoteId } : {}),
+    };
   }
   // Fallback: empty GeoJSON until PMTiles URL is configured
   return { type: "geojson", data: { type: "FeatureCollection", features: [] } };
 }
 
 export const SOURCES: Record<string, SourceSpecification> = {
-  states:           boundarySource("states"),
+  states:           boundarySource({ states: "STUSPS" }),
   "states-centroids": {
     type: "geojson",
     data: "/state-centroids.geojson",
@@ -34,8 +38,8 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: "/county-centroids.geojson",
   },
-  counties: boundarySource("counties"),
-  places: boundarySource("places"),
+  counties: boundarySource({ counties: "GEOID" }),
+  places:   boundarySource(),
   "cities-centroids": {
     type: "geojson",
     data: "/city-centroids.geojson",
@@ -79,7 +83,7 @@ export const LAYERS: LayerSpecification[] = [
     source: "states",
     ...(pmtilesUrl ? { "source-layer": "states" } : {}),
     paint: {
-      "fill-color": ["coalesce", ["get", "fill_color"], "#e0e7ef"],
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], ["get", "fill_color"], "#e0e7ef"],
       // Full opacity at zoom 5, fades out by zoom 8
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
@@ -135,7 +139,7 @@ export const LAYERS: LayerSpecification[] = [
     source: "counties",
     ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
     paint: {
-      "fill-color": ["coalesce", ["get", "fill_color"], "#f1f5f9"],
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], ["get", "fill_color"], "#f1f5f9"],
       // Fades in as state fills fade out
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
