@@ -20,6 +20,7 @@ export default function AdminPOIsPage() {
     const { data } = await supabase
       .from("points_of_interest")
       .select("id, title, is_verified, created_at, categories(name)")
+      .is("source", null)
       .order("created_at", { ascending: false });
     setPois((data as POI[]) ?? []);
     setLoading(false);
@@ -66,6 +67,7 @@ export default function AdminPOIsPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
+              <th className="text-right px-4 py-3 text-gray-400 font-medium w-10">#</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">
                 Title
               </th>
@@ -82,8 +84,9 @@ export default function AdminPOIsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {pois.map((poi) => (
+            {pois.map((poi, i) => (
               <tr key={poi.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-right text-gray-400 tabular-nums">{i + 1}</td>
                 <td className="px-4 py-3 font-medium text-gray-800">
                   {poi.title}
                 </td>

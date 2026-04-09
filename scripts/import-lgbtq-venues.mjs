@@ -203,6 +203,8 @@ async function main() {
     const coords = getLngLat(el);
     if (!coords) { skipped++; continue; }
 
+    const osmId = `osm-${el.type}-${el.id}`;
+
     const poi = {
       title:        name,
       description:  buildDescription(tags),
@@ -214,6 +216,8 @@ async function main() {
       is_verified:  true,
       effect_scope: 'point',
       prominence:   'local',
+      source:       'openstreetmap',
+      source_id:    osmId,
     };
 
     if (DRY_RUN) {
@@ -221,10 +225,6 @@ async function main() {
       inserted++;
       continue;
     }
-
-    // Upsert on title + geom proximity is tricky — use OSM id as sheet_id
-    // to make re-runs idempotent.
-    const osmId = `osm-${el.type}-${el.id}`;
 
     const { error } = await supabase
       .from('points_of_interest')
