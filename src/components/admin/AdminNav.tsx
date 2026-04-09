@@ -22,7 +22,7 @@ export default function AdminNav() {
   return (
     <nav className="w-44 shrink-0 bg-white border-r border-gray-200 flex flex-col">
       <div className="h-12 px-4 flex items-center border-b border-gray-200">
-        <span className="font-semibold text-gray-800 text-sm">TransGreenbook Admin</span>
+        <span className="font-semibold text-gray-800 text-sm">TransSafeTravels Admin</span>
       </div>
       <div className="flex-1 py-3 space-y-0.5 px-2">
         {links.map(({ href, label }) => (

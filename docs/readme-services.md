@@ -1,6 +1,6 @@
 # Service Management
 
-The TransGreenbook Next.js dev server runs as a user systemd service (`greenbook.service`). It starts automatically on boot and stays running whether or not anyone is logged in.
+The TransSafeTravels Next.js dev server runs as a user systemd service (`greenbook.service`). It starts automatically on boot and stays running whether or not anyone is logged in.
 
 ## Prerequisites
 
