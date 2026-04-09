@@ -20,13 +20,13 @@ async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
   let result;
 
   if (region.type === "state") {
-    result = await supabase.rpc("pois_in_state", { state_abbr: region.stateAbbr });
+    result = await supabase.rpc("pois_in_state", { p_abbr: region.stateAbbr });
   } else if (region.type === "county") {
-    result = await supabase.rpc("pois_in_county", { fips_code: region.fips5 });
+    result = await supabase.rpc("pois_in_county", { p_fips: region.fips5 });
   } else {
     result = await supabase.rpc("pois_in_city", {
-      city_name: region.name,
-      statefp: region.statefp,
+      p_city_name: region.name,
+      p_statefp:   region.statefp,
     });
   }
 
