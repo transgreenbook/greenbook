@@ -1,10 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type Category = { id: number; name: string };
+type Category    = { id: number; name: string };
+type SubCentroid = { name: string; statefp: string; lat: number; lng: number };
+type StateCentroid = { name: string; abbr: string; statefp: string; lat: number; lng: number };
+
+// FIPS code → state abbreviation (stable US mapping)
+const FIPS_TO_ABBR: Record<string, string> = {
+  "01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT",
+  "10":"DE","11":"DC","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL",
+  "18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD",
+  "25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE",
+  "32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND",
+  "39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD",
+  "47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV",
+  "55":"WI","56":"WY",
+};
 
 type POIFormData = {
   title: string;
@@ -12,6 +26,10 @@ type POIFormData = {
   long_description: string;
   lat: string;
   lng: string;
+  // Region-picker fields (state / county / city scope)
+  state_abbr: string;   // scope = state
+  sub_state:  string;   // scope = county | city: which state to filter by
+  sub_coords: string;   // JSON {lat,lng,name} of selected county/city
   category_id: string;
   is_verified: boolean;
   tags: string;
@@ -36,6 +54,9 @@ const EMPTY: POIFormData = {
   long_description: "",
   lat: "",
   lng: "",
+  state_abbr: "",
+  sub_state:  "",
+  sub_coords: "",
   category_id: "",
   is_verified: false,
   tags: "",
@@ -50,23 +71,187 @@ const EMPTY: POIFormData = {
   visible_end: "",
 };
 
+// Find the array entry whose lat/lng is closest to the given coordinates.
+function nearest<T extends { lat: number; lng: number }>(items: T[], lat: number, lng: number): T | null {
+  let best: T | null = null;
+  let bestD = Infinity;
+  for (const item of items) {
+    const d = (item.lat - lat) ** 2 + (item.lng - lng) ** 2;
+    if (d < bestD) { bestD = d; best = item; }
+  }
+  return best;
+}
+
 export default function POIForm({ initialData }: Props) {
   const router = useRouter();
-  const [form, setForm] = useState<POIFormData>({ ...EMPTY, ...initialData });
+  const [form, setForm]             = useState<POIFormData>({ ...EMPTY, ...initialData });
   const [categories, setCategories] = useState<Category[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [stateCentroids, setStateCentroids] = useState<StateCentroid[]>([]);
+  const [countyCentroids, setCountyCentroids] = useState<SubCentroid[]>([]);
+  const [cityCentroids,   setCityCentroids]   = useState<SubCentroid[]>([]);
+  const [subLoading, setSubLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+  const [saving,  setSaving]  = useState(false);
 
+  // Stable ref to initialData so closures can read it without stale values.
+  const initialDataRef = useRef(initialData);
+
+  // Prevent duplicate fetches across re-renders
+  const countyLoadedRef = useRef(false);
+  const cityLoadedRef   = useRef(false);
+
+  const scope = form.effect_scope;
+
+  // Filtered sub-region list for current state selection
+  const filteredSubs: SubCentroid[] =
+    scope === "county" ? countyCentroids.filter((c) => c.statefp === stateToFips(form.sub_state)) :
+    scope === "city"   ? cityCentroids.filter((c)   => c.statefp === stateToFips(form.sub_state)) :
+    [];
+
+  function stateToFips(abbr: string): string {
+    return Object.entries(FIPS_TO_ABBR).find(([, a]) => a === abbr)?.[0] ?? "";
+  }
+
+  // Load categories + state centroids once
   useEffect(() => {
     supabase
       .from("categories")
       .select("id, name")
       .order("name")
       .then(({ data }) => setCategories(data ?? []));
+
+    fetch("/state-centroids.geojson")
+      .then((r) => r.json())
+      .then((geojson) => {
+        const centroids: StateCentroid[] = (geojson.features ?? []).map(
+          (f: { properties: { NAME: string; STUSPS: string }; geometry: { coordinates: [number, number] } }) => ({
+            name:    f.properties.NAME,
+            abbr:    f.properties.STUSPS,
+            statefp: stateToFips(f.properties.STUSPS),
+            lng:     f.geometry.coordinates[0],
+            lat:     f.geometry.coordinates[1],
+          })
+        );
+        centroids.sort((a, b) => a.name.localeCompare(b.name));
+        setStateCentroids(centroids);
+
+        // Edit mode: pre-select the state whose centroid matches the stored coords.
+        const init = initialDataRef.current;
+        if (init?.id && init.effect_scope === "state" && init.lat && init.lng) {
+          const c = nearest(centroids, parseFloat(String(init.lat)), parseFloat(String(init.lng)));
+          if (c) setForm((prev) => ({ ...prev, state_abbr: c.abbr }));
+        }
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Lazy-load county/city centroids when that scope is first selected
+  useEffect(() => {
+    if (scope === "county" && !countyLoadedRef.current) {
+      countyLoadedRef.current = true;
+      setSubLoading(true);
+      fetch("/county-centroids.geojson")
+        .then((r) => r.json())
+        .then((geojson) => {
+          const centroids: SubCentroid[] = (geojson.features ?? []).map(
+            (f: { properties: { NAME: string; STATEFP: string }; geometry: { coordinates: [number, number] } }) => ({
+              name:    f.properties.NAME,
+              statefp: f.properties.STATEFP,
+              lng:     f.geometry.coordinates[0],
+              lat:     f.geometry.coordinates[1],
+            })
+          );
+          centroids.sort((a, b) => a.name.localeCompare(b.name));
+          setCountyCentroids(centroids);
+
+          // Edit mode: pre-select state + county from stored coords.
+          const init = initialDataRef.current;
+          if (init?.id && init.effect_scope === "county" && init.lat && init.lng) {
+            const c = nearest(centroids, parseFloat(String(init.lat)), parseFloat(String(init.lng)));
+            if (c) {
+              const abbr = FIPS_TO_ABBR[c.statefp] ?? "";
+              setForm((prev) => ({
+                ...prev,
+                sub_state:  abbr,
+                sub_coords: JSON.stringify({ lat: c.lat, lng: c.lng, name: c.name }),
+              }));
+            }
+          }
+        })
+        .finally(() => setSubLoading(false));
+    }
+
+    if (scope === "city" && !cityLoadedRef.current) {
+      cityLoadedRef.current = true;
+      setSubLoading(true);
+      fetch("/city-centroids.geojson")
+        .then((r) => r.json())
+        .then((geojson) => {
+          const centroids: SubCentroid[] = (geojson.features ?? []).map(
+            (f: { properties: { NAME: string; STATEFP: string }; geometry: { coordinates: [number, number] } }) => ({
+              name:    f.properties.NAME,
+              statefp: f.properties.STATEFP,
+              lng:     f.geometry.coordinates[0],
+              lat:     f.geometry.coordinates[1],
+            })
+          );
+          centroids.sort((a, b) => a.name.localeCompare(b.name));
+          setCityCentroids(centroids);
+
+          // Edit mode: pre-select state + city from stored coords.
+          const init = initialDataRef.current;
+          if (init?.id && init.effect_scope === "city" && init.lat && init.lng) {
+            const c = nearest(centroids, parseFloat(String(init.lat)), parseFloat(String(init.lng)));
+            if (c) {
+              const abbr = FIPS_TO_ABBR[c.statefp] ?? "";
+              setForm((prev) => ({
+                ...prev,
+                sub_state:  abbr,
+                sub_coords: JSON.stringify({ lat: c.lat, lng: c.lng, name: c.name }),
+              }));
+            }
+          }
+        })
+        .finally(() => setSubLoading(false));
+    }
+  }, [scope]);
 
   function set<K extends keyof POIFormData>(field: K, value: POIFormData[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handleScopeChange(newScope: string) {
+    setForm((prev) => {
+      // Carry the state selection across state/county/city switches.
+      // state_abbr ↔ sub_state are the same concept in different scopes.
+      const currentState =
+        prev.effect_scope === "state" ? prev.state_abbr : prev.sub_state;
+
+      const isRegionScope = (s: string) =>
+        s === "state" || s === "county" || s === "city";
+
+      const keepState = isRegionScope(prev.effect_scope) && isRegionScope(newScope);
+
+      return {
+        ...prev,
+        effect_scope: newScope,
+        lat: "", lng: "",
+        state_abbr: keepState && newScope === "state" ? currentState : "",
+        sub_state:  keepState && newScope !== "state" ? currentState : "",
+        sub_coords: "",
+      };
+    });
+  }
+
+  function handleSubStateChange(abbr: string) {
+    setForm((prev) => ({ ...prev, sub_state: abbr, sub_coords: "" }));
+  }
+
+  function handleSubSelect(centroid: SubCentroid) {
+    setForm((prev) => ({
+      ...prev,
+      sub_coords: JSON.stringify({ lat: centroid.lat, lng: centroid.lng, name: centroid.name }),
+    }));
   }
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
@@ -74,13 +259,30 @@ export default function POIForm({ initialData }: Props) {
     setError(null);
     setSaving(true);
 
-    const lat = parseFloat(form.lat);
-    const lng = parseFloat(form.lng);
+    let lat: number, lng: number;
 
-    if (isNaN(lat) || isNaN(lng)) {
-      setError("Latitude and longitude must be valid numbers.");
-      setSaving(false);
-      return;
+    if (scope === "state") {
+      const c = stateCentroids.find((s) => s.abbr === form.state_abbr);
+      if (!c) { setError("Please select a state."); setSaving(false); return; }
+      lat = c.lat; lng = c.lng;
+
+    } else if (scope === "county" || scope === "city") {
+      if (!form.sub_coords) {
+        setError(`Please select a ${scope}.`);
+        setSaving(false);
+        return;
+      }
+      const parsed = JSON.parse(form.sub_coords) as { lat: number; lng: number };
+      lat = parsed.lat; lng = parsed.lng;
+
+    } else {
+      lat = parseFloat(form.lat);
+      lng = parseFloat(form.lng);
+      if (isNaN(lat) || isNaN(lng)) {
+        setError("Latitude and longitude must be valid numbers.");
+        setSaving(false);
+        return;
+      }
     }
 
     const payload = {
@@ -128,6 +330,61 @@ export default function POIForm({ initialData }: Props) {
   const inputCls = "w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
   const labelCls = "block text-sm font-medium text-gray-700 mb-1";
 
+  // Sub-region picker (county or city): state selector → name selector
+  function SubRegionPicker({ label }: { label: string }) {
+    const selectedName = form.sub_coords
+      ? (JSON.parse(form.sub_coords) as { name: string }).name
+      : "";
+
+    return (
+      <div className="space-y-3">
+        <div>
+          <label className={labelCls}>State *</label>
+          <select
+            value={form.sub_state}
+            onChange={(e) => handleSubStateChange(e.target.value)}
+            required
+            className={inputCls}
+          >
+            <option value="">— select a state —</option>
+            {stateCentroids.map((s) => (
+              <option key={s.abbr} value={s.abbr}>{s.name} ({s.abbr})</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>{label} *</label>
+          {subLoading ? (
+            <p className="text-sm text-gray-400">Loading {label.toLowerCase()}s…</p>
+          ) : (
+            <select
+              value={selectedName}
+              onChange={(e) => {
+                const c = filteredSubs.find((s) => s.name === e.target.value);
+                if (c) handleSubSelect(c);
+              }}
+              disabled={!form.sub_state}
+              required
+              className={inputCls}
+            >
+              <option value="">
+                {form.sub_state
+                  ? `— select a ${label.toLowerCase()} —`
+                  : `— select a state first —`}
+              </option>
+              {filteredSubs.map((s, i) => (
+                <option key={i} value={s.name}>{s.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        <p className="text-xs text-gray-400">
+          Coordinates will be set to the geographic center of the selected {label.toLowerCase()}.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-5">
 
@@ -163,35 +420,7 @@ export default function POIForm({ initialData }: Props) {
         />
       </div>
 
-      {/* ── Location ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>Latitude *</label>
-          <input
-            type="number"
-            step="any"
-            value={form.lat}
-            onChange={(e) => set("lat", e.target.value)}
-            required
-            placeholder="37.7749"
-            className={inputCls}
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Longitude *</label>
-          <input
-            type="number"
-            step="any"
-            value={form.lng}
-            onChange={(e) => set("lng", e.target.value)}
-            required
-            placeholder="-122.4194"
-            className={inputCls}
-          />
-        </div>
-      </div>
-
-      {/* ── Classification ─────────────────────────────────────────────── */}
+      {/* ── Classification (Scope first so location picker reacts) ──────── */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Category</label>
@@ -210,7 +439,7 @@ export default function POIForm({ initialData }: Props) {
           <label className={labelCls}>Scope</label>
           <select
             value={form.effect_scope}
-            onChange={(e) => set("effect_scope", e.target.value)}
+            onChange={(e) => handleScopeChange(e.target.value)}
             className={inputCls}
           >
             <option value="point">Point</option>
@@ -220,6 +449,58 @@ export default function POIForm({ initialData }: Props) {
           </select>
         </div>
       </div>
+
+      {/* ── Location ───────────────────────────────────────────────────── */}
+      {scope === "state" ? (
+        <div>
+          <label className={labelCls}>State *</label>
+          <select
+            value={form.state_abbr}
+            onChange={(e) => set("state_abbr", e.target.value)}
+            required
+            className={inputCls}
+          >
+            <option value="">— select a state —</option>
+            {stateCentroids.map((s) => (
+              <option key={s.abbr} value={s.abbr}>{s.name} ({s.abbr})</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-400">
+            Coordinates will be set to the geographic center of the selected state.
+          </p>
+        </div>
+      ) : scope === "county" ? (
+        <SubRegionPicker label="County" />
+      ) : scope === "city" ? (
+        <SubRegionPicker label="City" />
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Latitude *</label>
+            <input
+              type="number"
+              step="any"
+              value={form.lat}
+              onChange={(e) => set("lat", e.target.value)}
+              required
+              placeholder="37.7749"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Longitude *</label>
+            <input
+              type="number"
+              step="any"
+              value={form.lng}
+              onChange={(e) => set("lng", e.target.value)}
+              required
+              placeholder="-122.4194"
+              className={inputCls}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>

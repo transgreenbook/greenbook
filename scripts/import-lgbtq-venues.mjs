@@ -242,7 +242,8 @@ async function main() {
 
   // Sync the ID sequence in case rows were inserted with explicit IDs (e.g. via spreadsheet seed).
   if (!DRY_RUN) {
-    await supabase.rpc('sync_poi_sequence').catch(() => null);
+    const { error: seqErr } = await supabase.rpc('sync_poi_sequence');
+    if (seqErr) console.warn('sync_poi_sequence:', seqErr.message);
   }
 }
 
