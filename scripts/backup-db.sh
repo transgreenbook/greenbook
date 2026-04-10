@@ -15,7 +15,11 @@ OUTFILE="$BACKUP_DIR/greenbook-$TIMESTAMP.sql.gz"
 mkdir -p "$BACKUP_DIR"
 
 echo "[backup] Starting dump at $(date)"
-docker exec "$CONTAINER" pg_dump -U postgres postgres | gzip > "$OUTFILE"
+docker exec "$CONTAINER" pg_dump -U postgres postgres \
+  --schema=public \
+  --no-privileges \
+  --no-owner \
+  | gzip > "$OUTFILE"
 echo "[backup] Wrote $OUTFILE ($(du -h "$OUTFILE" | cut -f1))"
 
 # Retain the 14 most recent backups (~2 weeks at nightly frequency)
