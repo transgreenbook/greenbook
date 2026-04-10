@@ -3,6 +3,7 @@ import type maplibregl from "maplibre-gl";
 import type { Geometry } from "geojson";
 import { useMapStore } from "@/store/mapStore";
 import { useRouteStore } from "@/store/routeStore";
+import { useAppStore } from "@/store/appStore";
 import stateBboxes from "@/data/state-bboxes.json";
 
 // Extract all [lng, lat] pairs from a polygon or multipolygon geometry.
@@ -109,6 +110,7 @@ export function useMapClick(map: maplibregl.Map | null) {
             id: p.id,
             title: p.title,
             description: p.description ?? null,
+            long_description: null,
             category_id: p.category_id ?? null,
             is_verified: p.is_verified,
             tags: p.tags ? JSON.parse(p.tags) : null,
@@ -117,6 +119,7 @@ export function useMapClick(map: maplibregl.Map | null) {
             lng: center[0],
             lat: center[1],
           });
+          useAppStore.getState().openPOI();
           return;
         }
       }

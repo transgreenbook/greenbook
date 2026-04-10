@@ -15,6 +15,7 @@ export interface POIProperties {
   id: number;
   title: string;
   description: string | null;
+  long_description: string | null;
   category_id: number | null;
   is_verified: boolean;
   tags: string[] | null;
@@ -46,6 +47,7 @@ async function fetchPOIs(bounds: Bounds): Promise<FeatureCollection<Point, POIPr
           id: row.id,
           title: row.title,
           description: row.description,
+          long_description: row.long_description ?? null,
           category_id: row.category_id,
           is_verified: row.is_verified,
           tags: row.tags,

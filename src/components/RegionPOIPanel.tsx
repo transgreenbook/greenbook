@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMapStore } from "@/store/mapStore";
 import { useRouteStore } from "@/store/routeStore";
+import { useAppStore } from "@/store/appStore";
 import { useRegionPOIs } from "@/hooks/useRegionPOIs";
 import type { RegionPOI } from "@/hooks/useRegionPOIs";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
@@ -16,6 +17,7 @@ const REGION_LABEL: Record<string, string> = {
 export default function RegionPOIPanel() {
   const { selectedRegion, setSelectedRegion, setSelectedPOI, flyTo } = useMapStore();
   const isRoutingMode = useRouteStore((s) => s.isRoutingMode);
+  const openPOI = useAppStore((s) => s.openPOI);
   const { data: pois, isLoading } = useRegionPOIs(selectedRegion);
 
   const [mobileExpanded, setMobileExpanded]     = useState(false);
@@ -30,6 +32,7 @@ export default function RegionPOIPanel() {
       id: poi.id,
       title: poi.title,
       description: poi.description,
+      long_description: null,
       category_id: poi.category_id,
       is_verified: poi.is_verified,
       tags: poi.tags,
@@ -39,6 +42,7 @@ export default function RegionPOIPanel() {
       lat: poi.lat,
     });
     setSelectedRegion(null);
+    openPOI("map");
   }
 
   const typeLabel = REGION_LABEL[selectedRegion.type];

@@ -126,6 +126,7 @@ export default function SearchBar() {
         id: result.id,
         title: result.title,
         description: result.description ?? null,
+        long_description: null,
         category_id: result.category_id ?? null,
         is_verified: result.is_verified,
         tags: result.tags ?? null,

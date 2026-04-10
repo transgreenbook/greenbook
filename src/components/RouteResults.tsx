@@ -45,6 +45,7 @@ export default function RouteResults() {
                       id: poi.id,
                       title: poi.title,
                       description: poi.description,
+                      long_description: null,
                       category_id: poi.category_id,
                       is_verified: poi.is_verified,
                       tags: poi.tags,

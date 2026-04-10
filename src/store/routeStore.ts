@@ -14,6 +14,10 @@ interface RouteStore {
   route: RouteResult | null;
   poisAlongRoute: RoutePOI[];
   routeBuffer: string | null;
+  // Buffer slider state
+  baseBufferMeters: number | null;
+  midLat: number | null;
+  bufferMultiplier: number; // 0–200, default 100 (= 1× scale bar distance)
   isLoading: boolean;
   error: string | null;
 
@@ -23,6 +27,9 @@ interface RouteStore {
   setRoute: (route: RouteResult | null) => void;
   setPoisAlongRoute: (pois: RoutePOI[]) => void;
   setRouteBuffer: (label: string | null) => void;
+  setBaseBufferMeters: (m: number | null) => void;
+  setMidLat: (lat: number | null) => void;
+  setBufferMultiplier: (v: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearRoute: () => void;
@@ -35,15 +42,21 @@ export const useRouteStore = create<RouteStore>((set) => ({
   route: null,
   poisAlongRoute: [],
   routeBuffer: null,
+  baseBufferMeters: null,
+  midLat: null,
+  bufferMultiplier: 100,
   isLoading: false,
   error: null,
 
   setRoutingMode: (on) => set({ isRoutingMode: on }),
-  setStart: (wp) => set({ start: wp, route: null, poisAlongRoute: [], routeBuffer: null }),
-  setEnd: (wp) => set({ end: wp, route: null, poisAlongRoute: [], routeBuffer: null }),
+  setStart: (wp) => set({ start: wp, route: null, poisAlongRoute: [], routeBuffer: null, baseBufferMeters: null, midLat: null }),
+  setEnd: (wp) => set({ end: wp, route: null, poisAlongRoute: [], routeBuffer: null, baseBufferMeters: null, midLat: null }),
   setRoute: (route) => set({ route }),
   setPoisAlongRoute: (pois) => set({ poisAlongRoute: pois }),
   setRouteBuffer: (label) => set({ routeBuffer: label }),
+  setBaseBufferMeters: (m) => set({ baseBufferMeters: m }),
+  setMidLat: (lat) => set({ midLat: lat }),
+  setBufferMultiplier: (v) => set({ bufferMultiplier: v }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   clearRoute: () =>
@@ -53,6 +66,9 @@ export const useRouteStore = create<RouteStore>((set) => ({
       route: null,
       poisAlongRoute: [],
       routeBuffer: null,
+      baseBufferMeters: null,
+      midLat: null,
+      bufferMultiplier: 100,
       error: null,
       isLoading: false,
     }),

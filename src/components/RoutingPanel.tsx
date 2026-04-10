@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useRouteStore } from "@/store/routeStore";
+import { useAppStore } from "@/store/appStore";
 import { geocode, type GeocodingResult } from "@/lib/geocoding";
 import { supabase } from "@/lib/supabase";
 
@@ -169,6 +170,7 @@ export default function RoutingPanel() {
   const setEnd = useRouteStore((s) => s.setEnd);
   const clearRoute = useRouteStore((s) => s.clearRoute);
   const setRoutingMode = useRouteStore((s) => s.setRoutingMode);
+  const setMode = useAppStore((s) => s.setMode);
 
   const [startQuery, setStartQuery] = useState("");
   const [endQuery, setEndQuery] = useState("");
@@ -180,6 +182,7 @@ export default function RoutingPanel() {
     setRoutingMode(false);
     setStartQuery("");
     setEndQuery("");
+    setMode("map");
   }
 
   return (

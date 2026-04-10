@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouteStore } from "@/store/routeStore";
 import { useMapStore } from "@/store/mapStore";
+import { useAppStore } from "@/store/appStore";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 
 export default function RoutePOIPanel() {
@@ -13,6 +14,7 @@ export default function RoutePOIPanel() {
   const routeBuffer    = useRouteStore((s) => s.routeBuffer);
   const flyTo          = useMapStore((s) => s.flyTo);
   const setSelectedPOI = useMapStore((s) => s.setSelectedPOI);
+  const openPOI        = useAppStore((s) => s.openPOI);
 
   const [mobileExpanded, setMobileExpanded]     = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
@@ -24,17 +26,19 @@ export default function RoutePOIPanel() {
   function handlePOIClick(poi: (typeof poisAlongRoute)[number]) {
     flyTo({ lng: poi.lng, lat: poi.lat, zoom: 14 });
     setSelectedPOI({
-      id:          poi.id,
-      title:       poi.title,
-      description: poi.description,
-      category_id: poi.category_id,
-      is_verified: poi.is_verified,
-      tags:        poi.tags,
-      color:       poi.color,
-      icon:        poi.icon ?? null,
-      lng:         poi.lng,
-      lat:         poi.lat,
+      id:               poi.id,
+      title:            poi.title,
+      description:      poi.description,
+      long_description: null,
+      category_id:      poi.category_id,
+      is_verified:      poi.is_verified,
+      tags:             poi.tags,
+      color:            poi.color,
+      icon:             poi.icon ?? null,
+      lng:              poi.lng,
+      lat:              poi.lat,
     });
+    openPOI("route");
   }
 
   const header = (
