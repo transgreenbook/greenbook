@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMapStore } from "@/store/mapStore";
 import { useRegionPOIs } from "@/hooks/useRegionPOIs";
 import type { RegionPOI } from "@/hooks/useRegionPOIs";
+import { useResizablePanel } from "@/hooks/useResizablePanel";
 
 const REGION_LABEL: Record<string, string> = {
   state:  "State",
@@ -15,8 +16,9 @@ export default function RegionPOIPanel() {
   const { selectedRegion, setSelectedRegion, setSelectedPOI, flyTo } = useMapStore();
   const { data: pois, isLoading } = useRegionPOIs(selectedRegion);
 
-  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileExpanded, setMobileExpanded]     = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel();
 
   if (!selectedRegion) return null;
 
@@ -81,10 +83,19 @@ export default function RegionPOIPanel() {
       <div
         className={`
           hidden md:flex absolute top-0 right-0 h-full bg-white shadow-lg z-10
-          flex-col transition-[width] duration-300 overflow-hidden
-          ${desktopCollapsed ? "w-0" : "w-80"}
+          flex-col overflow-hidden
+          ${desktopCollapsed ? "w-0 transition-[width] duration-300" : ""}
         `}
+        style={desktopCollapsed ? undefined : { width: panelWidth }}
       >
+        {/* Drag handle — left edge */}
+        {!desktopCollapsed && (
+          <div
+            onMouseDown={onDragHandleMouseDown}
+            className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-20 transition-colors"
+            title="Drag to resize"
+          />
+        )}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
           <div className="min-w-0 pr-2">
             <div className="flex items-center gap-2">

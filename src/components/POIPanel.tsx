@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMapStore } from "@/store/mapStore";
 import { useRouteStore } from "@/store/routeStore";
+import { useResizablePanel } from "@/hooks/useResizablePanel";
 
 export default function POIPanel() {
   const { selectedPOI, setSelectedPOI } = useMapStore();
@@ -14,8 +15,9 @@ export default function POIPanel() {
     setEnd({ lng: selectedPOI.lng, lat: selectedPOI.lat, label: selectedPOI.title });
     setRoutingMode(true);
   }
-  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileExpanded, setMobileExpanded]     = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel();
 
   // Reset mobile sheet to peek state whenever a new POI is selected
   useEffect(() => {
@@ -68,10 +70,19 @@ export default function POIPanel() {
       <div
         className={`
           hidden md:flex absolute top-0 right-0 h-full bg-white shadow-lg z-10
-          flex-col transition-[width] duration-300 overflow-hidden
-          ${desktopCollapsed ? "w-0" : "w-80"}
+          flex-col overflow-hidden
+          ${desktopCollapsed ? "w-0 transition-[width] duration-300" : ""}
         `}
+        style={desktopCollapsed ? undefined : { width: panelWidth }}
       >
+        {/* Drag handle — left edge */}
+        {!desktopCollapsed && (
+          <div
+            onMouseDown={onDragHandleMouseDown}
+            className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-20 transition-colors"
+            title="Drag to resize"
+          />
+        )}
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
           <h2 className="font-semibold text-gray-800 text-base truncate pr-2">
