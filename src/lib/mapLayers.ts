@@ -57,6 +57,10 @@ export const SOURCES: Record<string, SourceSpecification> = {
     clusterRadius: 50,
   },
   // Route sources — data is swapped in by useRouteLayer / usePOIsAlongRoute.
+  "route-buffer": {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  },
   route: {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
@@ -351,17 +355,26 @@ export const LAYERS: LayerSpecification[] = [
   },
 
   // --- Route buffer (POI search radius shade) ---
-  // line-width is set dynamically by usePOIsAlongRoute using a zoom-based
-  // expression that converts bufferMeters to the correct pixel width.
+  // Rendered as a GeoJSON polygon computed in usePOIsAlongRoute so it scales
+  // correctly at all zoom levels without the tile-clipping artifacts of wide lines.
   {
-    id: "route-buffer",
+    id: "route-buffer-fill",
+    type: "fill",
+    source: "route-buffer",
+    paint: {
+      "fill-color": "#3b82f6",
+      "fill-opacity": 0.08,
+    },
+  },
+  {
+    id: "route-buffer-outline",
     type: "line",
-    source: "route",
-    layout: { "line-join": "round", "line-cap": "round" },
+    source: "route-buffer",
     paint: {
       "line-color": "#3b82f6",
-      "line-width": 0,
-      "line-opacity": 0.12,
+      "line-width": 1,
+      "line-opacity": 0.2,
+      "line-dasharray": [4, 4],
     },
   },
 

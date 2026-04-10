@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouteStore } from "@/store/routeStore";
 import { useAppStore } from "@/store/appStore";
 import { geocode, type GeocodingResult } from "@/lib/geocoding";
@@ -175,6 +175,10 @@ export default function RoutingPanel() {
   const [startQuery, setStartQuery] = useState("");
   const [endQuery, setEndQuery] = useState("");
 
+  // Keep input fields in sync when waypoints are set via map click
+  useEffect(() => { setStartQuery(start?.label ?? ""); }, [start?.label]);
+  useEffect(() => { setEndQuery(end?.label ?? ""); }, [end?.label]);
+
   if (!isRoutingMode) return null;
 
   function handleClose() {
@@ -228,6 +232,16 @@ export default function RoutingPanel() {
           <p className="text-xs text-gray-400 px-1">
             {!start ? "Set start above or click the map." : "Set destination above or click the map."}
           </p>
+        )}
+
+        {/* Clear button — only shown once at least one waypoint is set */}
+        {(start || end) && (
+          <button
+            onClick={() => { clearRoute(); setStartQuery(""); setEndQuery(""); }}
+            className="w-full text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded px-1 py-1 text-left transition-colors"
+          >
+            Clear route
+          </button>
         )}
 
         {/* Status */}

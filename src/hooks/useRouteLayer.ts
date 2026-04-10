@@ -96,11 +96,11 @@ export function useRouteLayer(map: maplibregl.Map | null) {
     return () => { cancelled = true; };
   }, [start, end]);
 
-  // Effect 2: draw the route line when route data arrives.
+  // Effect 2: draw the route line when route data arrives; clear it when route is null.
   // Viewport fitting and POI search are handled by usePOIsAlongRoute.
   useEffect(() => {
-    if (!map || !route) return;
-    setRouteSource(map, route.coordinates);
+    if (!map) return;
+    setRouteSource(map, route ? route.coordinates : null);
   }, [map, route]);
 
   // Sync waypoints to map

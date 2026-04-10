@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import SimpleMarkdown from "@/components/SimpleMarkdown";
 import { useMapStore } from "@/store/mapStore";
 import { useAppStore } from "@/store/appStore";
 import { useRouteStore } from "@/store/routeStore";
@@ -101,17 +101,7 @@ export default function POIDetailPanel() {
 
         {/* Long description — rendered as Markdown */}
         {fullPOI?.long_description && (
-          <div className="prose prose-sm prose-gray max-w-none text-gray-700">
-            <ReactMarkdown
-              components={{
-                a: ({ ...props }) => (
-                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline" />
-                ),
-              }}
-            >
-              {fullPOI.long_description}
-            </ReactMarkdown>
-          </div>
+          <SimpleMarkdown>{fullPOI.long_description}</SimpleMarkdown>
         )}
 
         {/* Tags */}

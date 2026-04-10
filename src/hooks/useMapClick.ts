@@ -68,16 +68,16 @@ export function useMapClick(map: maplibregl.Map | null) {
     const handleClick = (e: maplibregl.MapMouseEvent) => {
       const { isRoutingMode, start, end, setStart, setEnd } = useRouteStore.getState();
 
-      // Routing mode — drop a waypoint on the map click
+      // Routing mode — drop a waypoint if either slot is still empty,
+      // otherwise fall through so the user can click POIs on the route.
       if (isRoutingMode) {
-        const { lng, lat } = e.lngLat;
-        const label = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-        if (!start) {
-          setStart({ lng, lat, label });
-        } else if (!end) {
-          setEnd({ lng, lat, label });
+        if (!start || !end) {
+          const { lng, lat } = e.lngLat;
+          const label = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          if (!start) setStart({ lng, lat, label });
+          else setEnd({ lng, lat, label });
+          return;
         }
-        return;
       }
 
       // POI layers take priority
@@ -204,8 +204,9 @@ export function useMapClick(map: maplibregl.Map | null) {
     };
 
     const setCursor = (e: maplibregl.MapMouseEvent) => {
-      const { isRoutingMode } = useRouteStore.getState();
-      if (isRoutingMode) {
+      const { isRoutingMode, start, end } = useRouteStore.getState();
+      // Show crosshair only while waypoints still need to be placed
+      if (isRoutingMode && !(start && end)) {
         map.getCanvas().style.cursor = "crosshair";
         return;
       }
