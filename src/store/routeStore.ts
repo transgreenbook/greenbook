@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { RouteWaypoint, RouteResult } from "@/lib/routing";
 import type { POIProperties } from "@/hooks/usePOIs";
+import { useMapStore } from "@/store/mapStore";
 
 export interface RoutePOI extends POIProperties {
   lng: number;
@@ -33,6 +34,7 @@ interface RouteStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearRoute: () => void;
+  fitToRoute: () => void;
 }
 
 export const useRouteStore = create<RouteStore>((set) => ({
@@ -72,4 +74,17 @@ export const useRouteStore = create<RouteStore>((set) => ({
       error: null,
       isLoading: false,
     }),
+  fitToRoute: () => {
+    const { route } = useRouteStore.getState();
+    if (!route || route.coordinates.length < 2) return;
+    const lngs = route.coordinates.map(([lng]) => lng);
+    const lats = route.coordinates.map(([, lat]) => lat);
+    useMapStore.getState().flyTo({
+      lng: 0, lat: 0, // ignored when bounds is set
+      bounds: [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+    });
+  },
 }));

@@ -169,6 +169,7 @@ export default function RoutingPanel() {
   const setStart = useRouteStore((s) => s.setStart);
   const setEnd = useRouteStore((s) => s.setEnd);
   const clearRoute = useRouteStore((s) => s.clearRoute);
+  const fitToRoute = useRouteStore((s) => s.fitToRoute);
   const setRoutingMode = useRouteStore((s) => s.setRoutingMode);
   const setMode = useAppStore((s) => s.setMode);
 
@@ -234,14 +235,29 @@ export default function RoutingPanel() {
           </p>
         )}
 
-        {/* Clear button — only shown once at least one waypoint is set */}
+        {/* Clear / fit-to-route buttons */}
         {(start || end) && (
-          <button
-            onClick={() => { clearRoute(); setStartQuery(""); setEndQuery(""); }}
-            className="w-full text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded px-1 py-1 text-left transition-colors"
-          >
-            Clear route
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => { clearRoute(); setStartQuery(""); setEndQuery(""); }}
+              className="flex-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded px-1 py-1 text-left transition-colors"
+            >
+              Clear route
+            </button>
+            {route && (
+              <button
+                onClick={fitToRoute}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded p-1 transition-colors"
+                aria-label="Zoom to route"
+                title="Zoom to route"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+              </button>
+            )}
+          </div>
         )}
 
         {/* Status */}

@@ -15,10 +15,16 @@ export default function RoutePOIPanel() {
   const flyTo          = useMapStore((s) => s.flyTo);
   const setSelectedPOI = useMapStore((s) => s.setSelectedPOI);
   const openPOI        = useAppStore((s) => s.openPOI);
+  const fitToRoute     = useRouteStore((s) => s.fitToRoute);
+  const panelWidthValue  = useAppStore((s) => s.panelWidths.route);
+  const setPanelWidth    = useAppStore((s) => s.setPanelWidth);
 
   const [mobileExpanded, setMobileExpanded]     = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
-  const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel();
+  const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel({
+    value: panelWidthValue,
+    onChange: (w) => setPanelWidth("route", w),
+  });
 
   // Only render when routing mode is active and we have (or are loading) a route
   if (!isRoutingMode || (!route && !isLoading)) return null;
@@ -42,7 +48,12 @@ export default function RoutePOIPanel() {
   }
 
   const header = (
-    <div className="flex items-center gap-2 flex-wrap">
+    <button
+      onClick={route ? (e) => { e.stopPropagation(); fitToRoute(); } : undefined}
+      className={`flex items-center gap-2 flex-wrap min-w-0 text-left ${route ? "cursor-pointer hover:opacity-70 transition-opacity" : "cursor-default"}`}
+      aria-label={route ? "Zoom to route" : undefined}
+      title={route ? "Zoom to route" : undefined}
+    >
       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
         POIs along route
       </span>
@@ -52,7 +63,7 @@ export default function RoutePOIPanel() {
       {!isLoading && poisAlongRoute.length > 0 && (
         <span className="text-xs text-gray-400">· {poisAlongRoute.length} found</span>
       )}
-    </div>
+    </button>
   );
 
   const content = (

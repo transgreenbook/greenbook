@@ -65,6 +65,89 @@ export function useMapClick(map: maplibregl.Map | null) {
       }
     };
 
+    // Select a region from rendered features at a point, without zooming.
+    const selectRegionAt = (point: maplibregl.Point): boolean => {
+      const zoom = map.getZoom();
+      const inStateBrowsing = stateBrowsingRef.current;
+
+      const cityFeatures = !inStateBrowsing && zoom >= 9 && map.getLayer("cities-fill")
+        ? map.queryRenderedFeatures(point, { layers: ["cities-fill"] })
+        : [];
+      const countyFeatures = !inStateBrowsing && zoom >= 6 && map.getLayer("counties-fill")
+        ? map.queryRenderedFeatures(point, { layers: ["counties-fill"] })
+        : [];
+      const stateFeatures = map.getLayer("states-fill")
+        ? map.queryRenderedFeatures(point, { layers: ["states-fill"] })
+        : [];
+
+      if (cityFeatures.length) {
+        const props   = cityFeatures[0].properties ?? {};
+        const name    = props.NAME    ?? "";
+        const statefp = props.STATEFP ?? "";
+        if (!name) return false;
+        setSelectedPOI(null);
+        setSelectedRegion({ type: "city", name, statefp });
+        return true;
+      }
+
+      if (countyFeatures.length) {
+        const props    = countyFeatures[0].properties ?? {};
+        const name     = props.NAME     ?? "";
+        const statefp  = props.STATEFP  ?? "";
+        const countyfp = props.COUNTYFP ?? "";
+        const fips5    = props.GEOID    ?? (statefp + countyfp);
+        if (!fips5) return false;
+        setSelectedPOI(null);
+        setSelectedRegion({ type: "county", name, fips5 });
+        return true;
+      }
+
+      if (stateFeatures.length) {
+        const props     = stateFeatures[0].properties ?? {};
+        const stateAbbr = props.STUSPS ?? props.abbreviation ?? "";
+        const name      = props.NAME   ?? props.name ?? stateAbbr;
+        if (!stateAbbr) return false;
+        setSelectedPOI(null);
+        setSelectedRegion({ type: "state", name, stateAbbr });
+        return true;
+      }
+
+      return false;
+    };
+
+    const handleContextMenu = (e: maplibregl.MapMouseEvent) => {
+      // POI right-click: select without flying to it (skip clusters — no zoom action makes sense)
+      if (map.getLayer("pois-unclustered")) {
+        const poiLayers = ["pois-unclustered", "pois-unclustered-icons", "pois-along-route"]
+          .filter((l) => map.getLayer(l));
+        const poiFeatures = map.queryRenderedFeatures(e.point, { layers: poiLayers });
+        if (poiFeatures.length) {
+          const feature = poiFeatures[0];
+          if (feature.geometry.type !== "Point") return;
+          const [lng, lat] = feature.geometry.coordinates as [number, number];
+          const p = feature.properties!;
+          setSelectedRegion(null);
+          setSelectedPOI({
+            id: p.id,
+            title: p.title,
+            description: p.description ?? null,
+            long_description: null,
+            category_id: p.category_id ?? null,
+            is_verified: p.is_verified,
+            tags: p.tags ? JSON.parse(p.tags) : null,
+            color: p.color ?? null,
+            icon: p.icon ?? null,
+            lng,
+            lat,
+          });
+          useAppStore.getState().openPOI();
+          return;
+        }
+      }
+
+      selectRegionAt(e.point);
+    };
+
     const handleClick = (e: maplibregl.MapMouseEvent) => {
       const { isRoutingMode, start, end, setStart, setEnd } = useRouteStore.getState();
 
@@ -124,10 +207,8 @@ export function useMapClick(map: maplibregl.Map | null) {
         }
       }
 
-      // Region layers.
-      // In state-browsing mode (set by clicking a state, cleared by manual zoom)
-      // skip city/county checks so the user can click state-to-state.
-      // Otherwise gate by zoom: county at zoom >= 6, city at zoom >= 9.
+      // Region layers — left-click zooms in then selects.
+      // In state-browsing mode skip city/county so the user can click state-to-state.
       const zoom = map.getZoom();
       const inStateBrowsing = stateBrowsingRef.current;
 
@@ -146,14 +227,11 @@ export function useMapClick(map: maplibregl.Map | null) {
         const name    = props.NAME    ?? "";
         const statefp = props.STATEFP ?? "";
         if (!name) return;
-
         const bounds = sourceBounds(
           map, "places", "places",
           ["all", ["==", ["get", "NAME"], name], ["==", ["get", "STATEFP"], statefp]] as maplibregl.FilterSpecification,
         );
-        if (bounds) {
-          flyTo({ lng: 0, lat: 0, bounds });
-        }
+        if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
         setSelectedRegion({ type: "city", name, statefp });
         return;
@@ -166,14 +244,11 @@ export function useMapClick(map: maplibregl.Map | null) {
         const countyfp = props.COUNTYFP ?? "";
         const fips5    = props.GEOID    ?? (statefp + countyfp);
         if (!fips5) return;
-
         const bounds = sourceBounds(
           map, "counties", "counties",
           ["==", ["get", "GEOID"], fips5] as maplibregl.FilterSpecification,
         );
-        if (bounds) {
-          flyTo({ lng: 0, lat: 0, bounds });
-        }
+        if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
         setSelectedRegion({ type: "county", name, fips5 });
         return;
@@ -184,7 +259,6 @@ export function useMapClick(map: maplibregl.Map | null) {
         const stateAbbr = props.STUSPS ?? props.abbreviation ?? "";
         const name      = props.NAME   ?? props.name ?? stateAbbr;
         if (!stateAbbr) return;
-
         const bbox = (stateBboxes as unknown as Record<string, [number, number, number, number]>)[stateAbbr];
         if (bbox) {
           flyTo({ lng: 0, lat: 0, bounds: [[bbox[0], bbox[1]], [bbox[2], bbox[3]]] });
@@ -228,11 +302,13 @@ export function useMapClick(map: maplibregl.Map | null) {
 
     map.on("zoomstart", handleZoomStart);
     map.on("click", handleClick);
+    map.on("contextmenu", handleContextMenu);
     map.on("mousemove", setCursor);
 
     return () => {
       map.off("zoomstart", handleZoomStart);
       map.off("click", handleClick);
+      map.off("contextmenu", handleContextMenu);
       map.off("mousemove", setCursor);
     };
   }, [map, setSelectedPOI, setSelectedRegion, flyTo]);

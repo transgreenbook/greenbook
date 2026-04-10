@@ -6,6 +6,7 @@ import { useMapStore } from "@/store/mapStore";
 import { useAppStore } from "@/store/appStore";
 import { useRouteStore } from "@/store/routeStore";
 import { supabase } from "@/lib/supabase";
+import { useResizablePanel } from "@/hooks/useResizablePanel";
 
 interface FullPOI {
   id: number;
@@ -26,6 +27,12 @@ export default function POIDetailPanel() {
 
   const [fullPOI, setFullPOI] = useState<FullPOI | null>(null);
   const [loading, setLoading] = useState(false);
+  const panelWidthValue = useAppStore((s) => s.panelWidths.poi);
+  const setPanelWidth   = useAppStore((s) => s.setPanelWidth);
+  const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel({
+    value: panelWidthValue,
+    onChange: (w) => setPanelWidth("poi", w),
+  });
 
   // Fetch full POI data (including long_description) whenever the selected POI changes
   useEffect(() => {
@@ -63,7 +70,12 @@ export default function POIDetailPanel() {
   const poi = fullPOI ?? selectedPOI;
 
   return (
-    <div className="absolute top-0 right-0 h-full w-96 max-w-full bg-white shadow-lg z-10 flex flex-col">
+    <div className="absolute top-0 right-0 h-full bg-white shadow-lg z-10 flex flex-col" style={{ width: panelWidth }}>
+      <div
+        onMouseDown={onDragHandleMouseDown}
+        className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-20 transition-colors"
+        title="Drag to resize"
+      />
       {/* Header */}
       <div className="flex items-start justify-between px-5 py-4 border-b border-gray-200 shrink-0 gap-3">
         <div className="min-w-0">

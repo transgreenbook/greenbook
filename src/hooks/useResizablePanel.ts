@@ -4,6 +4,10 @@ interface Options {
   defaultWidth?: number;
   minWidth?: number;
   maxWidth?: number;
+  /** If provided, the hook operates in controlled mode — width is read from
+   *  this value and written via onChange instead of using internal state. */
+  value?: number;
+  onChange?: (width: number) => void;
 }
 
 /**
@@ -11,15 +15,23 @@ interface Options {
  * on a right-anchored sidebar panel.
  *
  * Dragging left increases width, dragging right decreases it.
+ *
+ * Pass `value` + `onChange` to operate in controlled mode (e.g. persisting
+ * width in a store so it survives component unmounts).
  */
 export function useResizablePanel({
   defaultWidth = 320,
   minWidth     = 240,
   maxWidth     = 700,
+  value,
+  onChange,
 }: Options = {}) {
-  const [width, setWidth]      = useState(defaultWidth);
-  const dragStartX             = useRef<number | null>(null);
-  const dragStartWidth         = useRef<number>(defaultWidth);
+  const [internalWidth, setInternalWidth] = useState(defaultWidth);
+  const width    = value !== undefined ? value : internalWidth;
+  const setWidth = onChange ?? setInternalWidth;
+
+  const dragStartX     = useRef<number | null>(null);
+  const dragStartWidth = useRef<number>(width);
 
   const onDragHandleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -42,7 +54,7 @@ export function useResizablePanel({
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup",   onMouseUp);
     },
-    [width, minWidth, maxWidth],
+    [width, minWidth, maxWidth, setWidth],
   );
 
   return { width, onDragHandleMouseDown };

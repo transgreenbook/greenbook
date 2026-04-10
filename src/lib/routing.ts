@@ -57,7 +57,12 @@ export async function fetchRoute(
   });
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Routing request failed — check your start and end points.");
+  if (!res.ok) {
+    const msg: string = data.error ?? "";
+    if (msg.toLowerCase().includes("max distance") || msg.toLowerCase().includes("exceeds"))
+      throw new Error("Route too long — the free routing service has a ~930 mile limit. Try a shorter trip.");
+    throw new Error(msg || "Routing request failed — check your start and end points.");
+  }
 
   return {
     coordinates: decodePolyline(data.trip.legs[0].shape),

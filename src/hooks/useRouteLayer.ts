@@ -115,14 +115,4 @@ export function useRouteLayer(map: maplibregl.Map | null) {
     setPoisAlongRouteSource(map, poisAlongRoute);
   }, [map, poisAlongRoute]);
 
-  // Clear all route map data when routing mode is off
-  useEffect(() => {
-    if (!map) return;
-    const { isRoutingMode } = useRouteStore.getState();
-    if (!isRoutingMode) {
-      setRouteSource(map, null);
-      setWaypointSource(map, null, null);
-      setPoisAlongRouteSource(map, []);
-    }
-  }, [map, useRouteStore((s) => s.isRoutingMode)]);
 }
