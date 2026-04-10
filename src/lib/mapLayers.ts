@@ -56,7 +56,7 @@ export const SOURCES: Record<string, SourceSpecification> = {
     clusterMaxZoom: 12,
     clusterRadius: 50,
   },
-  // Route sources — data is swapped in by useRouteLayer.
+  // Route sources — data is swapped in by useRouteLayer / usePOIsAlongRoute.
   route: {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
@@ -348,6 +348,21 @@ export const LAYERS: LayerSpecification[] = [
     ...(pmtilesUrl ? { "source-layer": "places" } : {}),
     filter: ["all", ["==", ["get", "NAME"], ""], ["==", ["get", "STATEFP"], ""]],
     paint: { "fill-color": "#f59e0b", "fill-opacity": 0.4 },
+  },
+
+  // --- Route buffer (POI search radius shade) ---
+  // line-width is set dynamically by usePOIsAlongRoute using a zoom-based
+  // expression that converts bufferMeters to the correct pixel width.
+  {
+    id: "route-buffer",
+    type: "line",
+    source: "route",
+    layout: { "line-join": "round", "line-cap": "round" },
+    paint: {
+      "line-color": "#3b82f6",
+      "line-width": 0,
+      "line-opacity": 0.12,
+    },
   },
 
   // --- Route line ---

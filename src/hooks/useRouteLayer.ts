@@ -3,8 +3,8 @@ import type maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
 import { useRouteStore } from "@/store/routeStore";
 import { fetchRoute } from "@/lib/routing";
-import { supabase } from "@/lib/supabase";
 import type { RoutePOI } from "@/store/routeStore";
+import { usePOIsAlongRoute } from "@/hooks/usePOIsAlongRoute";
 
 // Sync route line to the "route" MapLibre source
 function setRouteSource(map: maplibregl.Map, coordinates: [number, number][] | null) {
@@ -63,75 +63,44 @@ function setPoisAlongRouteSource(map: maplibregl.Map, pois: RoutePOI[]) {
 }
 
 export function useRouteLayer(map: maplibregl.Map | null) {
-  const start = useRouteStore((s) => s.start);
-  const end = useRouteStore((s) => s.end);
-  const route = useRouteStore((s) => s.route);
+  const start          = useRouteStore((s) => s.start);
+  const end            = useRouteStore((s) => s.end);
+  const route          = useRouteStore((s) => s.route);
   const poisAlongRoute = useRouteStore((s) => s.poisAlongRoute);
-  const setRoute = useRouteStore((s) => s.setRoute);
-  const setPoisAlongRoute = useRouteStore((s) => s.setPoisAlongRoute);
-  const setLoading = useRouteStore((s) => s.setLoading);
-  const setError = useRouteStore((s) => s.setError);
+  const setRoute       = useRouteStore((s) => s.setRoute);
+  const setLoading     = useRouteStore((s) => s.setLoading);
+  const setError       = useRouteStore((s) => s.setError);
 
-  // Calculate route when both waypoints are set
+  usePOIsAlongRoute(map);
+
+  // Effect 1: fetch the route when both waypoints are set.
+  // Does NOT search POIs — that waits until the map has finished fitting to the route.
   useEffect(() => {
     if (!start || !end) return;
-
     let cancelled = false;
     setLoading(true);
     setError(null);
 
     fetchRoute(start, end)
-      .then(async (result) => {
-        if (cancelled) return;
-        setRoute(result);
-
-        const routeGeojson = JSON.stringify({
-          type: "LineString",
-          coordinates: result.coordinates,
-        });
-
-        const { data } = await supabase.rpc("pois_along_route", {
-          route_geojson: routeGeojson,
-          buffer_meters: 1609.34,
-        });
-
-        if (!cancelled && data) {
-          setPoisAlongRoute(
-            (data as Array<RoutePOI & { lng: number; lat: number }>).map((row) => ({
-              id: row.id,
-              title: row.title,
-              description: row.description,
-              category_id: row.category_id,
-              is_verified: row.is_verified,
-              tags: row.tags,
-              color: row.color,
-              icon: row.icon ?? null,
-              lng: row.lng,
-              lat: row.lat,
-            }))
-          );
-        }
+      .then((result) => {
+        if (!cancelled) setRoute(result);
+        // Keep isLoading=true — usePOIsAlongRoute will clear it after the POI search.
       })
-      .catch((err) => { if (!cancelled) setError(err.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
 
     return () => { cancelled = true; };
   }, [start, end]);
 
-  // Sync route line to map and fit the viewport to the route
+  // Effect 2: draw the route line when route data arrives.
+  // Viewport fitting and POI search are handled by usePOIsAlongRoute.
   useEffect(() => {
-    if (!map) return;
-    const coords = route?.coordinates ?? null;
-    setRouteSource(map, coords);
-
-    if (coords && coords.length > 0) {
-      const lngs = coords.map(([lng]) => lng);
-      const lats = coords.map(([, lat]) => lat);
-      map.fitBounds(
-        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-        { padding: 60, duration: 800 }
-      );
-    }
+    if (!map || !route) return;
+    setRouteSource(map, route.coordinates);
   }, [map, route]);
 
   // Sync waypoints to map
