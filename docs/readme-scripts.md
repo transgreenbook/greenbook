@@ -21,7 +21,9 @@ Also runs automatically every night via `greenbook-backup.timer`. See
 ### `scripts/restore-db.sh`
 
 Restores the local Supabase database from a backup file. Defaults to the most
-recent backup if no file is specified. Prompts for confirmation before overwriting.
+recent backup if no file is specified. Accepts either a bare filename or a full
+path. Prompts for confirmation before overwriting. If the specified file is not
+found, lists the available backups so you can pick one.
 
 ```bash
 bash scripts/restore-db.sh                               # restore latest backup
