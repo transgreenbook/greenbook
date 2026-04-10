@@ -19,6 +19,8 @@ docker exec "$CONTAINER" pg_dump -U postgres postgres \
   --schema=public \
   --no-privileges \
   --no-owner \
+  --clean \
+  --if-exists \
   | gzip > "$OUTFILE"
 echo "[backup] Wrote $OUTFILE ($(du -h "$OUTFILE" | cut -f1))"
 
