@@ -22,7 +22,7 @@ Also runs automatically every night via `greenbook-backup.timer`. See
 
 ## POI sync (Google Sheets ↔ Supabase)
 
-### `scripts/sync-pois.mjs`
+### `scripts/sync-pois-to-db.mjs`
 
 Syncs POIs from the Google Sheet into the local Supabase DB. This is the script
 that runs hourly via `greenbook-sync.timer`.
@@ -32,7 +32,7 @@ that runs hourly via `greenbook-sync.timer`.
 - POIs deleted from the sheet have `is_verified` set to `FALSE` in the DB (not hard-deleted).
 
 ```bash
-node scripts/sync-pois.mjs
+node scripts/sync-pois-to-db.mjs
 ```
 
 ### `scripts/seed-sheet-from-db.mjs`

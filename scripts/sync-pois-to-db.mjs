@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * sync-pois.mjs
+ * sync-pois-to-db.mjs
  *
  * Reads POI data from a Google Sheet and syncs it to Supabase.
  *
@@ -24,7 +24,7 @@
  *   visible_start    – ISO date e.g. 2026-06-01 (leave blank = always visible)
  *   visible_end      – ISO date e.g. 2026-08-31 (leave blank = no expiry)
  *
- * Run manually:  node scripts/sync-pois.mjs
+ * Run manually:  node scripts/sync-pois-to-db.mjs
  * Run via timer: systemctl --user start greenbook-sync.service
  */
 

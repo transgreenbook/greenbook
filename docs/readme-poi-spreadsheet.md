@@ -1,6 +1,6 @@
 # POI Spreadsheet Reference
 
-This document describes the columns in the **POIs** tab of the Google Sheet used to manage points of interest. Changes are synced to the database by running `npm run sync-pois`.
+This document describes the columns in the **POIs** tab of the Google Sheet used to manage points of interest. Changes are synced to the database by running `npm run sync-pois-to-db`.
 
 ---
 
@@ -47,7 +47,7 @@ Prominence controls when a POI becomes visible as the user zooms in.
 1. **Add a new POI** — fill in a new row with title, lat, lng, and any other fields. Leave `poi_id` blank.
 2. **Edit an existing POI** — find its row by `poi_id` and edit any field. Do not change `poi_id`.
 3. **Remove a POI** — delete the row (or set `is_verified` to `FALSE` to hide it without deleting).
-4. **Sync** — run `npm run sync-pois` to push changes to the database. New rows get their `poi_id` written back automatically.
+4. **Sync** — run `npm run sync-pois-to-db` to push changes to the database. New rows get their `poi_id` written back automatically.
 
 To export all current database records into the sheet (e.g. after a direct DB edit), run `npm run seed-sheet`. This overwrites the existing sheet content with the current database state.
-Edit the contents, then run `npm run sync-pois` to repopulate the database with your modified POIs.
+Edit the contents, then run `npm run sync-pois-to-db` to repopulate the database with your modified POIs.

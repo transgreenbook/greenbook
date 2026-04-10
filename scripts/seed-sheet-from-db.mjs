@@ -19,7 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
-// Config (same env-loading logic as sync-pois.mjs)
+// Config (same env-loading logic as sync-pois-to-db.mjs)
 // ---------------------------------------------------------------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -173,7 +173,7 @@ async function main() {
 
   // sheet_id back-fill skipped — column not yet on production DB
 
-  console.log('Done. Run `npm run sync-pois` to verify the round-trip.');
+  console.log('Done. Run `npm run sync-pois-to-db` to verify the round-trip.');
 }
 
 main().catch(err => {

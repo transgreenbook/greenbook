@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync-pois": "node scripts/sync-pois.mjs",
+    "sync-pois": "node scripts/sync-pois-to-db.mjs",
     "seed-sheet": "node scripts/seed-sheet-from-db.mjs",
     "seed-db": "bash scripts/seed-db-from-spreadsheet.sh",
     "import-restrooms": "node scripts/import-refuge-restrooms.mjs",

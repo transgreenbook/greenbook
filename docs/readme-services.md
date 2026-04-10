@@ -105,7 +105,7 @@ Name the sheet tab `POIs` (or set `GOOGLE_SHEET_TAB` in `.env.local` to match).
 
 **Manually:**
 ```bash
-node scripts/sync-pois.mjs
+node scripts/sync-pois-to-db.mjs
 ```
 
 **Via systemd (runs hourly automatically):**

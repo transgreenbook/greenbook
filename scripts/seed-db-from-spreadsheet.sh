@@ -17,7 +17,7 @@ bash "$SCRIPT_DIR/seed-boundaries.sh"
 
 echo ""
 echo "==> Step 2: Syncing POIs from spreadsheet…"
-node "$SCRIPT_DIR/sync-pois.mjs"
+node "$SCRIPT_DIR/sync-pois-to-db.mjs"
 
 echo ""
 echo "==> Step 3: Backfilling geo text fields…"
