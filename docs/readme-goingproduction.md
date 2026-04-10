@@ -46,9 +46,11 @@ systemctl --user list-timers greenbook-backup.timer
 # Follow backup logs
 journalctl --user -u greenbook-backup.service -f
 
-# Restore a backup
-gunzip -c ~/greenbook-backups/greenbook-YYYYMMDD-HHMMSS.sql.gz \
-  | docker exec -i supabase_db_greenbook psql -U postgres postgres
+# Restore latest backup
+bash scripts/restore-db.sh
+
+# Restore a specific backup
+bash scripts/restore-db.sh greenbook-YYYYMMDD-HHMMSS.sql.gz
 ```
 
 ### Offsite backup options (production)

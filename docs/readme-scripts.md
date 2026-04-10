@@ -18,6 +18,16 @@ bash scripts/backup-db.sh
 Also runs automatically every night via `greenbook-backup.timer`. See
 **[readme-goingproduction.md](readme-goingproduction.md)** for offsite backup options.
 
+### `scripts/restore-db.sh`
+
+Restores the local Supabase database from a backup file. Defaults to the most
+recent backup if no file is specified. Prompts for confirmation before overwriting.
+
+```bash
+bash scripts/restore-db.sh                               # restore latest backup
+bash scripts/restore-db.sh greenbook-20260410-194741.sql.gz  # specific backup
+```
+
 ---
 
 ## POI sync (Google Sheets ↔ Supabase)
