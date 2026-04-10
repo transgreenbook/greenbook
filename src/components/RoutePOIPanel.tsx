@@ -1,59 +1,69 @@
 "use client";
 
 import { useState } from "react";
-import { useMapStore } from "@/store/mapStore";
 import { useRouteStore } from "@/store/routeStore";
-import { useRegionPOIs } from "@/hooks/useRegionPOIs";
-import type { RegionPOI } from "@/hooks/useRegionPOIs";
+import { useMapStore } from "@/store/mapStore";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 
-const REGION_LABEL: Record<string, string> = {
-  state:  "State",
-  county: "County",
-  city:   "City",
-};
-
-export default function RegionPOIPanel() {
-  const { selectedRegion, setSelectedRegion, setSelectedPOI, flyTo } = useMapStore();
-  const isRoutingMode = useRouteStore((s) => s.isRoutingMode);
-  const { data: pois, isLoading } = useRegionPOIs(selectedRegion);
+export default function RoutePOIPanel() {
+  const isRoutingMode  = useRouteStore((s) => s.isRoutingMode);
+  const route          = useRouteStore((s) => s.route);
+  const isLoading      = useRouteStore((s) => s.isLoading);
+  const poisAlongRoute = useRouteStore((s) => s.poisAlongRoute);
+  const routeBuffer    = useRouteStore((s) => s.routeBuffer);
+  const flyTo          = useMapStore((s) => s.flyTo);
+  const setSelectedPOI = useMapStore((s) => s.setSelectedPOI);
 
   const [mobileExpanded, setMobileExpanded]     = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel();
 
-  if (!selectedRegion || isRoutingMode) return null;
+  // Only render when routing mode is active and we have (or are loading) a route
+  if (!isRoutingMode || (!route && !isLoading)) return null;
 
-  function handlePOIClick(poi: RegionPOI) {
+  function handlePOIClick(poi: (typeof poisAlongRoute)[number]) {
     flyTo({ lng: poi.lng, lat: poi.lat, zoom: 14 });
     setSelectedPOI({
-      id: poi.id,
-      title: poi.title,
+      id:          poi.id,
+      title:       poi.title,
       description: poi.description,
       category_id: poi.category_id,
       is_verified: poi.is_verified,
-      tags: poi.tags,
-      color: poi.color,
-      icon: poi.icon ?? null,
-      lng: poi.lng,
-      lat: poi.lat,
+      tags:        poi.tags,
+      color:       poi.color,
+      icon:        poi.icon ?? null,
+      lng:         poi.lng,
+      lat:         poi.lat,
     });
-    setSelectedRegion(null);
   }
 
-  const typeLabel = REGION_LABEL[selectedRegion.type];
+  const header = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        POIs along route
+      </span>
+      {routeBuffer && (
+        <span className="text-xs text-gray-400">within {routeBuffer}</span>
+      )}
+      {!isLoading && poisAlongRoute.length > 0 && (
+        <span className="text-xs text-gray-400">· {poisAlongRoute.length} found</span>
+      )}
+    </div>
+  );
 
   const content = (
     <>
       {isLoading && (
-        <p className="text-sm text-gray-400">Loading POIs…</p>
+        <p className="text-sm text-gray-400">Searching for POIs along the route…</p>
       )}
-      {!isLoading && pois && pois.length === 0 && (
-        <p className="text-sm text-gray-400">No POIs found for {selectedRegion.name}.</p>
+      {!isLoading && route && poisAlongRoute.length === 0 && (
+        <p className="text-sm text-gray-400">
+          No POIs found within {routeBuffer ?? "1 mi"} of this route.
+        </p>
       )}
-      {!isLoading && pois && pois.length > 0 && (
+      {!isLoading && poisAlongRoute.length > 0 && (
         <ul className="-mx-4">
-          {pois.map((poi) => (
+          {poisAlongRoute.map((poi) => (
             <li key={poi.id}>
               <button
                 className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0 flex items-start gap-3"
@@ -98,22 +108,10 @@ export default function RegionPOIPanel() {
             title="Drag to resize"
           />
         )}
+
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
-          <div className="min-w-0 pr-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-amber-600 uppercase tracking-wide">
-                {typeLabel}
-              </span>
-              {pois && (
-                <span className="text-xs text-gray-400">
-                  {pois.length} POI{pois.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-            <h2 className="font-semibold text-gray-800 text-base truncate">
-              {selectedRegion.name}
-            </h2>
-          </div>
+          {header}
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => setDesktopCollapsed(true)}
@@ -124,21 +122,16 @@ export default function RegionPOIPanel() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
-            <button
-              onClick={() => setSelectedRegion(null)}
-              className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-              aria-label="Close"
-            >
-              ×
-            </button>
           </div>
         </div>
 
+        {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
           {content}
         </div>
       </div>
 
+      {/* Collapsed tab */}
       {desktopCollapsed && (
         <button
           onClick={() => setDesktopCollapsed(false)}
@@ -153,8 +146,8 @@ export default function RegionPOIPanel() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          <span className="text-xs font-medium [writing-mode:vertical-rl] rotate-180 max-h-24 overflow-hidden truncate">
-            {selectedRegion.name}
+          <span className="text-xs font-medium [writing-mode:vertical-rl] rotate-180">
+            POIs along route
           </span>
         </button>
       )}
@@ -166,7 +159,7 @@ export default function RegionPOIPanel() {
         className={`
           md:hidden fixed bottom-0 left-0 right-0 z-20 bg-white rounded-t-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.12)]
           transition-[height] duration-300 ease-in-out flex flex-col
-          ${mobileExpanded ? "h-[70vh]" : "h-20"}
+          ${mobileExpanded ? "h-[70vh]" : "h-16"}
         `}
       >
         <div
@@ -177,31 +170,15 @@ export default function RegionPOIPanel() {
         >
           <div className="w-10 h-1 rounded-full bg-gray-300 mb-2" />
           <div className="w-full flex items-center justify-between px-4">
-            <div className="min-w-0">
-              <span className="text-xs font-medium text-amber-600 uppercase tracking-wide mr-2">
-                {typeLabel}
-              </span>
-              <span className="font-semibold text-gray-800 text-base truncate">
-                {selectedRegion.name}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <svg
-                className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${mobileExpanded ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-              </svg>
-              <button
-                onClick={(e) => { e.stopPropagation(); setSelectedRegion(null); }}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
+            {header}
+            <svg
+              className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${mobileExpanded ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
           </div>
         </div>
 

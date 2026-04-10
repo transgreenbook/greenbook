@@ -519,17 +519,20 @@ export default function POIForm({ initialData }: Props) {
         <div>
           <label className={labelCls}>
             Severity{" "}
-            <span className="text-gray-400 font-normal">(0–10, warnings only)</span>
+            <span className="text-gray-400 font-normal">(-10 to +10)</span>
           </label>
-          <input
-            type="number"
-            min={0}
-            max={10}
+          <select
             value={form.severity}
             onChange={(e) => set("severity", e.target.value)}
-            placeholder="—"
             className={inputCls}
-          />
+          >
+            <option value="">— none —</option>
+            {Array.from({ length: 21 }, (_, i) => i - 10).map((n) => (
+              <option key={n} value={n}>
+                {n > 0 ? `+${n}` : n}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

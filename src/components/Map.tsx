@@ -73,7 +73,21 @@ export default function Map() {
       }),
       "top-right"
     );
-    instance.addControl(new maplibregl.ScaleControl(), "bottom-left");
+    const scaleControl = new maplibregl.ScaleControl({ unit: "imperial", maxWidth: 120 });
+    instance.addControl(scaleControl, "bottom-left");
+
+    // Make the scale bar clickable to toggle mi ↔ km
+    const scaleEl = instance.getContainer().querySelector<HTMLElement>(".maplibregl-ctrl-scale");
+    if (scaleEl) {
+      let unit: "imperial" | "metric" = "imperial";
+      scaleEl.style.cursor = "pointer";
+      scaleEl.title = "Click to switch between mi and km";
+      scaleEl.addEventListener("click", () => {
+        unit = unit === "imperial" ? "metric" : "imperial";
+        scaleControl.setUnit(unit);
+        scaleEl.title = unit === "imperial" ? "Click to switch to km" : "Click to switch to mi";
+      });
+    }
 
     instance.on("zoom", () => setZoom(instance.getZoom()));
     instance.once("load", () => setZoom(instance.getZoom()));

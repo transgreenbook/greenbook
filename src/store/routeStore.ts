@@ -13,6 +13,7 @@ interface RouteStore {
   end: RouteWaypoint | null;
   route: RouteResult | null;
   poisAlongRoute: RoutePOI[];
+  routeBuffer: string | null;
   isLoading: boolean;
   error: string | null;
 
@@ -21,6 +22,7 @@ interface RouteStore {
   setEnd: (wp: RouteWaypoint | null) => void;
   setRoute: (route: RouteResult | null) => void;
   setPoisAlongRoute: (pois: RoutePOI[]) => void;
+  setRouteBuffer: (label: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearRoute: () => void;
@@ -32,14 +34,16 @@ export const useRouteStore = create<RouteStore>((set) => ({
   end: null,
   route: null,
   poisAlongRoute: [],
+  routeBuffer: null,
   isLoading: false,
   error: null,
 
   setRoutingMode: (on) => set({ isRoutingMode: on }),
-  setStart: (wp) => set({ start: wp, route: null, poisAlongRoute: [] }),
-  setEnd: (wp) => set({ end: wp, route: null, poisAlongRoute: [] }),
+  setStart: (wp) => set({ start: wp, route: null, poisAlongRoute: [], routeBuffer: null }),
+  setEnd: (wp) => set({ end: wp, route: null, poisAlongRoute: [], routeBuffer: null }),
   setRoute: (route) => set({ route }),
   setPoisAlongRoute: (pois) => set({ poisAlongRoute: pois }),
+  setRouteBuffer: (label) => set({ routeBuffer: label }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
   clearRoute: () =>
@@ -48,6 +52,7 @@ export const useRouteStore = create<RouteStore>((set) => ({
       end: null,
       route: null,
       poisAlongRoute: [],
+      routeBuffer: null,
       error: null,
       isLoading: false,
     }),
