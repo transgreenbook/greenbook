@@ -216,7 +216,10 @@ export default function RegionPOIPanel() {
           role="button"
           aria-label={mobileExpanded ? "Collapse" : "Expand"}
         >
-          <div className="w-10 h-1 rounded-full bg-gray-300 mb-2 touch-none" {...mobileHandleProps} />
+          {/* Full-width drag zone — tall touch target, visual pill inside */}
+          <div className="w-full flex justify-center pb-1 touch-none" {...mobileHandleProps}>
+            <div className="w-10 h-1 rounded-full bg-gray-300" />
+          </div>
           <div className="w-full flex items-center justify-between px-4">
             <div className="min-w-0">
               <span className="text-xs font-medium text-amber-600 uppercase tracking-wide mr-2">

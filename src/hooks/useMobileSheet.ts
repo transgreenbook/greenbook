@@ -48,6 +48,7 @@ export function useMobileSheet({
 
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      e.stopPropagation();
       didDragRef.current = false;
       const currentH = isExpanded ? getExpandedHeight() : collapsedHeight;
       dragStartRef.current = { y: e.touches[0].clientY, h: currentH };
@@ -57,6 +58,7 @@ export function useMobileSheet({
 
   const onTouchMove = useCallback(
     (e: React.TouchEvent) => {
+      e.stopPropagation();
       if (!dragStartRef.current) return;
       const delta = dragStartRef.current.y - e.touches[0].clientY;
       // Small deadzone so accidental micro-movements don't start a drag
@@ -71,13 +73,17 @@ export function useMobileSheet({
     [collapsedHeight],
   );
 
-  const onTouchEnd = useCallback(() => {
-    dragStartRef.current = null;
-    if (dragHeight !== null) {
-      setIsExpanded(dragHeight > window.innerHeight * snapThreshold);
-    }
-    setDragHeight(null);
-  }, [dragHeight, snapThreshold]);
+  const onTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      e.stopPropagation();
+      dragStartRef.current = null;
+      if (dragHeight !== null) {
+        setIsExpanded(dragHeight > window.innerHeight * snapThreshold);
+      }
+      setDragHeight(null);
+    },
+    [dragHeight, snapThreshold],
+  );
 
   return {
     isExpanded,
