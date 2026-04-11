@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMobileSheet } from "@/hooks/useMobileSheet";
 import { useMapStore } from "@/store/mapStore";
 import { useRouteStore } from "@/store/routeStore";
 import { useAppStore } from "@/store/appStore";
@@ -25,7 +26,13 @@ export default function RegionPOIPanel() {
   const hiddenCategoryIds = useFilterStore((s) => s.hiddenCategoryIds);
   const filtersActive     = hiddenCategoryIds.length > 0;
 
-  const [mobileExpanded, setMobileExpanded]     = useState(false);
+  const {
+    isExpanded: mobileExpanded,
+    isDragging: mobileDragging,
+    sheetStyle: mobileSheetStyle,
+    toggle: toggleMobile,
+    handleProps: mobileHandleProps,
+  } = useMobileSheet({ collapsedHeight: 80 }); // h-20 = 80px
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [showFilter, setShowFilter]             = useState(false);
   const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel();
@@ -197,17 +204,19 @@ export default function RegionPOIPanel() {
       <div
         className={`
           md:hidden fixed bottom-0 left-0 right-0 z-20 bg-white rounded-t-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.12)]
-          transition-[height] duration-300 ease-in-out flex flex-col
-          ${mobileExpanded ? "h-[70vh]" : "h-20"}
+          flex flex-col
+          ${mobileDragging ? "" : "transition-[height] duration-300 ease-in-out"}
+          ${mobileDragging ? "" : mobileExpanded ? "h-[70vh]" : "h-20"}
         `}
+        style={mobileSheetStyle}
       >
         <div
           className="w-full shrink-0 flex flex-col items-center pt-2 pb-1 cursor-pointer"
-          onClick={() => setMobileExpanded((v) => !v)}
+          onClick={toggleMobile}
           role="button"
           aria-label={mobileExpanded ? "Collapse" : "Expand"}
         >
-          <div className="w-10 h-1 rounded-full bg-gray-300 mb-2" />
+          <div className="w-10 h-1 rounded-full bg-gray-300 mb-2 touch-none" {...mobileHandleProps} />
           <div className="w-full flex items-center justify-between px-4">
             <div className="min-w-0">
               <span className="text-xs font-medium text-amber-600 uppercase tracking-wide mr-2">
