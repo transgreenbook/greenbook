@@ -5,7 +5,7 @@
 #   bash scripts/restore-db.sh                        # restore latest backup
 #   bash scripts/restore-db.sh greenbook-20260410-194741.sql.gz  # specific file
 #
-# WARNING: This will DROP and recreate the public schema, replacing all data.
+# WARNING: This will replace all auth users and public schema data.
 
 set -euo pipefail
 
@@ -36,7 +36,7 @@ fi
 
 echo "Restoring from: $BACKUP_FILE"
 echo ""
-read -r -p "This will REPLACE all current data. Continue? [y/N] " confirm
+read -r -p "This will REPLACE all auth users and public schema data. Continue? [y/N] " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
   echo "Aborted."
   exit 0

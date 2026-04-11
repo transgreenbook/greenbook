@@ -1,5 +1,7 @@
 #!/bin/bash
 # Dump the local Supabase Postgres database to a timestamped gzipped SQL file.
+# Backs up both auth user data (auth.users, auth.identities) and the full
+# public schema so a restore is completely self-contained.
 # Keeps the 14 most recent backups and removes older ones.
 #
 # Run manually:   bash scripts/backup-db.sh
@@ -15,13 +17,41 @@ OUTFILE="$BACKUP_DIR/greenbook-$TIMESTAMP.sql.gz"
 mkdir -p "$BACKUP_DIR"
 
 echo "[backup] Starting dump at $(date)"
-docker exec "$CONTAINER" pg_dump -U postgres postgres \
-  --schema=public \
-  --no-privileges \
-  --no-owner \
-  --clean \
-  --if-exists \
-  | gzip > "$OUTFILE"
+
+{
+  # ----------------------------------------------------------------
+  # 1. Auth user data — output FIRST so auth.users rows exist before
+  #    public.profiles (which has a FK to auth.users) is inserted.
+  # ----------------------------------------------------------------
+  echo "-- ============================================================"
+  echo "-- Auth user data"
+  echo "-- ============================================================"
+  echo "DELETE FROM auth.identities;"
+  echo "DELETE FROM auth.users;"
+  echo ""
+  docker exec "$CONTAINER" pg_dump -U postgres postgres \
+    --data-only \
+    --table=auth.users \
+    --table=auth.identities \
+    --column-inserts \
+    --no-privileges
+  echo ""
+
+  # ----------------------------------------------------------------
+  # 2. Public schema — schema + data with clean/recreate semantics
+  # ----------------------------------------------------------------
+  echo "-- ============================================================"
+  echo "-- Public schema"
+  echo "-- ============================================================"
+  docker exec "$CONTAINER" pg_dump -U postgres postgres \
+    --schema=public \
+    --no-privileges \
+    --no-owner \
+    --clean \
+    --if-exists
+
+} | gzip > "$OUTFILE"
+
 echo "[backup] Wrote $OUTFILE ($(du -h "$OUTFILE" | cut -f1))"
 
 # Retain the 14 most recent backups (~2 weeks at nightly frequency)
