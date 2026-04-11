@@ -5,6 +5,8 @@ import { useRouteStore } from "@/store/routeStore";
 import { useMapStore } from "@/store/mapStore";
 import { useAppStore } from "@/store/appStore";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
+import { useFilterStore } from "@/store/filterStore";
+import POIFilter from "@/components/POIFilter";
 
 export default function RoutePOIPanel() {
   const isRoutingMode  = useRouteStore((s) => s.isRoutingMode);
@@ -19,8 +21,12 @@ export default function RoutePOIPanel() {
   const panelWidthValue  = useAppStore((s) => s.panelWidths.route);
   const setPanelWidth    = useAppStore((s) => s.setPanelWidth);
 
+  const hiddenCategoryIds = useFilterStore((s) => s.hiddenCategoryIds);
+  const filtersActive     = hiddenCategoryIds.length > 0;
+
   const [mobileExpanded, setMobileExpanded]     = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [showFilter, setShowFilter]             = useState(false);
   const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel({
     value: panelWidthValue,
     onChange: (w) => setPanelWidth("route", w),
@@ -47,6 +53,10 @@ export default function RoutePOIPanel() {
     openPOI("route");
   }
 
+  const visiblePois = poisAlongRoute.filter(
+    (p) => !p.category_id || !hiddenCategoryIds.includes(p.category_id)
+  );
+
   const header = (
     <button
       onClick={route ? (e) => { e.stopPropagation(); fitToRoute(); } : undefined}
@@ -61,7 +71,9 @@ export default function RoutePOIPanel() {
         <span className="text-xs text-gray-400">within {routeBuffer}</span>
       )}
       {!isLoading && poisAlongRoute.length > 0 && (
-        <span className="text-xs text-gray-400">· {poisAlongRoute.length} found</span>
+        <span className="text-xs text-gray-400">
+          · {filtersActive ? `${visiblePois.length} of ${poisAlongRoute.length}` : poisAlongRoute.length} found
+        </span>
       )}
     </button>
   );
@@ -76,9 +88,12 @@ export default function RoutePOIPanel() {
           No POIs found within {routeBuffer ?? "1 mi"} of this route.
         </p>
       )}
-      {!isLoading && poisAlongRoute.length > 0 && (
+      {!isLoading && visiblePois.length === 0 && poisAlongRoute.length > 0 && (
+        <p className="text-sm text-gray-400">All POIs along this route are hidden by your filters.</p>
+      )}
+      {!isLoading && visiblePois.length > 0 && (
         <ul className="-mx-4">
-          {poisAlongRoute.map((poi) => (
+          {visiblePois.map((poi) => (
             <li key={poi.id}>
               <button
                 className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0 flex items-start gap-3"
@@ -129,6 +144,19 @@ export default function RoutePOIPanel() {
           {header}
           <div className="flex items-center gap-1 shrink-0">
             <button
+              onClick={() => setShowFilter((v) => !v)}
+              className={`relative p-1 ${showFilter || filtersActive ? "text-blue-500" : "text-gray-400 hover:text-gray-600"}`}
+              aria-label="Filter by category"
+              title="Filter by category"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M7 10h10M11 16h2" />
+              </svg>
+              {filtersActive && (
+                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+              )}
+            </button>
+            <button
               onClick={() => setDesktopCollapsed(true)}
               className="text-gray-400 hover:text-gray-600 p-1"
               aria-label="Collapse panel"
@@ -139,6 +167,8 @@ export default function RoutePOIPanel() {
             </button>
           </div>
         </div>
+
+        {showFilter && <POIFilter />}
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
@@ -186,17 +216,32 @@ export default function RoutePOIPanel() {
           <div className="w-10 h-1 rounded-full bg-gray-300 mb-2" />
           <div className="w-full flex items-center justify-between px-4">
             {header}
-            <svg
-              className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${mobileExpanded ? "rotate-180" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-            </svg>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowFilter((v) => !v); }}
+                className={`relative p-1 ${showFilter || filtersActive ? "text-blue-500" : "text-gray-400"}`}
+                aria-label="Filter by category"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M7 10h10M11 16h2" />
+                </svg>
+                {filtersActive && (
+                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                )}
+              </button>
+              <svg
+                className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${mobileExpanded ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </div>
           </div>
         </div>
 
+        {showFilter && <POIFilter />}
         <div className="flex-1 overflow-y-auto px-4 pb-6 pt-2 space-y-1">
           {content}
         </div>

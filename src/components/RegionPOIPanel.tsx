@@ -7,6 +7,8 @@ import { useAppStore } from "@/store/appStore";
 import { useRegionPOIs } from "@/hooks/useRegionPOIs";
 import type { RegionPOI } from "@/hooks/useRegionPOIs";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
+import { useFilterStore } from "@/store/filterStore";
+import POIFilter from "@/components/POIFilter";
 
 const REGION_LABEL: Record<string, string> = {
   state:  "State",
@@ -20,8 +22,12 @@ export default function RegionPOIPanel() {
   const openPOI = useAppStore((s) => s.openPOI);
   const { data: pois, isLoading } = useRegionPOIs(selectedRegion);
 
+  const hiddenCategoryIds = useFilterStore((s) => s.hiddenCategoryIds);
+  const filtersActive     = hiddenCategoryIds.length > 0;
+
   const [mobileExpanded, setMobileExpanded]     = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [showFilter, setShowFilter]             = useState(false);
   const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel();
 
   if (!selectedRegion || isRoutingMode) return null;
@@ -47,17 +53,24 @@ export default function RegionPOIPanel() {
 
   const typeLabel = REGION_LABEL[selectedRegion.type];
 
+  const visiblePois = pois?.filter(
+    (p) => !p.category_id || !hiddenCategoryIds.includes(p.category_id)
+  ) ?? [];
+
   const content = (
     <>
       {isLoading && (
         <p className="text-sm text-gray-400">Loading POIs…</p>
       )}
+      {!isLoading && visiblePois.length === 0 && (pois?.length ?? 0) > 0 && (
+        <p className="text-sm text-gray-400">All POIs in this area are hidden by your filters.</p>
+      )}
       {!isLoading && pois && pois.length === 0 && (
         <p className="text-sm text-gray-400">No POIs found for {selectedRegion.name}.</p>
       )}
-      {!isLoading && pois && pois.length > 0 && (
+      {!isLoading && visiblePois.length > 0 && (
         <ul className="-mx-4">
-          {pois.map((poi) => (
+          {visiblePois.map((poi) => (
             <li key={poi.id}>
               <button
                 className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0 flex items-start gap-3"
@@ -110,7 +123,7 @@ export default function RegionPOIPanel() {
               </span>
               {pois && (
                 <span className="text-xs text-gray-400">
-                  {pois.length} POI{pois.length !== 1 ? "s" : ""}
+                  {filtersActive ? `${visiblePois.length} of ${pois.length}` : `${pois.length}`} POI{pois.length !== 1 ? "s" : ""}
                 </span>
               )}
             </div>
@@ -119,6 +132,19 @@ export default function RegionPOIPanel() {
             </h2>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setShowFilter((v) => !v)}
+              className={`relative p-1 ${showFilter || filtersActive ? "text-blue-500" : "text-gray-400 hover:text-gray-600"}`}
+              aria-label="Filter by category"
+              title="Filter by category"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M7 10h10M11 16h2" />
+              </svg>
+              {filtersActive && (
+                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+              )}
+            </button>
             <button
               onClick={() => setDesktopCollapsed(true)}
               className="text-gray-400 hover:text-gray-600 p-1"
@@ -137,6 +163,8 @@ export default function RegionPOIPanel() {
             </button>
           </div>
         </div>
+
+        {showFilter && <POIFilter />}
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
           {content}
@@ -190,6 +218,18 @@ export default function RegionPOIPanel() {
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowFilter((v) => !v); }}
+                className={`relative p-1 ${showFilter || filtersActive ? "text-blue-500" : "text-gray-400"}`}
+                aria-label="Filter by category"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M7 10h10M11 16h2" />
+                </svg>
+                {filtersActive && (
+                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                )}
+              </button>
               <svg
                 className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${mobileExpanded ? "rotate-180" : ""}`}
                 fill="none"
@@ -209,6 +249,7 @@ export default function RegionPOIPanel() {
           </div>
         </div>
 
+        {showFilter && <POIFilter />}
         <div className="flex-1 overflow-y-auto px-4 pb-6 pt-2 space-y-1">
           {content}
         </div>

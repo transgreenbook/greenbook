@@ -9,6 +9,7 @@ import { useMapClick } from "@/hooks/useMapClick";
 import { useRouteLayer } from "@/hooks/useRouteLayer";
 import { useRegionHighlight } from "@/hooks/useRegionHighlight";
 import { useRegionColors } from "@/hooks/useRegionColors";
+import { useMapFilter } from "@/hooks/useMapFilter";
 import { useMapStore } from "@/store/mapStore";
 
 // Bounding box of the continental US
@@ -31,6 +32,7 @@ export default function Map() {
   useRouteLayer(map);
   useRegionHighlight(map);
   useRegionColors(map);
+  useMapFilter(map);
 
   useEffect(() => {
     if (!map || !pendingFlyTo) return;
