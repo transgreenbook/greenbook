@@ -13,10 +13,11 @@ async function svgToMapImage(url: string, fill: string, size: number): Promise<M
   const res = await fetch(url);
   const svgText = await res.text();
 
-  // Inject fill color onto the root <svg> element
+  // Inject fill color onto the root <svg> element.
+  // Use a data: URI instead of a blob URL — Safari/WebKit blocks blob URLs
+  // in canvas (getImageData throws a SecurityError / "Load failed").
   const colored = svgText.replace("<svg ", `<svg fill="${fill}" `);
-  const blob = new Blob([colored], { type: "image/svg+xml" });
-  const blobUrl = URL.createObjectURL(blob);
+  const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(colored)}`;
 
   return new Promise((resolve, reject) => {
     const img = new Image(size, size);
@@ -26,15 +27,11 @@ async function svgToMapImage(url: string, fill: string, size: number): Promise<M
       canvas.height = size;
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, size, size);
-      URL.revokeObjectURL(blobUrl);
       const { data } = ctx.getImageData(0, 0, size, size);
       resolve({ width: size, height: size, data: new Uint8Array(data.buffer) });
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(blobUrl);
-      reject(new Error(`Failed to load ${url}`));
-    };
-    img.src = blobUrl;
+    img.onerror = () => reject(new Error(`Failed to load ${url}`));
+    img.src = dataUrl;
   });
 }
 
