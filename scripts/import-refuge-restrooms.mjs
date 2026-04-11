@@ -122,7 +122,7 @@ async function fetchPageWithRetry(url) {
   }
 }
 
-function toPoiRecord(r, coords = null) {
+function toPoiRecord(r, coords = null, categoryId = null) {
   const tags = ['unisex'];
   if (r.accessible)     tags.push('ada-accessible');
   if (r.changing_table) tags.push('changing-table');
@@ -139,6 +139,7 @@ function toPoiRecord(r, coords = null) {
     tags,
     is_verified:      r.approved === true && meetsRating(r),
     effect_scope:     'point',
+    category_id:      categoryId,
     is_user_submitted: false,
     attributes: {
       upvotes:   r.upvote,
@@ -163,7 +164,7 @@ function hasValidCoords(r) {
 
 // Upsert a batch of raw API records into Supabase.
 // seenIds, if provided, will be populated with every source_id processed.
-async function upsertBatch(records, existingMap, counters, seenIds = null) {
+async function upsertBatch(records, existingMap, counters, seenIds = null, categoryId = null) {
   for (const r of records) {
     if (!meetsRating(r)) continue;
     let coords = null;
@@ -175,7 +176,7 @@ async function upsertBatch(records, existingMap, counters, seenIds = null) {
       }
       counters.geocoded = (counters.geocoded ?? 0) + 1;
     }
-    const poi = toPoiRecord(r, coords);
+    const poi = toPoiRecord(r, coords, categoryId);
     seenIds?.add(poi.source_id);
     const existingId = existingMap.get(poi.source_id);
 
@@ -215,6 +216,19 @@ async function main() {
   const isFullImport = process.argv.includes('--full');
   console.log(`Starting Refuge Restrooms import (${isFullImport ? 'full' : 'daily'})…`);
 
+  // ── Look up the Restrooms category (matched by icon_slug used for the POI icon) ─
+  const { data: catRow } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('icon_slug', 'restrooms')
+    .maybeSingle();
+  const RESTROOM_CATEGORY_ID = catRow?.id ?? null;
+  if (RESTROOM_CATEGORY_ID) {
+    console.log(`  Found Restrooms category (id=${RESTROOM_CATEGORY_ID}); will assign to imported POIs.`);
+  } else {
+    console.log('  No category with icon_slug="poi-restroom" found; category_id will be null.');
+  }
+
   // ── Load ALL existing source_ids (paginate past Supabase's 1000-row default) ─
   console.log('  Loading existing refuge_restrooms records from DB…');
   const existingMap = new Map();
@@ -246,7 +260,7 @@ async function main() {
       if (!Array.isArray(data) || data.length === 0) break;
 
       console.log(`  Page ${page} fetched (${data.length} records), upserting…`);
-      await upsertBatch(data, existingMap, counters, seenIds);
+      await upsertBatch(data, existingMap, counters, seenIds, RESTROOM_CATEGORY_ID);
       console.log(`    → inserted: ${counters.inserted}  updated: ${counters.updated}  geocoded: ${counters.geocoded ?? 0}  skipped: ${counters.skipped ?? 0}  failed: ${counters.failed}`);
 
       if (data.length < PER_PAGE) break;
@@ -283,7 +297,7 @@ async function main() {
       const data = await fetchPageWithRetry(`${API_BASE}/by_date?${qs}`);
       if (!Array.isArray(data) || data.length === 0) break;
       total += data.length;
-      await upsertBatch(data, existingMap, counters);
+      await upsertBatch(data, existingMap, counters, null, RESTROOM_CATEGORY_ID);
       if (data.length < PER_PAGE) break;
       page++;
     }

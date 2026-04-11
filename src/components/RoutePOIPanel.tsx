@@ -22,8 +22,12 @@ export default function RoutePOIPanel() {
   const panelWidthValue  = useAppStore((s) => s.panelWidths.route);
   const setPanelWidth    = useAppStore((s) => s.setPanelWidth);
 
+  const categories        = useFilterStore((s) => s.categories);
   const hiddenCategoryIds = useFilterStore((s) => s.hiddenCategoryIds);
   const filtersActive     = hiddenCategoryIds.length > 0;
+  const hiddenCategoryIcons = categories
+    .filter((c) => hiddenCategoryIds.includes(c.id))
+    .map((c) => c.icon ?? c.icon_slug);
 
   const {
     isExpanded: mobileExpanded,
@@ -61,9 +65,11 @@ export default function RoutePOIPanel() {
     openPOI("route");
   }
 
-  const visiblePois = poisAlongRoute.filter(
-    (p) => !p.category_id || !hiddenCategoryIds.includes(p.category_id)
-  );
+  const visiblePois = poisAlongRoute.filter((p) => {
+    if (p.category_id != null) return !hiddenCategoryIds.includes(p.category_id);
+    if (p.icon)                return !hiddenCategoryIcons.includes(p.icon);
+    return true;
+  });
 
   const header = (
     <button

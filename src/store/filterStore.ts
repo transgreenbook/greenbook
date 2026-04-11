@@ -5,6 +5,10 @@ export interface Category {
   id: number;
   name: string;
   color: string | null;
+  icon_slug: string;
+  /** Exact POI icon value (e.g. "poi-restroom"). Use this for icon-based
+   *  filtering when a POI has no category_id. Falls back to icon_slug. */
+  icon: string | null;
 }
 
 interface FilterStore {
@@ -23,7 +27,7 @@ export const useFilterStore = create<FilterStore>((set, get) => ({
     if (get().categories.length > 0) return; // already loaded
     const { data } = await supabase
       .from("categories")
-      .select("id, name, color")
+      .select("id, name, color, icon_slug, icon")
       .order("name");
     if (data) set({ categories: data as Category[] });
   },

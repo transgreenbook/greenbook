@@ -23,8 +23,12 @@ export default function RegionPOIPanel() {
   const openPOI = useAppStore((s) => s.openPOI);
   const { data: pois, isLoading } = useRegionPOIs(selectedRegion);
 
+  const categories        = useFilterStore((s) => s.categories);
   const hiddenCategoryIds = useFilterStore((s) => s.hiddenCategoryIds);
   const filtersActive     = hiddenCategoryIds.length > 0;
+  const hiddenCategoryIcons = categories
+    .filter((c) => hiddenCategoryIds.includes(c.id))
+    .map((c) => c.icon ?? c.icon_slug);
 
   const {
     isExpanded: mobileExpanded,
@@ -60,9 +64,11 @@ export default function RegionPOIPanel() {
 
   const typeLabel = REGION_LABEL[selectedRegion.type];
 
-  const visiblePois = pois?.filter(
-    (p) => !p.category_id || !hiddenCategoryIds.includes(p.category_id)
-  ) ?? [];
+  const visiblePois = pois?.filter((p) => {
+    if (p.category_id != null) return !hiddenCategoryIds.includes(p.category_id);
+    if (p.icon)                return !hiddenCategoryIcons.includes(p.icon);
+    return true;
+  }) ?? [];
 
   const content = (
     <>

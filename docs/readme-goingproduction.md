@@ -73,6 +73,31 @@ bash scripts/restore-db.sh greenbook-YYYYMMDD-HHMMSS.sql.gz
 
 ---
 
+## Local device testing
+
+When testing on a physical phone, the browser JS runs on the phone. `http://127.0.0.1:54321` resolves to the phone itself, not the dev machine, so Supabase calls fail silently (no POIs, "Load failed" in console).
+
+**Temporary fix for local device testing:**
+
+1. Find the dev machine's local IP:
+   ```bash
+   hostname -I | awk '{print $1}'
+   ```
+2. In `.env.local`, change:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+   ```
+   to:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=http://192.168.x.x:54321
+   ```
+3. Restart the Next.js dev server (env vars are inlined at build time).
+4. The phone must be on the same Wi-Fi network as the dev machine.
+
+**Revert before deploying** — the production Supabase URL goes here instead.
+
+---
+
 ## Security
 
 - [ ] **Rotate all API keys and secrets** — generate fresh keys for production (Supabase, Stadia Maps, Google service account). Never reuse dev keys in production.

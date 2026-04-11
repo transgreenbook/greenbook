@@ -4,6 +4,7 @@ import type { FilterSpecification } from "maplibre-gl";
 import { useFilterStore } from "@/store/filterStore";
 
 export function useMapFilter(map: maplibregl.Map | null) {
+  const categories        = useFilterStore((s) => s.categories);
   const hiddenCategoryIds = useFilterStore((s) => s.hiddenCategoryIds);
   const loadCategories    = useFilterStore((s) => s.loadCategories);
 
@@ -18,8 +19,18 @@ export function useMapFilter(map: maplibregl.Map | null) {
     if (!map) return;
 
     const hidden = hiddenCategoryIds;
-    const exclude: FilterSpecification | null = hidden.length > 0
-      ? ["!", ["in", ["get", "category_id"], ["literal", hidden]]] as FilterSpecification
+    const hiddenIcons = categories
+      .filter((c) => hiddenCategoryIds.includes(c.id))
+      .map((c) => c.icon ?? c.icon_slug);
+
+    const conditions: FilterSpecification[] = [];
+    if (hidden.length > 0)
+      conditions.push(["in", ["get", "category_id"], ["literal", hidden]] as FilterSpecification);
+    if (hiddenIcons.length > 0)
+      conditions.push(["in", ["get", "icon"], ["literal", hiddenIcons]] as FilterSpecification);
+
+    const exclude: FilterSpecification | null = conditions.length > 0
+      ? ["!", conditions.length === 1 ? conditions[0] : ["any", ...conditions] as FilterSpecification] as FilterSpecification
       : null;
 
     if (map.getLayer("pois-unclustered")) {
@@ -43,5 +54,5 @@ export function useMapFilter(map: maplibregl.Map | null) {
     if (map.getLayer("pois-along-route")) {
       map.setFilter("pois-along-route", exclude ?? null);
     }
-  }, [map, hiddenCategoryIds]);
+  }, [map, hiddenCategoryIds, categories]);
 }
