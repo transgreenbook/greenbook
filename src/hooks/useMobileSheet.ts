@@ -48,6 +48,8 @@ export function useMobileSheet({
 
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      // Don't intercept touches that start on interactive elements (buttons, etc.)
+      if ((e.target as HTMLElement).closest("button")) return;
       e.stopPropagation();
       didDragRef.current = false;
       const currentH = isExpanded ? getExpandedHeight() : collapsedHeight;

@@ -218,13 +218,13 @@ export default function RoutePOIPanel() {
         style={mobileSheetStyle}
       >
         <div
-          className="w-full shrink-0 flex flex-col items-center pt-2 pb-1 cursor-pointer"
+          className="w-full shrink-0 flex flex-col items-center pt-2 pb-1 cursor-pointer touch-none"
           onClick={toggleMobile}
           role="button"
           aria-label={mobileExpanded ? "Collapse" : "Expand"}
+          {...mobileHandleProps}
         >
-          {/* Full-width drag zone — tall touch target, visual pill inside */}
-          <div className="w-full flex justify-center pb-1 touch-none" {...mobileHandleProps}>
+          <div className="w-full flex justify-center pb-1">
             <div className="w-10 h-1 rounded-full bg-gray-300" />
           </div>
           <div className="w-full flex items-center justify-between px-4">
