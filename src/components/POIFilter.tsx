@@ -12,7 +12,13 @@ export default function POIFilter() {
 
   useEffect(() => { loadCategories(); }, []);
 
-  if (categories.length === 0) return null;
+  if (categories.length === 0) {
+    return (
+      <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+        <p className="text-xs text-gray-400">No categories found.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
