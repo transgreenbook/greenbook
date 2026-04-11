@@ -88,3 +88,31 @@ This lets us tune how much recency matters vs. raw severity magnitude without ch
 4. The `applyVisibilityRules` function: filter out auto-hidden POIs → partition pinned vs. normal → sort each partition → concatenate.
 
 No database changes required — all logic runs client-side on the already-fetched POI list.
+
+---
+
+## Current Hardcoded Behaviors (candidates for visibility-rules)
+
+These behaviors are implemented but not yet configurable via a rules file:
+
+### Parent-region inheritance
+
+When a user clicks a **county**, the panel shows that county's POIs merged with all state-level POIs for the parent state. When a user clicks a **city**, it shows city POIs merged with all state-level POIs. The route sidebar does the same for every state the route passes through.
+
+Currently: **all parent-state POIs are shown**, sorted by severity.
+
+With visibility-rules, this could be controlled via:
+```json
+{
+  "parent_region": {
+    "county_from_state": { "min_severity": -5, "limit": 5 },
+    "city_from_state":   { "min_severity": -5, "limit": 5 },
+    "route_from_state":  { "min_severity": -3, "limit": 3 }
+  }
+}
+```
+This would let us show only the most impactful state laws (e.g., severity ≤ -5) instead of all of them — useful as more laws are added and the lists grow long.
+
+### Sort order
+
+POIs are sorted by severity ascending (most negative first) in `RegionPOIPanel` and `RoutePOIPanel`. This is hardcoded in the component. Moving it to `visibility-rules.json → sort.primary` would make it adjustable without a code deploy.
