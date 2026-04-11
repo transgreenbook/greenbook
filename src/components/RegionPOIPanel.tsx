@@ -64,11 +64,11 @@ export default function RegionPOIPanel() {
 
   const typeLabel = REGION_LABEL[selectedRegion.type];
 
-  const visiblePois = pois?.filter((p) => {
+  const visiblePois = (pois?.filter((p) => {
     if (p.category_id != null) return !hiddenCategoryIds.includes(p.category_id);
     if (p.icon)                return !hiddenCategoryIcons.includes(p.icon);
     return true;
-  }) ?? [];
+  }) ?? []).sort((a, b) => (a.severity ?? 0) - (b.severity ?? 0));
 
   const content = (
     <>

@@ -59,9 +59,14 @@ export function useRegionColors(map: maplibregl.Map | null) {
       const { data: pois, error } = await supabase.rpc("get_region_scoped_pois");
       if (error || !pois?.length) return;
 
-      const statePOIs  = (pois as RegionPOI[]).filter((p) => p.effect_scope === "state");
-      const countyPOIs = (pois as RegionPOI[]).filter((p) => p.effect_scope === "county");
-      const cityPOIs   = (pois as RegionPOI[]).filter((p) => p.effect_scope === "city");
+      // Sort ascending by severity magnitude so the most severe POI is
+      // processed last and wins when multiple laws share the same region.
+      const bySeverity = (a: RegionPOI, b: RegionPOI) =>
+        Math.abs(a.severity ?? 0) - Math.abs(b.severity ?? 0);
+
+      const statePOIs  = (pois as RegionPOI[]).filter((p) => p.effect_scope === "state").sort(bySeverity);
+      const countyPOIs = (pois as RegionPOI[]).filter((p) => p.effect_scope === "county").sort(bySeverity);
+      const cityPOIs   = (pois as RegionPOI[]).filter((p) => p.effect_scope === "city").sort(bySeverity);
 
       // ── States ────────────────────────────────────────────────────────
       if (statePOIs.length) {

@@ -69,7 +69,7 @@ export default function RoutePOIPanel() {
     if (p.category_id != null) return !hiddenCategoryIds.includes(p.category_id);
     if (p.icon)                return !hiddenCategoryIcons.includes(p.icon);
     return true;
-  });
+  }).sort((a, b) => (a.severity ?? 0) - (b.severity ?? 0));
 
   const header = (
     <button
