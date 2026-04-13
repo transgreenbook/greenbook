@@ -120,3 +120,85 @@ When testing on a physical phone, the browser JS runs on the phone. `http://127.
 - [ ] **Configure error alerting** — Vercel has built-in error reporting; consider adding Sentry for client-side errors.
 
 See **[readme-paidupgrades.md](readme-paidupgrades.md)** for analytics upgrade options.
+
+---
+
+## News digest pipeline
+
+The daily news digest (`scripts/news-digest.mjs`) requires several services and env vars before it can run in production.
+
+### Required env vars
+
+Add these to production environment (Vercel env vars or server `.env`):
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Claude API key — get from console.anthropic.com |
+| `RESEND_API_KEY` | Resend email API key — get from resend.com |
+| `DIGEST_FROM_EMAIL` | Verified sender address in Resend (must be on a domain you own) |
+| `DIGEST_TO_EMAIL` | Recipient: `transsafetravels@gmail.com` |
+
+### Resend setup
+
+1. Create account at [resend.com](https://resend.com)
+2. Add and verify a sending domain (or use the Resend sandbox for testing)
+3. Create an API key under Settings → API Keys
+4. Add `RESEND_API_KEY` to your environment
+5. Set `DIGEST_FROM_EMAIL` to an address on your verified domain
+
+### Scheduling (production)
+
+The digest should run daily on the production server. Options:
+
+**GitHub Actions (recommended — no server needed):**
+
+Create `.github/workflows/news-digest.yml`:
+```yaml
+name: Daily News Digest
+on:
+  schedule:
+    - cron: '0 9 * * *'   # 9am UTC = 4am/5am ET
+  workflow_dispatch:       # allow manual runs
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: node scripts/news-digest.mjs
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DIGEST_FROM_EMAIL: ${{ secrets.DIGEST_FROM_EMAIL }}
+          DIGEST_TO_EMAIL: transsafetravels@gmail.com
+```
+
+Add each secret under GitHub repo → Settings → Secrets and variables → Actions.
+
+**Systemd timer (if self-hosting):**
+
+Similar pattern to the existing database backup timer. Create `greenbook-digest.service` and `greenbook-digest.timer` following the same pattern as the backup service.
+
+### Local testing
+
+```bash
+# Preview fetch + analysis without writing to DB or sending email
+node scripts/news-digest.mjs --dry-run
+# Output: /tmp/digest-preview.html — open in browser to review
+```
+
+### Cost estimate
+
+Each daily run processes ~50-150 articles across 7 RSS sources and makes 1-6 Claude API calls (batched at 25 articles each). At claude-opus-4-6 pricing this is roughly **$0.10–0.40/day**. Usage can be reduced by switching to `claude-haiku-4-5-20251001` for initial triage and only escalating high-confidence findings to Opus.
+
+### Multi-reviewer support (future)
+
+Currently digest emails go to one address. When ready to add reviewers:
+- Add a `digest_reviewers` table with email + role
+- Update `news-digest.mjs` to query the table for recipients
+- Add `reviewed_by` to `digest_findings` for attribution
+- Consider a `/digest` admin route in the app showing unreviewed findings inline

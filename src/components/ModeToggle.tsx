@@ -42,6 +42,15 @@ const TABS: { id: AppMode; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    id: "federal",
+    label: "Federal",
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l9-4 9 4v2H3V6zm0 4h18M5 10v8m4-8v8m4-8v8m4-8v8M3 18h18" />
+      </svg>
+    ),
+  },
 ];
 
 export default function ModeToggle() {
