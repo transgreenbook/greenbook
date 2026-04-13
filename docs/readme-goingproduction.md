@@ -134,17 +134,18 @@ Add these to production environment (Vercel env vars or server `.env`):
 | Variable | Description |
 |----------|-------------|
 | `ANTHROPIC_API_KEY` | Claude API key — get from console.anthropic.com |
-| `RESEND_API_KEY` | Resend email API key — get from resend.com |
-| `DIGEST_FROM_EMAIL` | Verified sender address in Resend (must be on a domain you own) |
-| `DIGEST_TO_EMAIL` | Recipient: `transsafetravels@gmail.com` |
+| `DIGEST_GMAIL_USER` | Gmail address to send from (e.g. `transsafetravels@gmail.com`) |
+| `DIGEST_GMAIL_APP_PASSWORD` | Gmail App Password (not your account password) |
+| `DIGEST_TO_EMAIL` | Recipient — defaults to `DIGEST_GMAIL_USER` if omitted |
 
-### Resend setup
+### Gmail App Password setup
 
-1. Create account at [resend.com](https://resend.com)
-2. Add and verify a sending domain (or use the Resend sandbox for testing)
-3. Create an API key under Settings → API Keys
-4. Add `RESEND_API_KEY` to your environment
-5. Set `DIGEST_FROM_EMAIL` to an address on your verified domain
+1. Enable 2-Step Verification on the sending Gmail account
+2. Go to Google Account → Security → App Passwords
+3. Create an App Password for "Mail"
+4. Add the 16-character password as `DIGEST_GMAIL_APP_PASSWORD`
+
+> **Note:** If you later acquire a domain, switching to a transactional email service (Resend, Postmark, SendGrid) is recommended for higher deliverability and multi-recipient support. The `resend` package is already installed.
 
 ### Scheduling (production)
 
@@ -172,8 +173,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          DIGEST_FROM_EMAIL: ${{ secrets.DIGEST_FROM_EMAIL }}
+          DIGEST_GMAIL_USER: ${{ secrets.DIGEST_GMAIL_USER }}
+          DIGEST_GMAIL_APP_PASSWORD: ${{ secrets.DIGEST_GMAIL_APP_PASSWORD }}
           DIGEST_TO_EMAIL: transsafetravels@gmail.com
 ```
 
