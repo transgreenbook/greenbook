@@ -19,7 +19,8 @@
  *
  * Run:
  *   node scripts/news-digest.mjs
- *   node scripts/news-digest.mjs --dry-run   # fetch + analyze, skip email + DB writes
+ *   node scripts/news-digest.mjs --dry-run          # fetch + analyze, skip email + DB writes
+ *   node scripts/news-digest.mjs --dry-run --debug  # also print Claude's raw JSON response
  */
 
 import { createClient }  from '@supabase/supabase-js';
@@ -54,6 +55,7 @@ function loadEnvFile(filePath) {
 loadEnvFile(path.resolve(ROOT, '.env.local'));
 
 const DRY_RUN = process.argv.includes('--dry-run');
+const DEBUG   = process.argv.includes('--debug');
 
 const {
   NEXT_PUBLIC_SUPABASE_URL,
@@ -131,13 +133,29 @@ function stripHtml(str) {
 // DB context helpers
 // ---------------------------------------------------------------------------
 
-async function getSeenUrls() {
+async function pruneAndGetSeenUrls() {
+  // Delete expired rows first
+  await supabase
+    .from('seen_articles')
+    .delete()
+    .lt('expires_at', new Date().toISOString());
+
   const { data } = await supabase
-    .from('digest_findings')
-    .select('article_url')
-    .order('created_at', { ascending: false })
-    .limit(5000);
+    .from('seen_articles')
+    .select('article_url');
   return new Set((data ?? []).map((r) => r.article_url));
+}
+
+async function markArticlesSeen(articles) {
+  if (!articles.length) return;
+  const rows = articles.map((a) => ({
+    article_url:  a.url,
+    source_id:    a.source_id ?? null,
+    first_seen_at: new Date().toISOString(),
+    expires_at:   new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+  }));
+  // Upsert — safe to call even if URL already exists
+  await supabase.from('seen_articles').upsert(rows, { onConflict: 'article_url', ignoreDuplicates: true });
 }
 
 async function getDBContext() {
@@ -199,14 +217,19 @@ async function analyzeWithClaude(articles, context) {
 
 ${SEVERITY_SCALE}
 
-Your job: analyze news articles and identify anything that could:
-1. Warrant a severity change to an existing location on the map
-2. Require creating a new watch item (pending bill, lawsuit, executive order, policy)
-3. Provide an update on an existing watch item
-4. Signal a new physical safety threat to trans travelers
+Your job: analyze news articles and flag anything that could be relevant to trans safety and travel. Err on the side of inclusion — the human reviewer will dismiss things that aren't actionable. It is better to surface too much than to miss something important.
 
-Be conservative. Flag things that clearly matter to trans safety; ignore tangential stories.
-For federal items, note that they may not affect the map but should be tracked in the federal panel.
+Flag articles that relate to:
+1. Anti-trans or pro-trans legislation (passed, pending, or struck down) at any level
+2. Court rulings or lawsuits affecting trans rights
+3. Executive orders, federal regulations, or agency policy changes
+4. Physical safety incidents targeting trans people
+5. Statements or actions by officials that signal a changing climate in a jurisdiction
+6. Shield laws, sanctuary designations, or other protective measures
+
+Use "low" relevance liberally — if an article is about trans people and policy or safety, include it.
+Only use "skip" for articles that are clearly unrelated (entertainment, sports, etc. with no policy angle).
+Federal items may not affect the map directly but are important to track.
 
 Respond ONLY with valid JSON — no commentary, no markdown fences.`;
 
@@ -253,11 +276,13 @@ Only include findings with relevance "high", "medium", or "low" — omit "skip" 
     messages:   [{ role: 'user', content: userPrompt }],
   });
 
-  const raw = message.content[0]?.text ?? '{}';
+  const raw     = message.content[0]?.text ?? '{}';
+  const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+  if (DEBUG) console.log('\n[DEBUG] Claude raw response:\n', cleaned.slice(0, 2000));
   try {
-    return JSON.parse(raw);
+    return JSON.parse(cleaned);
   } catch {
-    console.error('Claude returned non-JSON:', raw.slice(0, 500));
+    console.error('Claude returned non-JSON:', cleaned.slice(0, 500));
     return { digest_summary: 'Parse error — see logs.', findings: [] };
   }
 }
@@ -381,7 +406,7 @@ async function main() {
   console.log(`Fetching ${sources.length} sources…`);
 
   // 3. Fetch + deduplicate articles
-  const seenUrls    = await getSeenUrls();
+  const seenUrls    = await pruneAndGetSeenUrls();
   const allArticles = [];
   const sourceStats = {};
 
@@ -407,6 +432,10 @@ async function main() {
   }
 
   console.log(`\n${allArticles.length} new articles total`);
+
+  // Mark all fetched articles as seen now, before analysis.
+  // This ensures skipped articles aren't re-analyzed on future runs.
+  if (!DRY_RUN) await markArticlesSeen(allArticles);
 
   if (allArticles.length === 0) {
     console.log('Nothing new — skipping analysis and email.');
