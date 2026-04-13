@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import type maplibregl from "maplibre-gl";
 import { useMapStore } from "@/store/mapStore";
 
-const EMPTY_STATE_FILTER  = ["==", ["get", "STUSPS"], ""] as unknown as maplibregl.FilterSpecification;
-const EMPTY_COUNTY_FILTER = ["==", ["get", "GEOID"],  ""] as unknown as maplibregl.FilterSpecification;
-const EMPTY_CITY_FILTER   = ["all", ["==", ["get", "NAME"], ""], ["==", ["get", "STATEFP"], ""]] as unknown as maplibregl.FilterSpecification;
+const EMPTY_STATE_FILTER       = ["==", ["get", "STUSPS"], ""] as unknown as maplibregl.FilterSpecification;
+const EMPTY_COUNTY_FILTER      = ["==", ["get", "GEOID"],  ""] as unknown as maplibregl.FilterSpecification;
+const EMPTY_CITY_FILTER        = ["all", ["==", ["get", "NAME"], ""], ["==", ["get", "STATEFP"], ""]] as unknown as maplibregl.FilterSpecification;
+const EMPTY_RESERVATION_FILTER = ["==", ["get", "GEOID"], ""] as unknown as maplibregl.FilterSpecification;
 
 export function useRegionHighlight(map: maplibregl.Map | null) {
   const selectedRegion = useMapStore((s) => s.selectedRegion);
@@ -13,13 +14,18 @@ export function useRegionHighlight(map: maplibregl.Map | null) {
     if (!map) return;
 
     // Reset all highlights
-    if (map.getLayer("states-highlight"))   map.setFilter("states-highlight",   EMPTY_STATE_FILTER);
-    if (map.getLayer("counties-highlight")) map.setFilter("counties-highlight", EMPTY_COUNTY_FILTER);
-    if (map.getLayer("cities-highlight"))   map.setFilter("cities-highlight",   EMPTY_CITY_FILTER);
+    if (map.getLayer("reservations-highlight")) map.setFilter("reservations-highlight", EMPTY_RESERVATION_FILTER);
+    if (map.getLayer("states-highlight"))       map.setFilter("states-highlight",       EMPTY_STATE_FILTER);
+    if (map.getLayer("counties-highlight"))     map.setFilter("counties-highlight",     EMPTY_COUNTY_FILTER);
+    if (map.getLayer("cities-highlight"))       map.setFilter("cities-highlight",       EMPTY_CITY_FILTER);
 
     if (!selectedRegion) return;
 
-    if (selectedRegion.type === "state" && selectedRegion.stateAbbr) {
+    if (selectedRegion.type === "reservation" && selectedRegion.geoid) {
+      if (map.getLayer("reservations-highlight")) {
+        map.setFilter("reservations-highlight", ["==", ["get", "GEOID"], selectedRegion.geoid] as unknown as maplibregl.FilterSpecification);
+      }
+    } else if (selectedRegion.type === "state" && selectedRegion.stateAbbr) {
       if (map.getLayer("states-highlight")) {
         map.setFilter("states-highlight", ["==", ["get", "STUSPS"], selectedRegion.stateAbbr] as unknown as maplibregl.FilterSpecification);
       }

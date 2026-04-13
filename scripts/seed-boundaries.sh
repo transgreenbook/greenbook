@@ -20,6 +20,10 @@ if [ ! -f "$TMP/states.geojson" ]; then
   echo "ERROR: $TMP/states.geojson not found. Run scripts/build-tiles.sh first."
   exit 1
 fi
+if [ ! -f "$TMP/reservations.geojson" ]; then
+  echo "ERROR: $TMP/reservations.geojson not found. Run scripts/build-tiles.sh first."
+  exit 1
+fi
 
 echo "==> Loading states…"
 ogr2ogr \
@@ -99,6 +103,34 @@ docker exec supabase_db_greenbook psql -U postgres -c "
   DROP TABLE cities_tmp;
 "
 echo "   Cities loaded."
+
+echo "==> Loading reservations…"
+ogr2ogr \
+  -f PostgreSQL \
+  "$DB" \
+  "$TMP/reservations.geojson" \
+  -nln reservations_tmp \
+  -nlt MULTIPOLYGON \
+  -t_srs EPSG:4326 \
+  -overwrite \
+  -lco GEOMETRY_NAME=geom \
+  -lco FID=fid
+
+docker exec supabase_db_greenbook psql -U postgres -c "
+  INSERT INTO reservations (name, geoid, aian_type, geom)
+  SELECT
+    namelsad::text,
+    geoid::char(5),
+    aiannhr::text,
+    ST_Multi(geom)
+  FROM reservations_tmp
+  ON CONFLICT (geoid) DO UPDATE SET
+    name      = EXCLUDED.name,
+    aian_type = EXCLUDED.aian_type,
+    geom      = EXCLUDED.geom;
+  DROP TABLE reservations_tmp;
+"
+echo "   Reservations loaded."
 
 echo ""
 echo "Done. Boundary data is ready for spatial queries."

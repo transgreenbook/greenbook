@@ -1,5 +1,6 @@
 export interface GeocodingResult {
   label: string;
+  name: string;   // primary feature name, used for prefix-match sorting
   lng: number;
   lat: number;
 }
@@ -18,9 +19,11 @@ export async function geocode(
       properties: { name?: string; city?: string; state?: string; country?: string };
     }) => {
       const p = f.properties;
+      const name = p.name ?? p.city ?? "";
       const parts = [p.name, p.city, p.state].filter(Boolean);
       return {
         label: parts.join(", ") || p.country || "Unknown place",
+        name,
         lng: f.geometry.coordinates[0],
         lat: f.geometry.coordinates[1],
       };

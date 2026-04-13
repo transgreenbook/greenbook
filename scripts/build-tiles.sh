@@ -38,14 +38,16 @@ download() {
   fi
 }
 
-download "${BASE}/STATE/tl_${YEAR}_us_state.zip"   "$TMP/state.zip"
-download "${BASE}/COUNTY/tl_${YEAR}_us_county.zip" "$TMP/county.zip"
+download "${BASE}/STATE/tl_${YEAR}_us_state.zip"     "$TMP/state.zip"
+download "${BASE}/COUNTY/tl_${YEAR}_us_county.zip"  "$TMP/county.zip"
 download "https://www2.census.gov/geo/tiger/GENZ${YEAR}/shp/cb_${YEAR}_us_place_500k.zip" "$TMP/place.zip"
+download "${BASE}/AIANNH/tl_${YEAR}_us_aiannh.zip"  "$TMP/aiannh.zip"
 
 echo "==> Unzipping..."
 unzip -qo "$TMP/state.zip"  -d "$TMP/state"
 unzip -qo "$TMP/county.zip" -d "$TMP/county"
 unzip -qo "$TMP/place.zip"  -d "$TMP/place"
+unzip -qo "$TMP/aiannh.zip" -d "$TMP/aiannh"
 
 echo "==> Converting shapefiles to GeoJSON..."
 
@@ -73,6 +75,36 @@ ogr2ogr \
   -where "LSAD IN ('25','47','21','37','53')" \
   "$TMP/places.geojson" \
   "$TMP/place/cb_${YEAR}_us_place_500k.shp"
+
+rm -f "$TMP/reservations.geojson"
+ogr2ogr \
+  -f GeoJSON \
+  -t_srs EPSG:4326 \
+  -select "NAME,NAMELSAD,GEOID,AIANNHCE,AIANNHR" \
+  "$TMP/reservations.geojson" \
+  "$TMP/aiannh/tl_${YEAR}_us_aiannh.shp"
+
+# Copy simplified reservation GeoJSON to public/ for the map's GeoJSON source.
+# -simplify 0.001 degrees is sufficient for zoom levels 4–10.
+rm -f "$ROOT/public/reservations.geojson"
+ogr2ogr \
+  -f GeoJSON \
+  -t_srs EPSG:4326 \
+  -select "NAME,NAMELSAD,GEOID,AIANNHCE,AIANNHR" \
+  -simplify 0.001 \
+  "$ROOT/public/reservations.geojson" \
+  "$TMP/aiannh/tl_${YEAR}_us_aiannh.shp"
+
+echo "==> Generating reservation label centroids..."
+rm -f "$ROOT/public/reservation-centroids.geojson"
+ogr2ogr \
+  -f GeoJSON \
+  -t_srs EPSG:4326 \
+  -dialect SQLite \
+  -sql "SELECT ST_Centroid(geometry) AS geometry, NAME, NAMELSAD, GEOID, AIANNHR
+        FROM \"tl_${YEAR}_us_aiannh\"" \
+  "$ROOT/public/reservation-centroids.geojson" \
+  "$TMP/aiannh/tl_${YEAR}_us_aiannh.shp"
 
 echo "==> Generating state label centroids..."
 ogr2ogr \

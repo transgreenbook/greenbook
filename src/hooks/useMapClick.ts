@@ -73,6 +73,9 @@ export function useMapClick(map: maplibregl.Map | null) {
       const cityFeatures = !inStateBrowsing && zoom >= 9 && map.getLayer("cities-fill")
         ? map.queryRenderedFeatures(point, { layers: ["cities-fill"] })
         : [];
+      const reservationFeatures = !inStateBrowsing && zoom >= 5 && map.getLayer("reservations-fill")
+        ? map.queryRenderedFeatures(point, { layers: ["reservations-fill"] })
+        : [];
       const countyFeatures = !inStateBrowsing && zoom >= 6 && map.getLayer("counties-fill")
         ? map.queryRenderedFeatures(point, { layers: ["counties-fill"] })
         : [];
@@ -87,6 +90,16 @@ export function useMapClick(map: maplibregl.Map | null) {
         if (!name) return false;
         setSelectedPOI(null);
         setSelectedRegion({ type: "city", name, statefp });
+        return true;
+      }
+
+      if (reservationFeatures.length) {
+        const props = reservationFeatures[0].properties ?? {};
+        const name  = props.NAMELSAD ?? props.NAME ?? "";
+        const geoid = props.GEOID ?? "";
+        if (!geoid) return false;
+        setSelectedPOI(null);
+        setSelectedRegion({ type: "reservation", name, geoid });
         return true;
       }
 
@@ -208,12 +221,15 @@ export function useMapClick(map: maplibregl.Map | null) {
       }
 
       // Region layers — left-click zooms in then selects.
-      // In state-browsing mode skip city/county so the user can click state-to-state.
+      // In state-browsing mode skip city/county/reservation so the user can click state-to-state.
       const zoom = map.getZoom();
       const inStateBrowsing = stateBrowsingRef.current;
 
       const cityFeatures = !inStateBrowsing && zoom >= 9 && map.getLayer("cities-fill")
         ? map.queryRenderedFeatures(e.point, { layers: ["cities-fill"] })
+        : [];
+      const reservationFeatures = !inStateBrowsing && zoom >= 5 && map.getLayer("reservations-fill")
+        ? map.queryRenderedFeatures(e.point, { layers: ["reservations-fill"] })
         : [];
       const countyFeatures = !inStateBrowsing && zoom >= 6 && map.getLayer("counties-fill")
         ? map.queryRenderedFeatures(e.point, { layers: ["counties-fill"] })
@@ -234,6 +250,21 @@ export function useMapClick(map: maplibregl.Map | null) {
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
         setSelectedRegion({ type: "city", name, statefp });
+        return;
+      }
+
+      if (reservationFeatures.length) {
+        const props = reservationFeatures[0].properties ?? {};
+        const name  = props.NAMELSAD ?? props.NAME ?? "";
+        const geoid = props.GEOID ?? "";
+        if (!geoid) return;
+        const bounds = sourceBounds(
+          map, "reservations", "reservations",
+          ["==", ["get", "GEOID"], geoid] as maplibregl.FilterSpecification,
+        );
+        if (bounds) flyTo({ lng: 0, lat: 0, bounds });
+        setSelectedPOI(null);
+        setSelectedRegion({ type: "reservation", name, geoid });
         return;
       }
 
@@ -292,9 +323,10 @@ export function useMapClick(map: maplibregl.Map | null) {
       if (map.getLayer("pois-unclustered"))      clickableLayers.push("pois-unclustered");
       if (map.getLayer("pois-unclustered-icons")) clickableLayers.push("pois-unclustered-icons");
       if (map.getLayer("pois-along-route"))      clickableLayers.push("pois-along-route");
-      if (!inStateBrowsing && zoom >= 9  && map.getLayer("cities-fill"))   clickableLayers.push("cities-fill");
-      if (!inStateBrowsing && zoom >= 6  && map.getLayer("counties-fill")) clickableLayers.push("counties-fill");
-      if (map.getLayer("states-fill"))                                      clickableLayers.push("states-fill");
+      if (!inStateBrowsing && zoom >= 9  && map.getLayer("cities-fill"))       clickableLayers.push("cities-fill");
+      if (!inStateBrowsing && zoom >= 5  && map.getLayer("reservations-fill")) clickableLayers.push("reservations-fill");
+      if (!inStateBrowsing && zoom >= 6  && map.getLayer("counties-fill"))     clickableLayers.push("counties-fill");
+      if (map.getLayer("states-fill"))                                          clickableLayers.push("states-fill");
 
       const features = map.queryRenderedFeatures(e.point, { layers: clickableLayers });
       map.getCanvas().style.cursor = features.length ? "pointer" : "";

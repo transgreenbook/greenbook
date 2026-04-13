@@ -60,6 +60,12 @@ async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
     return mergeAndSort(countyResult.data ?? [], stateResult.data);
   }
 
+  if (region.type === "reservation") {
+    const { data, error } = await supabase.rpc("pois_in_reservation", { p_geoid: region.geoid });
+    if (error) throw new Error(error.message);
+    return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => (a.severity ?? 0) - (b.severity ?? 0));
+  }
+
   // city
   const stateAbbr = STATEFP_TO_ABBR[region.statefp!];
   const [cityResult, stateResult] = await Promise.all([
@@ -73,8 +79,9 @@ async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
 }
 
 function regionQueryKey(region: SelectedRegion): unknown[] {
-  if (region.type === "state") return ["region-pois", "state", region.stateAbbr];
-  if (region.type === "county") return ["region-pois", "county", region.fips5];
+  if (region.type === "state")       return ["region-pois", "state", region.stateAbbr];
+  if (region.type === "county")      return ["region-pois", "county", region.fips5];
+  if (region.type === "reservation") return ["region-pois", "reservation", region.geoid];
   return ["region-pois", "city", region.name, region.statefp];
 }
 

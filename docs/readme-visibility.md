@@ -116,3 +116,50 @@ This would let us show only the most impactful state laws (e.g., severity ≤ -5
 ### Sort order
 
 POIs are sorted by severity ascending (most negative first) in `RegionPOIPanel` and `RoutePOIPanel`. This is hardcoded in the component. Moving it to `visibility-rules.json → sort.primary` would make it adjustable without a code deploy.
+
+---
+
+## Federal Laws — Separate Tab (not visibility-rules)
+
+Federal laws and policies are **out of scope for the region/route POI system** because they apply everywhere and cannot be avoided by choosing a different route or destination. Showing them in state/county panels would make them appear redundantly on every single click with no actionable difference.
+
+**Design decision:** Federal content lives in a dedicated **Federal** tab in the app sidebar, positioned before the About tab. The tab is informational — framed as "know before you go" context rather than route-specific warnings.
+
+**Planned content:**
+- Active federal laws in effect (e.g., military service restrictions, Medicaid coverage rules, passport gender marker policy)
+- Bills currently moving through Congress (sourced from ProPublica Congress API)
+- Federal agency policies affecting travellers (TSA screening, federal prison placement, federal ID rules)
+
+**Data model:** Federal entries may use a new `effect_scope: "federal"` value (distinct from `"state"`, `"county"`, `"city"`, `"point"`) or be stored in a separate table/JSON file — TBD when the tab is built. They are **not** included in `pois_along_route` or `pois_in_state/county/city` queries.
+
+---
+
+## Jurisdictional Override Zones (Future Problem)
+
+Several geographic areas do not follow the normal state → county → city authority hierarchy. No data or UI exists for these yet, but the architecture should not accidentally rule them out.
+
+### Federal Enclaves
+
+Washington DC, military installations, national parks, and other federal land operate under federal jurisdiction. State laws may not apply, be preempted, or conflict with federal policy. Examples where this matters:
+
+- A bathroom ban enacted by a state may not apply on a federal military base in that state
+- DC has its own non-discrimination laws that are stronger than any state, but no state authority — it is effectively its own jurisdiction
+- National park facilities are federally managed and subject to federal non-discrimination rules regardless of surrounding state law
+
+**Risk for travellers:** The *absence* of a state law on federal land is not always protective — it may mean the federal baseline (which may be weaker in some administrations) applies instead.
+
+**Design consideration:** We may eventually want a `reservations` / `federal_zones` polygon layer and an `effect_scope: "federal_enclave"` value that suppresses state/county POIs when a point falls inside the enclave and shows a note instead.
+
+### Native American Reservations
+
+Tribal nations have sovereign jurisdiction over their territories. State laws generally do not apply on tribal land. Tribes may have their own laws, which could be more or less protective than the surrounding state.
+
+**Boundary data:** The US Census Bureau TIGER/Line **AIANNH** (American Indian Areas, Alaska Native Areas, and Hawaiian Home Lands) shapefile is the standard source. It covers federally recognized reservations, off-reservation trust land, and Alaska Native Villages. Same data family as county/city TIGER shapefiles; could be loaded into a `reservations` PostGIS table with actual polygons (not bboxes — boundaries are too irregular for bbox intersection to be meaningful).
+
+**BIA (Bureau of Indian Affairs)** also maintains official boundary data and is the authoritative federal source.
+
+**Design consideration:** When a route passes through or a user clicks on a reservation, the current state POI queries would return state-level laws that may not actually apply. Ideally we would detect the intersection, suppress or annotate state POIs, and note that tribal law governs. No tribal law data exists yet — this is a known gap.
+
+**Current status:** Reservation boundaries are now loaded from the TIGER/Line AIANNH shapefile (via `scripts/build-tiles.sh` + `scripts/seed-boundaries.sh`). Reservations show on the map and are clickable. The panel displays a jurisdictional note. No tribal law data exists yet — gather data before adding entries.
+
+**Important framing:** Some tribal nations may be *more* protective of trans and Two-Spirit people than the surrounding state. The Two-Spirit identity is recognized in many Indigenous cultures, and some nations have explicit protections or welcoming policies. Reservations in hostile states could serve as meaningful refuges. The panel should reflect positive entries as we gather data, not just warnings. This is a significant gap to fill.

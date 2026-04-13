@@ -12,9 +12,10 @@ import { useFilterStore } from "@/store/filterStore";
 import POIFilter from "@/components/POIFilter";
 
 const REGION_LABEL: Record<string, string> = {
-  state:  "State",
-  county: "County",
-  city:   "City",
+  state:       "State",
+  county:      "County",
+  city:        "City",
+  reservation: "Tribal Nation",
 };
 
 export default function RegionPOIPanel() {
@@ -72,6 +73,11 @@ export default function RegionPOIPanel() {
 
   const content = (
     <>
+      {selectedRegion.type === "reservation" && (
+        <div className="mb-3 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 leading-snug">
+          Tribal nations exercise sovereign jurisdiction. State laws may not apply here — laws and protections can differ from the surrounding state. We are still gathering data on tribal policies.
+        </div>
+      )}
       {isLoading && (
         <p className="text-sm text-gray-400">Loading POIs…</p>
       )}

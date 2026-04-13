@@ -34,6 +34,18 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: "/state-centroids.geojson",
   },
+  // Native American / Alaska Native / Hawaiian Home Land reservation boundaries.
+  // Loaded from the TIGER/Line AIANNH shapefile via scripts/build-tiles.sh.
+  // Served as a static GeoJSON file (not PMTiles) — ~500 features, manageable size.
+  reservations: {
+    type: "geojson",
+    data: "/reservations.geojson",
+    promoteId: "GEOID",
+  },
+  "reservations-centroids": {
+    type: "geojson",
+    data: "/reservation-centroids.geojson",
+  },
   "counties-centroids": {
     type: "geojson",
     data: "/county-centroids.geojson",
@@ -132,6 +144,63 @@ export const LAYERS: LayerSpecification[] = [
         "interpolate", ["linear"], ["zoom"],
         3, 1,
         8, 0,
+      ],
+    },
+  },
+
+  // --- Reservation fills (zoom 4–10) ---
+  // Earthy amber/tan fill — visually distinct from state gray and county blue-gray.
+  // Dashed border signals "different jurisdiction, not a state sub-unit."
+  {
+    id: "reservations-fill",
+    type: "fill",
+    source: "reservations",
+    paint: {
+      "fill-color": "#fef3c7",
+      "fill-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        4, 0.5,
+        7, 0.35,
+        10, 0.2,
+      ],
+    },
+  },
+  {
+    id: "reservations-line",
+    type: "line",
+    source: "reservations",
+    paint: {
+      "line-color": "#d97706",
+      "line-width": 1.2,
+      "line-dasharray": [3, 2],
+      "line-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        4, 0.8,
+        10, 0.5,
+      ],
+    },
+  },
+  {
+    id: "reservations-label",
+    type: "symbol",
+    source: "reservations-centroids",
+    layout: {
+      "text-field": ["get", "NAME"],
+      "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 9, 13],
+      "text-anchor": "center",
+      "text-max-width": 8,
+      "text-allow-overlap": false,
+    },
+    paint: {
+      "text-color": "#92400e",
+      "text-halo-color": "#fffbeb",
+      "text-halo-width": 1.5,
+      "text-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        5, 0,
+        6, 1,
+        10, 1,
       ],
     },
   },
@@ -329,6 +398,13 @@ export const LAYERS: LayerSpecification[] = [
   },
 
   // --- Region selection highlights ---
+  {
+    id: "reservations-highlight",
+    type: "fill",
+    source: "reservations",
+    filter: ["==", ["get", "GEOID"], ""],
+    paint: { "fill-color": "#f59e0b", "fill-opacity": 0.45 },
+  },
   {
     id: "states-highlight",
     type: "fill",

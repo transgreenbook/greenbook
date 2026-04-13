@@ -87,7 +87,7 @@ function WaypointInput({
   );
 
   function handleSelect(r: WaypointResult) {
-    onSelect({ label: r.label, lng: r.lng, lat: r.lat });
+    onSelect({ label: r.label, name: r.label, lng: r.lng, lat: r.lat });
     onChange(r.label);
     setOpen(false);
   }
@@ -121,22 +121,6 @@ function WaypointInput({
       </div>
       {open && (
         <div className="absolute top-full mt-0.5 left-0 right-0 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-20 max-h-60 overflow-y-auto">
-          {pois.length > 0 && (
-            <>
-              <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
-                Points of Interest
-              </div>
-              {pois.map((r, i) => (
-                <button
-                  key={`poi-${i}`}
-                  onMouseDown={() => handleSelect(r)}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-blue-50 border-b border-gray-50 truncate"
-                >
-                  {r.label}
-                </button>
-              ))}
-            </>
-          )}
           {places.length > 0 && (
             <>
               <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
@@ -145,6 +129,22 @@ function WaypointInput({
               {places.map((r, i) => (
                 <button
                   key={`place-${i}`}
+                  onMouseDown={() => handleSelect(r)}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-blue-50 border-b border-gray-50 truncate"
+                >
+                  {r.label}
+                </button>
+              ))}
+            </>
+          )}
+          {pois.length > 0 && (
+            <>
+              <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                Points of Interest
+              </div>
+              {pois.map((r, i) => (
+                <button
+                  key={`poi-${i}`}
                   onMouseDown={() => handleSelect(r)}
                   className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-blue-50 border-b border-gray-50 last:border-0 truncate"
                 >

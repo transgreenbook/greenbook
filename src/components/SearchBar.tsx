@@ -197,30 +197,6 @@ export default function SearchBar() {
       {/* Dropdown */}
       {open && results.length > 0 && (
         <div className="mt-1 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden max-h-80 overflow-y-auto">
-          {pois.length > 0 && (
-            <>
-              <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
-                Points of Interest
-              </div>
-              {pois.map((r) => (
-                <button
-                  key={`poi-${r.id}`}
-                  onMouseDown={() => handleSelect(r)}
-                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50"
-                >
-                  <div className="text-sm font-medium text-gray-800 truncate">
-                    {r.title}
-                  </div>
-                  {r.description && (
-                    <div className="text-xs text-gray-400 truncate mt-0.5">
-                      {r.description}
-                    </div>
-                  )}
-                </button>
-              ))}
-            </>
-          )}
-
           {places.length > 0 && (
             <>
               <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
@@ -230,9 +206,33 @@ export default function SearchBar() {
                 <button
                   key={`geo-${i}`}
                   onMouseDown={() => handleSelect(r)}
-                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0"
+                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50"
                 >
                   <div className="text-sm text-gray-800 truncate">{r.label}</div>
+                </button>
+              ))}
+            </>
+          )}
+
+          {pois.length > 0 && (
+            <>
+              <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                Points of Interest
+              </div>
+              {pois.map((r) => (
+                <button
+                  key={`poi-${r.id}`}
+                  onMouseDown={() => handleSelect(r)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0"
+                >
+                  <div className="text-sm font-medium text-gray-800 truncate">
+                    {r.title}
+                  </div>
+                  {r.description && (
+                    <div className="text-xs text-gray-400 truncate mt-0.5">
+                      {r.description}
+                    </div>
+                  )}
                 </button>
               ))}
             </>

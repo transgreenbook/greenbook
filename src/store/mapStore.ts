@@ -6,17 +6,19 @@ interface SelectedPOI extends POIProperties {
   lat: number;
 }
 
-export type RegionType = "state" | "county" | "city";
+export type RegionType = "state" | "county" | "city" | "reservation";
 
 export interface SelectedRegion {
   type: RegionType;
   name: string;
-  // state:  stateAbbr (STUSPS, e.g. "CA")
-  // county: fips5 (GEOID, e.g. "06037")
-  // city:   name + statefp (NAME + STATEFP, e.g. "Los Angeles" + "06")
+  // state:       stateAbbr (STUSPS, e.g. "CA")
+  // county:      fips5 (GEOID, e.g. "06037")
+  // city:        name + statefp (NAME + STATEFP, e.g. "Los Angeles" + "06")
+  // reservation: geoid (AIANNHCE, 4-digit, e.g. "0555")
   stateAbbr?: string;
   fips5?: string;
   statefp?: string;
+  geoid?: string;
 }
 
 interface FlyToTarget {
