@@ -253,6 +253,7 @@ Respond with this JSON structure:
       "suggested_action": "<what the reviewer should consider doing>",
       "severity_delta": <integer or null — suggested change to existing severity>,
       "confidence": <0.0 to 1.0>,
+      "legislation_url": "<direct URL to bill, court docket, executive order, or other primary source — null if unknown>",
       "updates_watch_item_id": <watch item id or null>,
       "new_watch_item": null | {
         "item_type": "bill|lawsuit|executive_order|regulation|policy|event",
@@ -316,37 +317,48 @@ function relevanceColor(r) {
 function buildEmailHtml(analysis, articles, runDate) {
   const { digest_summary, findings = [] } = analysis;
 
-  const international = findings.filter((f) => f.jurisdiction_type === 'international');
-  const domestic      = findings.filter((f) => f.jurisdiction_type !== 'international');
+  const CONFIDENCE_THRESHOLD = 0.9;
+  const aboveThreshold = findings.filter((f) => (f.confidence ?? 0) >= CONFIDENCE_THRESHOLD);
+  const belowThreshold = findings.filter((f) => (f.confidence ?? 0) <  CONFIDENCE_THRESHOLD);
+
+  const international = aboveThreshold.filter((f) => f.jurisdiction_type === 'international');
+  const domestic      = aboveThreshold.filter((f) => f.jurisdiction_type !== 'international');
   const high    = domestic.filter((f) => f.relevance === 'high');
   const medium  = domestic.filter((f) => f.relevance === 'medium');
   const low     = domestic.filter((f) => f.relevance === 'low');
   const federal = domestic.filter((f) => f.jurisdiction_type === 'federal');
 
-  function renderFinding(f) {
-    const article = articles[f.article_index] ?? {};
+  function renderFinding(f, muted = false) {
+    const article = f._article ?? {};
+    const bg      = muted ? '#f9fafb' : '#fff';
+    const links   = [
+      f.legislation_url ? `<a href="${f.legislation_url}" style="color:#7c3aed;font-weight:600;text-decoration:none">Primary source →</a>` : null,
+      article.url       ? `<a href="${article.url}"       style="color:#6b7280;text-decoration:none">Article →</a>` : null,
+    ].filter(Boolean).join('<span style="color:#d1d5db;margin:0 6px">|</span>');
+
     return `
-      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:12px;background:#fff">
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:12px;background:${bg}">
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
           <span style="display:inline-block;padding:2px 8px;border-radius:9999px;background:${relevanceColor(f.relevance)};color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;white-space:nowrap">${f.relevance}</span>
-          <div>
-            <a href="${article.url ?? '#'}" style="color:#1d4ed8;font-weight:600;text-decoration:none;font-size:14px">${article.title ?? '(no title)'}</a>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px;color:#111827">${article.title ?? '(no title)'}</div>
             ${severityBadge(f.severity_delta)}
             <div style="font-size:11px;color:#6b7280;margin-top:2px">${f.jurisdiction_name ?? ''} · ${article.source_name ?? ''} · confidence ${confidencePct(f.confidence)}</div>
           </div>
         </div>
         <p style="margin:0 0 6px;font-size:13px;color:#374151">${f.summary ?? ''}</p>
-        <p style="margin:0;font-size:13px;color:#4b5563"><strong>Action:</strong> ${f.suggested_action ?? ''}</p>
-        ${f.new_watch_item ? `<p style="margin:6px 0 0;font-size:12px;color:#7c3aed"><strong>Suggested watch item:</strong> ${f.new_watch_item.title}</p>` : ''}
-        ${f.updates_watch_item_id ? `<p style="margin:6px 0 0;font-size:12px;color:#0369a1"><strong>Updates watch item #${f.updates_watch_item_id}</strong></p>` : ''}
+        <p style="margin:0 0 8px;font-size:13px;color:#4b5563"><strong>Action:</strong> ${f.suggested_action ?? ''}</p>
+        ${links ? `<div style="font-size:12px;margin-bottom:6px">${links}</div>` : ''}
+        ${f.new_watch_item ? `<p style="margin:4px 0 0;font-size:12px;color:#7c3aed"><strong>Suggested watch item:</strong> ${f.new_watch_item.title}</p>` : ''}
+        ${f.updates_watch_item_id ? `<p style="margin:4px 0 0;font-size:12px;color:#0369a1"><strong>Updates watch item #${f.updates_watch_item_id}</strong></p>` : ''}
       </div>`;
   }
 
-  function renderSection(title, items, color) {
+  function renderSection(title, items, color, muted = false) {
     if (!items.length) return '';
     return `
       <h2 style="font-size:16px;font-weight:700;color:${color};margin:24px 0 10px;padding-bottom:6px;border-bottom:2px solid ${color}">${title} (${items.length})</h2>
-      ${items.map(renderFinding).join('')}`;
+      ${items.map((f) => renderFinding(f, muted)).join('')}`;
   }
 
   return `<!DOCTYPE html>
@@ -366,9 +378,10 @@ function buildEmailHtml(analysis, articles, runDate) {
     </div>` : ''}
 
     <div style="font-size:13px;color:#6b7280;margin-bottom:20px">
-      ${articles.length} articles scanned · ${findings.length} flagged
+      ${articles.length} articles scanned · ${aboveThreshold.length} above threshold
       (${high.length} high · ${medium.length} medium · ${low.length} low)
       · ${federal.length} federal · ${international.length} international
+      ${belowThreshold.length ? `· <span style="color:#9ca3af">${belowThreshold.length} below 0.9 confidence</span>` : ''}
     </div>
 
     ${renderSection('🔴 High Priority', high, '#dc2626')}
@@ -376,6 +389,7 @@ function buildEmailHtml(analysis, articles, runDate) {
     ${renderSection('⚪ Low Priority / FYI', low, '#6b7280')}
     ${federal.length ? renderSection('🏛️ Federal', federal.filter(f => f.relevance !== 'high' && f.relevance !== 'medium'), '#4f46e5') : ''}
     ${renderSection('🌎 International & Border', international, '#0369a1')}
+    ${belowThreshold.length ? renderSection('🔘 Below Confidence Threshold (&lt;0.9) — FYI only', belowThreshold, '#d1d5db', true) : ''}
 
     <div style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center">
       Generated by TransSafeTravels news-digest.mjs · For review only — no changes have been applied automatically.
@@ -501,6 +515,7 @@ async function main() {
       summary:          f.summary ?? null,
       suggested_action: f.suggested_action ?? null,
       confidence:       f.confidence ?? null,
+      legislation_url:  f.legislation_url ?? null,
       jurisdiction_type: f.jurisdiction_type ?? null,
       severity_delta:   f.severity_delta ?? null,
     }));

@@ -87,12 +87,32 @@ Flag articles as `jurisdiction_type: "international"` when they concern:
 
 ## Confidence Guidelines
 
+**The working threshold is 0.9.** Findings below 0.9 are shown in a separate low-confidence section and should rarely drive action. When in doubt, score lower and let the reviewer decide.
+
 | Score | Meaning |
 |-------|---------|
-| 0.9–1.0 | Specific, confirmed, sourced from a reliable outlet with named officials or court documents |
-| 0.7–0.89 | Credible outlet, specific claims, but not yet confirmed by primary sources |
+| 0.9–1.0 | Specific, confirmed, sourced from a reliable outlet — named officials, bill numbers, court docket numbers, or signed orders |
+| 0.7–0.89 | Credible outlet, specific claims, but not yet confirmed by a primary source or official document |
 | 0.5–0.69 | Plausible but vague, single source, or unclear timeline |
-| Below 0.5 | Speculative — consider skipping unless the topic is important enough to watch |
+| Below 0.5 | Speculative — skip unless the jurisdiction or topic is high enough priority to warrant watching |
+
+---
+
+## Legislation & Primary Source Links
+
+Whenever possible, include a `legislation_url` pointing directly to the primary source document — not the news article about it. Good sources:
+
+| Type | Where to find it |
+|------|-----------------|
+| Federal bills | congress.gov (e.g. `https://www.congress.gov/bill/119th-congress/...`) |
+| Executive orders | federalregister.gov or whitehouse.gov |
+| Supreme Court cases | supremecourt.gov docket search |
+| Federal court filings | courtlistener.com or PACER |
+| State bills | The state legislature's official website (e.g. legiscan.com covers all 50 states) |
+| State court rulings | The state judiciary's public opinion search |
+| Federal regulations | federalregister.gov |
+
+If you cannot identify a reliable primary source URL, set `legislation_url` to `null` — do not guess or fabricate a URL.
 
 ---
 
