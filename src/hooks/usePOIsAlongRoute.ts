@@ -182,6 +182,7 @@ function mapPoiRow(row: RoutePOI & { lng: number; lat: number }): RoutePOI {
     tags:             row.tags,
     color:            row.color,
     icon:             row.icon ?? null,
+    severity:         row.severity ?? null,
     lng:              row.lng,
     lat:              row.lat,
   };
