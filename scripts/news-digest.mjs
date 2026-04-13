@@ -276,15 +276,25 @@ Only include findings with relevance "high", "medium", or "low" — omit "skip" 
     messages:   [{ role: 'user', content: userPrompt }],
   });
 
-  const raw     = message.content[0]?.text ?? '{}';
-  const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
-  if (DEBUG) console.log('\n[DEBUG] Claude raw response:\n', cleaned.slice(0, 2000));
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    console.error('Claude returned non-JSON:', cleaned.slice(0, 500));
-    return { digest_summary: 'Parse error — see logs.', findings: [] };
+  const raw = message.content[0]?.text ?? '{}';
+  if (DEBUG) console.log('\n[DEBUG] Claude raw response:\n', raw.slice(0, 2000));
+
+  // Try progressively looser extractions
+  const candidates = [
+    raw.trim(),
+    // Strip markdown fences
+    raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim(),
+    // Extract first { ... } block (handles preamble text)
+    (() => { const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); return s !== -1 && e > s ? raw.slice(s, e + 1) : ''; })(),
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try { return JSON.parse(candidate); } catch {}
   }
+
+  console.error('Claude returned non-JSON:', raw.slice(0, 300));
+  return { digest_summary: null, findings: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -351,9 +361,10 @@ function buildEmailHtml(analysis, articles, runDate) {
       <div style="font-size:13px;color:#6b7280">Daily News Digest · ${runDate}</div>
     </div>
 
+    ${digest_summary ? `
     <div style="background:#f3f4f6;border-radius:8px;padding:14px;margin-bottom:20px;font-size:14px;color:#374151;line-height:1.5">
-      ${digest_summary ?? 'No summary available.'}
-    </div>
+      ${digest_summary}
+    </div>` : ''}
 
     <div style="font-size:13px;color:#6b7280;margin-bottom:20px">
       ${articles.length} articles scanned · ${findings.length} flagged
@@ -472,7 +483,7 @@ async function main() {
       allFindings.push({ ...f, _article: batch[f.article_index], _batch_offset: i });
     }
     if (!digestSummary && analysis.digest_summary) {
-      digestSummary = analysis.digest_summary;
+      digestSummary = analysis.digest_summary;  // take first successful batch summary
     }
   }
 
