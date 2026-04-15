@@ -108,6 +108,62 @@ If the primary source is MAP or Trans Legislation Tracker rather than the bill t
 
 ---
 
+## Legislation Sync Sources
+
+Structured data sources used by automated sync scripts to populate the `legislation_bills` table. Unlike RSS feeds, these sources are curated — every row is definitively relevant. Status changes trigger digest findings for admin review.
+
+---
+
+### ACLU — Tracking Anti-LGBTQ Bills
+
+**URL:** https://www.aclu.org/legislative-attacks-on-lgbtq-rights  
+**CSV endpoint:** `https://www.aclu.org/wp-json/api/legislation/csv/107155`  
+**Type:** Curated CSV download — state-level anti-LGBTQ legislation  
+**Coverage:** All 50 states; ~728 bills as of April 2026  
+**API:** No formal API — WordPress JSON endpoint serving a CSV. URL contains a post ID (`107155`) that may change if the ACLU republishes the page; verify periodically.  
+**Authentication:** None  
+**Script:** `scripts/sync-aclu-legislation.mjs` (planned)  
+**Best for:** Initial population of `legislation_bills`; catching new bills and status changes  
+**Columns:**
+
+| Column | Notes |
+|--------|-------|
+| State | Full state name — normalize to 2-letter abbr for DB |
+| Bill Name | e.g. "S.B. 1264" — normalize (strip punctuation) for dedup key |
+| Issues | Pipe-separated categories e.g. "Healthcare restrictions \| School facilities bans" |
+| Status | "Advancing", "Passed into Law", "Defeated", etc. |
+| Status Detail | Procedural detail e.g. "Governor signed" |
+| Status Date | MM/DD/YYYY — convert to ISO 8601 for DB |
+| In Court Link | Mostly empty |
+
+**Dedup key:** `(state_abbr, normalized_bill_number)` — source-agnostic so the same bill from LegiScan won't create a duplicate.  
+**Limitations:** No bill text URL, no session year, no federal bills.
+
+---
+
+### LegiScan API
+
+**URL:** https://legiscan.com/  
+**API docs:** https://legiscan.com/legiscan-api  
+**Type:** RESTful API — state and federal legislative data  
+**Coverage:** All 50 states + federal; full bill lifecycle tracking  
+**API:** Yes — free tier available (requires API key); register at legiscan.com  
+**Authentication:** API key as query parameter (`key=`)  
+**Script:** Planned as enrichment layer on top of ACLU sync  
+**Best for:**
+- Enriching `legislation_bills` rows with `bill_text_url` (direct link to state legislature page)
+- Catching bills the ACLU hasn't yet indexed
+- Session year data needed to construct reliable URLs
+
+**Key endpoints:**
+- `GET /api/?op=getDataset&state=TX&category=T` — full state bill dataset (transgender-related category)
+- `GET /api/?op=getBill&id={bill_id}` — full bill detail including text URLs
+- `GET /api/?op=search&state=TX&query=transgender` — keyword search
+
+**Notes:** LegiScan returns a `url` field pointing directly to the official state legislature page — this is the value to store in `legislation_bills.bill_text_url`. The free tier has rate limits; dataset downloads are more efficient than per-bill lookups for bulk sync. Add `LEGISCAN_API_KEY` to `.env.local` when integrating.
+
+---
+
 ## News Digest Sources (Active RSS Feeds)
 
 All active feeds for the automated daily digest (`scripts/news-digest.mjs`). All are **Google News RSS** — no date-range filtering is supported server-side; the digest script applies a client-side cutoff (`MAX_ARTICLE_DAYS`, currently 14 days). Google News RSS returns approximately the 10 most recent results per query.
@@ -134,8 +190,7 @@ Feed URLs are stored in the `news_sources` table (seeded in `supabase/migrations
 
 These have not been used yet but may be useful:
 
-- **OpenStates** (https://openstates.org/) — structured bill data with API; could power automated state-bill import with real date filtering
-- **ACLU state trackers** — often have curated lists of active anti-trans laws by state
+- **OpenStates** (https://openstates.org/) — alternative to LegiScan for state bill data; open source; overlaps significantly with LegiScan coverage
 - **HRC (Human Rights Campaign)** — state scorecards for employer/public accommodation protections
 
 ---
