@@ -54,8 +54,9 @@ function loadEnvFile(filePath) {
 
 loadEnvFile(path.resolve(ROOT, '.env.local'));
 
-const DRY_RUN = process.argv.includes('--dry-run');
-const DEBUG   = process.argv.includes('--debug');
+const DRY_RUN          = process.argv.includes('--dry-run');
+const DEBUG            = process.argv.includes('--debug');
+const MAX_ARTICLE_DAYS = 14; // skip articles published more than this many days ago
 
 const {
   NEXT_PUBLIC_SUPABASE_URL,
@@ -268,8 +269,8 @@ Respond with this JSON structure:
 Only include findings with relevance "high", "medium", or "low" — omit "skip" entries entirely.`;
 
   const message = await anthropic.messages.create({
-    model:      'claude-opus-4-6',
-    max_tokens: 4096,
+    model:      'claude-haiku-4-5-20251001',
+    max_tokens: 2048,
     system:     systemPrompt,
     messages:   [{ role: 'user', content: userPrompt }],
   });
@@ -437,11 +438,18 @@ async function main() {
 
   for (const source of sources) {
     try {
-      const articles = await fetchFeed(source);
-      const fresh    = articles.filter((a) => !seenUrls.has(a.url));
+      const articles  = await fetchFeed(source);
+      const cutoff    = Date.now() - MAX_ARTICLE_DAYS * 24 * 60 * 60 * 1000;
+      const recent    = articles.filter((a) => {
+        if (!a.published) return true; // include if date unknown
+        const ts = Date.parse(a.published);
+        return isNaN(ts) || ts >= cutoff;
+      });
+      const fresh     = recent.filter((a) => !seenUrls.has(a.url));
       allArticles.push(...fresh);
+      const tooOld    = articles.length - recent.length;
       sourceStats[source.id] = { fetched: articles.length, fresh: fresh.length };
-      console.log(`  ${source.name}: ${articles.length} total, ${fresh.length} new`);
+      console.log(`  ${source.name}: ${articles.length} total, ${fresh.length} new${tooOld ? `, ${tooOld} too old` : ''}`);
 
       if (!DRY_RUN) {
         await supabase.from('news_sources').update({
@@ -515,6 +523,7 @@ async function main() {
       summary:          f.summary ?? null,
       suggested_action: f.suggested_action ?? null,
       confidence:       f.confidence ?? null,
+      relevance:        f.relevance ?? null,
       legislation_url:  f.legislation_url ?? null,
       jurisdiction_type: f.jurisdiction_type ?? null,
       severity_delta:   f.severity_delta ?? null,

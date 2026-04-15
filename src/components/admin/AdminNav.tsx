@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 const links = [
   { href: "/admin/pois", label: "POIs" },
   { href: "/admin/categories", label: "Categories" },
+  { href: "/admin/digest", label: "Digest" },
 ];
 
 export default function AdminNav() {

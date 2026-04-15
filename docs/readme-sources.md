@@ -108,14 +108,35 @@ If the primary source is MAP or Trans Legislation Tracker rather than the bill t
 
 ---
 
+## News Digest Sources (Active RSS Feeds)
+
+All active feeds for the automated daily digest (`scripts/news-digest.mjs`). All are **Google News RSS** — no date-range filtering is supported server-side; the digest script applies a client-side cutoff (`MAX_ARTICLE_DAYS`, currently 14 days). Google News RSS returns approximately the 10 most recent results per query.
+
+| Priority | Name | Query focus |
+|----------|------|-------------|
+| 10 | Google News — trans safety hate crime | Physical safety events, hate crimes, hate violence targeting trans people |
+| 10 | Google News — federal trans policy | Federal policy changes, executive orders, Title IX |
+| 10 | Google News — Canada travel advisory LGBTQ US | Canadian travel warnings about the US for LGBTQ travelers |
+| 9 | Google News — anti-trans legislation | Anti-trans law and legislation coverage |
+| 9 | Google News — gender-affirming care | Gender-affirming care bans |
+| 9 | Google News — transgender rights court | Court rulings and lawsuits affecting trans rights |
+| 9 | Google News — US passport transgender policy | US passport and ID policy changes |
+| 9 | Google News — border crossing transgender | Border crossing, CBP, customs, TSA issues |
+| 8 | Google News — bathroom bill | Bathroom bills and facility restrictions |
+| 8 | Google News — trans travel safety | Travel safety, safe states, shield/sanctuary laws |
+| 7 | Google News — Mexico Canada trans travel | Trans travel conditions in Mexico and Canada |
+
+Feed URLs are stored in the `news_sources` table (seeded in `supabase/migrations/20260413000003_monitoring_tables.sql` and `20260413000005_international_news_sources.sql`). Add or disable feeds there — no code changes required.
+
+---
+
 ## Sources Under Consideration
 
 These have not been used yet but may be useful:
 
-- **OpenStates** (https://openstates.org/) — structured bill data with API; could power the news-pipeline auto-import
+- **OpenStates** (https://openstates.org/) — structured bill data with API; could power automated state-bill import with real date filtering
 - **ACLU state trackers** — often have curated lists of active anti-trans laws by state
 - **HRC (Human Rights Campaign)** — state scorecards for employer/public accommodation protections
-- **Google News / RSS** — potential feed for detecting newly passed legislation (see `docs/readme-visibility.md` news pipeline notes)
 
 ---
 
