@@ -224,7 +224,18 @@ async function main() {
     });
   }
 
-  console.log(`  ${bills.length} bills normalized, ${skipped.length} skipped`);
+  // Deduplicate within the fetched data (same bill can appear twice in the CSV)
+  const seen = new Set();
+  const deduped = bills.filter((b) => {
+    const key = `${b.state_abbr ?? ''}|${b.bill_number}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const dupeCount = bills.length - deduped.length;
+  bills.length = 0; bills.push(...deduped);
+
+  console.log(`  ${bills.length} bills normalized, ${skipped.length} skipped${dupeCount ? `, ${dupeCount} intra-CSV duplicates removed` : ''}`);
   if (skipped.length > 0) console.log('  Skipped:', skipped.slice(0, 5).join('; '));
   if (DEBUG) console.log('\nSample normalized bills:', JSON.stringify(bills.slice(0, 3), null, 2));
 

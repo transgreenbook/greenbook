@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS legislation_bills (
   id                    SERIAL PRIMARY KEY,
 
   -- Jurisdiction
-  state_abbr            CHAR(2)  REFERENCES states(abbreviation),  -- null = federal
+  state_abbr            CHAR(2),  -- null = federal; not FK'd so territories (PR, GU, VI) are valid
   bill_number           TEXT     NOT NULL,  -- normalized e.g. "SB 1264", "HB 42"
 
   -- Official info
@@ -45,8 +45,8 @@ CREATE TABLE IF NOT EXISTS legislation_bills (
 );
 
 -- Dedup key — one row per bill regardless of source
-CREATE UNIQUE INDEX legislation_bills_state_bill_idx
-  ON legislation_bills (COALESCE(state_abbr, ''), bill_number);
+ALTER TABLE legislation_bills ADD CONSTRAINT legislation_bills_state_bill_key
+  UNIQUE (state_abbr, bill_number);
 
 CREATE INDEX legislation_bills_state_abbr_idx  ON legislation_bills (state_abbr);
 CREATE INDEX legislation_bills_status_idx       ON legislation_bills (status);
