@@ -17,6 +17,7 @@ type Props = {
   billNumber: string;         // used to pre-fill new POI
   issues: string[];           // normalized issue tags
   jurisdictionType: string | null;
+  billStatus: string | null;  // 'signed' | 'passed' | 'advancing' | etc.
   // Pre-linked POI from Claude (may be null for legislation findings)
   linkedPoi: LinkedPOI | null;
   // Callbacks
@@ -34,12 +35,17 @@ export default function ApprovePanel({
   billNumber,
   issues,
   jurisdictionType,
+  billStatus,
   linkedPoi,
   onApproved,
   onCancel,
 }: Props) {
-  // If a POI is already linked (Claude finding), skip to confirm mode
-  const [mode,   setMode]   = useState<Mode>(linkedPoi ? 'confirm' : 'select');
+  const isPassed = billStatus === 'signed' || billStatus === 'passed';
+
+  // Non-passed bills skip POI selection entirely — just confirm a watch item
+  // Pre-linked POI (Claude finding) skips to confirm
+  const initialMode: Mode = (linkedPoi || !isPassed) ? 'confirm' : 'select';
+  const [mode,   setMode]   = useState<Mode>(initialMode);
   const [poi,    setPoi]    = useState<LinkedPOI | null>(linkedPoi);
   const [delta,  setDelta]  = useState(0);
   const [watchItem, setWatchItem] = useState(true);
@@ -236,52 +242,67 @@ export default function ApprovePanel({
   return (
     <div className="mt-3 border border-green-100 rounded-lg bg-green-50 p-4 space-y-3">
       <div className="text-xs font-semibold text-green-700 uppercase tracking-wide">
-        Confirm approval
+        {isPassed ? 'Confirm approval' : 'Add to watch list'}
       </div>
 
-      {poi ? (
-        <div className="flex items-center gap-3">
-          <div className="flex-1 text-sm">
-            <span className="text-gray-700 font-medium">{poi.title}</span>
-            <span className="text-gray-400 text-xs ml-2">current severity {poi.severity}</span>
-          </div>
-          {/* Severity delta adjuster */}
-          <div className="flex items-center gap-1 border border-gray-200 rounded bg-white shrink-0">
-            <button
-              type="button"
-              onClick={() => setDelta((d) => Math.max(-10, d - 1))}
-              className="px-2 py-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 rounded-l text-sm font-mono"
-            >−</button>
-            <span className={`px-2 text-sm font-semibold tabular-nums min-w-[2.5rem] text-center ${
-              delta < 0 ? 'text-red-600' : delta > 0 ? 'text-green-600' : 'text-gray-400'
-            }`}>
-              {delta > 0 ? `+${delta}` : delta === 0 ? '±0' : delta}
-            </span>
-            <button
-              type="button"
-              onClick={() => setDelta((d) => Math.min(10, d + 1))}
-              className="px-2 py-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 rounded-r text-sm font-mono"
-            >+</button>
-          </div>
-          {delta !== 0 && newSeverity !== null && (
-            <span className="text-xs text-gray-500 shrink-0">
-              → <span className={newSeverity < 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}>
-                {newSeverity > 0 ? `+${newSeverity}` : newSeverity}
+      {/* POI section — only for passed/signed bills */}
+      {isPassed && (
+        poi ? (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 text-sm">
+              <span className="text-gray-700 font-medium">{poi.title}</span>
+              <span className="text-gray-400 text-xs ml-2">current severity {poi.severity}</span>
+            </div>
+            {/* Severity delta adjuster */}
+            <div className="flex items-center gap-1 border border-gray-200 rounded bg-white shrink-0">
+              <button
+                type="button"
+                onClick={() => setDelta((d) => Math.max(-10, d - 1))}
+                className="px-2 py-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 rounded-l text-sm font-mono"
+              >−</button>
+              <span className={`px-2 text-sm font-semibold tabular-nums min-w-[2.5rem] text-center ${
+                delta < 0 ? 'text-red-600' : delta > 0 ? 'text-green-600' : 'text-gray-400'
+              }`}>
+                {delta > 0 ? `+${delta}` : delta === 0 ? '±0' : delta}
               </span>
-            </span>
-          )}
-          {!linkedPoi && (
-            <button
-              type="button"
-              onClick={() => { setMode('select'); setPoi(null); setDelta(0); }}
-              className="text-xs text-gray-400 hover:underline shrink-0"
-            >
-              Change
-            </button>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-500">No POI linked — finding will be marked approved only.</p>
+              <button
+                type="button"
+                onClick={() => setDelta((d) => Math.min(10, d + 1))}
+                className="px-2 py-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 rounded-r text-sm font-mono"
+              >+</button>
+            </div>
+            {delta !== 0 && newSeverity !== null && (
+              <span className="text-xs text-gray-500 shrink-0">
+                → <span className={newSeverity < 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}>
+                  {newSeverity > 0 ? `+${newSeverity}` : newSeverity}
+                </span>
+              </span>
+            )}
+            {!linkedPoi && (
+              <button
+                type="button"
+                onClick={() => { setMode('select'); setPoi(null); setDelta(0); }}
+                className="text-xs text-gray-400 hover:underline shrink-0"
+              >
+                Change
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setMode('select')}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            + Link to a POI
+          </button>
+        )
+      )}
+
+      {!isPassed && (
+        <p className="text-xs text-gray-500">
+          Bill is still advancing — no POI will be created until it passes.
+        </p>
       )}
 
       {/* Watch item checkbox */}

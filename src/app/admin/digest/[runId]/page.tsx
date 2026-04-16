@@ -32,6 +32,7 @@ type Finding = {
   _state_abbr: string | null;
   _bill_number: string;
   _issues: string[];
+  _bill_status: string | null;
 };
 
 type DigestRun = {
@@ -79,7 +80,8 @@ export default function DigestRunPage() {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null); // which finding has panel open
-  const [busy,     setBusy]     = useState<number | null>(null);       // dismiss spinner
+  const [busy,        setBusy]     = useState<number | null>(null);       // dismiss spinner
+  const [bulkApproving, setBulkApproving] = useState(false);
 
   const fetchData = useCallback(async () => {
     const [{ data: runData }, { data: findingsData }] = await Promise.all([
@@ -105,9 +107,39 @@ export default function DigestRunPage() {
     ]);
 
     setRun(runData);
+
+    // Parse ACLU findings to extract state/bill keys for batch status lookup
+    const rawFindings = findingsData ?? [];
+    const parsed = rawFindings.map((f: Record<string, unknown>) => {
+      const url = (f.article_url as string) ?? '';
+      const { stateAbbr, billNumber } = parseLegislationUrl(url);
+      return { f, stateAbbr, billNumber, isLegislation: url.startsWith('aclu:') };
+    });
+
+    // Batch-fetch bill statuses from legislation_bills for ACLU findings
+    const acluKeys = parsed
+      .filter((p) => p.isLegislation && p.stateAbbr && p.billNumber)
+      .map((p) => `${p.stateAbbr}:${p.billNumber}`);
+
+    let billStatusMap: Record<string, string> = {};
+    if (acluKeys.length > 0) {
+      const uniqueStates = [...new Set(parsed.filter((p) => p.isLegislation).map((p) => p.stateAbbr).filter(Boolean))];
+      const { data: billRows } = await supabase
+        .from('legislation_bills')
+        .select('state_abbr, bill_number, status')
+        .in('state_abbr', uniqueStates as string[]);
+      billStatusMap = Object.fromEntries(
+        (billRows ?? []).map((b: { state_abbr: string; bill_number: string; status: string }) =>
+          [`${b.state_abbr}:${b.bill_number}`, b.status]
+        )
+      );
+    }
+
     setFindings(
-      (findingsData ?? []).map((f: Record<string, unknown>): Finding => {
-        const { stateAbbr, billNumber } = parseLegislationUrl((f.article_url as string) ?? '');
+      parsed.map(({ f, stateAbbr, billNumber }): Finding => {
+        const billStatus = (stateAbbr && billNumber)
+          ? (billStatusMap[`${stateAbbr}:${billNumber}`] ?? null)
+          : null;
         return {
           id:               f.id as number,
           article_title:    f.article_title as string | null,
@@ -132,6 +164,7 @@ export default function DigestRunPage() {
           _state_abbr:      stateAbbr,
           _bill_number:     billNumber,
           _issues:          [],
+          _bill_status:     billStatus,
         };
       })
     );
@@ -157,6 +190,41 @@ export default function DigestRunPage() {
     setFindings((prev) =>
       prev.map((f) => f.id === findingId ? { ...f, applied_at: new Date().toISOString() } : f)
     );
+  }
+
+  async function handleBulkApprove(items: Finding[]) {
+    if (!confirm(`Bulk approve ${items.length} pending low-priority findings as watch items?`)) return;
+    setBulkApproving(true);
+    const now = new Date().toISOString();
+    const results = await Promise.allSettled(
+      items.map(async (f) => {
+        // Create watch item
+        const { data: wi } = await supabase
+          .from('watch_items')
+          .insert({
+            item_type:         'bill',
+            title:             f._bill_number
+              ? `${f._state_abbr ?? 'US'} ${f._bill_number}`
+              : `${f._state_abbr ?? 'US'} legislation`,
+            jurisdiction_type: f.jurisdiction_type ?? 'state',
+            status:            'monitoring',
+            linked_poi_id:     null,
+            attributes:        { auto_created: true, source: 'digest_bulk_approve' },
+          })
+          .select('id')
+          .single();
+        // Mark finding applied
+        await supabase
+          .from('digest_findings')
+          .update({ applied_at: now, watch_item_id: wi?.id ?? null })
+          .eq('id', f.id);
+      })
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) alert(`${failed} findings failed to approve. Refresh to check.`);
+    setBulkApproving(false);
+    // Re-fetch to reflect updated state
+    fetchData();
   }
 
   if (loading) return <div className="p-6 text-sm text-gray-400">Loading...</div>;
@@ -261,6 +329,7 @@ export default function DigestRunPage() {
             billNumber={f._bill_number}
             issues={f._issues}
             jurisdictionType={f.jurisdiction_type}
+            billStatus={f._bill_status}
             linkedPoi={linkedPoi}
             onApproved={handleApproved}
             onCancel={() => setApprovingId(null)}
@@ -302,12 +371,23 @@ export default function DigestRunPage() {
 
       {grouped.map(({ label, items }) => (
         <div key={label} className="mb-6">
-          <h2 className={`text-xs font-bold uppercase tracking-wide mb-3 ${
-            label === "high" ? "text-red-600" : label === "medium" ? "text-amber-600" : "text-gray-400"
-          }`}>
-            {label === "high" ? "High Priority" : label === "medium" ? "Medium Priority" : "Low Priority / FYI"}
-            <span className="ml-2 font-normal normal-case text-gray-400">({items.length})</span>
-          </h2>
+          <div className="flex items-center gap-3 mb-3">
+            <h2 className={`text-xs font-bold uppercase tracking-wide ${
+              label === "high" ? "text-red-600" : label === "medium" ? "text-amber-600" : "text-gray-400"
+            }`}>
+              {label === "high" ? "High Priority" : label === "medium" ? "Medium Priority" : "Low Priority / FYI"}
+              <span className="ml-2 font-normal normal-case text-gray-400">({items.length})</span>
+            </h2>
+            {label === "low" && items.length > 1 && (
+              <button
+                onClick={() => handleBulkApprove(items)}
+                disabled={bulkApproving}
+                className="ml-auto text-xs px-3 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {bulkApproving ? "Approving…" : `Bulk approve ${items.length} as watch items`}
+              </button>
+            )}
+          </div>
           {items.map(renderFinding)}
         </div>
       ))}

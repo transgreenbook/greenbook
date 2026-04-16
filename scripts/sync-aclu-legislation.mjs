@@ -479,24 +479,31 @@ async function main() {
   }
 
   for (const bill of newBills) {
+    // Skip defeated/vetoed — no longer relevant, no action needed
+    if (bill.status === 'defeated' || bill.status === 'vetoed') continue;
+
     const key        = `${bill.state_abbr ?? ''}|${bill.bill_number}`;
     const trackerUrl = verifiedUrls.get(key) ?? null;
+    const isPassed   = bill.status === 'signed' || bill.status === 'passed';
     findings.push({
       digest_run_id:    runId,
       article_url:      `aclu:${bill.state_abbr ?? 'US'}:${bill.bill_number}`,
       article_title:    `New bill: ${bill.state_abbr ?? 'Federal'} ${bill.bill_number}`,
       summary:          `New bill tracked by ACLU. Issues: ${bill.issues.join(', ') || 'unspecified'}. Status: ${bill.status}${bill.status_detail ? ` (${bill.status_detail})` : ''}.`,
-      suggested_action: bill.status === 'signed' || bill.status === 'passed'
-        ? 'Review for POI severity impact — bill has passed.'
-        : 'Monitor for status changes.',
+      suggested_action: isPassed
+        ? 'Bill has passed — review for POI severity impact.'
+        : 'Monitor for status changes — approve to create a watch item.',
       confidence:       0.95,
-      relevance:        bill.status === 'signed' || bill.status === 'passed' ? 'high' : 'medium',
+      relevance:        bill.status === 'signed' ? 'high' : bill.status === 'passed' ? 'medium' : 'low',
       jurisdiction_type: bill.state_abbr ? 'state' : 'federal',
       legislation_url:  trackerUrl,
     });
   }
 
   for (const bill of changedBills) {
+    // Skip if newly defeated/vetoed — auto-dismiss by not creating a finding
+    if (bill.status === 'defeated' || bill.status === 'vetoed') continue;
+
     const isPassed   = bill.status === 'signed' || bill.status === 'passed';
     // For changed bills, look up tracker_url from DB (already verified from initial sync)
     const { data: billRow } = await supabase
@@ -514,7 +521,7 @@ async function main() {
         ? 'Bill has passed — review for POI severity impact.'
         : `Review status change to "${bill.status}".`,
       confidence:       0.98,
-      relevance:        isPassed ? 'high' : 'medium',
+      relevance:        bill.status === 'signed' ? 'high' : bill.status === 'passed' ? 'medium' : 'low',
       jurisdiction_type: bill.state_abbr ? 'state' : 'federal',
       legislation_url:  billRow?.tracker_url ?? null,
     });
