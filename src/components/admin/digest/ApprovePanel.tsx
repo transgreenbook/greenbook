@@ -28,6 +28,7 @@ type Props = {
 type Mode = 'select' | 'create' | 'confirm';
 
 type POISearchResult = { id: number; title: string; severity: number | null };
+type Category = { id: number; name: string; color: string | null };
 
 export default function ApprovePanel({
   findingId,
@@ -55,25 +56,46 @@ export default function ApprovePanel({
   const [results, setResults] = useState<POISearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
+  // Category filter state (null = not loaded yet; loaded when entering select mode)
+  const [categories,       setCategories]       = useState<Category[]>([]);
+  const [hiddenCategoryIds, setHiddenCategoryIds] = useState<number[]>([]);
+
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState<string | null>(null);
 
-  // Search POIs as user types
+  // Load categories when entering select mode
+  useEffect(() => {
+    if (mode !== 'select' || categories.length > 0) return;
+    supabase
+      .from('categories')
+      .select('id, name, color')
+      .order('name')
+      .then(({ data }) => setCategories(data ?? []));
+  }, [mode, categories.length]);
+
+  // Search POIs as user types, filtered by visible categories
   useEffect(() => {
     if (query.trim().length < 2) { setResults([]); return; }
     const timer = setTimeout(async () => {
       setSearching(true);
-      const { data } = await supabase
+      const visibleIds = categories
+        .filter((c) => !hiddenCategoryIds.includes(c.id))
+        .map((c) => c.id);
+      let q = supabase
         .from('points_of_interest')
         .select('id, title, severity')
         .ilike('title', `%${query.trim()}%`)
-        .order('title')
+        .order('severity', { ascending: true })
         .limit(8);
+      if (categories.length > 0 && hiddenCategoryIds.length > 0) {
+        q = q.in('category_id', visibleIds);
+      }
+      const { data } = await q;
       setResults(data ?? []);
       setSearching(false);
     }, 250);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, hiddenCategoryIds, categories]);
 
   function selectPoi(p: POISearchResult) {
     setPoi({ id: p.id, title: p.title, severity: p.severity ?? 0 });
@@ -166,6 +188,48 @@ export default function ApprovePanel({
             </span>
           )}
         </div>
+
+        {/* Category filter chips */}
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {categories.map((cat) => {
+              const hidden = hiddenCategoryIds.includes(cat.id);
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() =>
+                    setHiddenCategoryIds((prev) =>
+                      prev.includes(cat.id)
+                        ? prev.filter((id) => id !== cat.id)
+                        : [...prev, cat.id]
+                    )
+                  }
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                    hidden
+                      ? 'bg-white border-gray-200 text-gray-300'
+                      : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: hidden ? '#e5e7eb' : (cat.color ?? '#3b82f6') }}
+                  />
+                  {cat.name}
+                </button>
+              );
+            })}
+            {hiddenCategoryIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setHiddenCategoryIds([])}
+                className="text-xs text-blue-600 hover:underline px-1"
+              >
+                Show all
+              </button>
+            )}
+          </div>
+        )}
 
         {results.length > 0 && (
           <div className="border border-gray-200 rounded bg-white mb-3 divide-y divide-gray-100 max-h-48 overflow-y-auto">

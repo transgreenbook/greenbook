@@ -28,6 +28,7 @@ export const useFilterStore = create<FilterStore>((set, get) => ({
     const { data } = await supabase
       .from("categories")
       .select("id, name, color, icon_slug, icon")
+      .eq("map_visible", true)
       .order("name");
     if (data) set({ categories: data as Category[] });
   },

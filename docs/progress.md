@@ -162,3 +162,18 @@ Eleventh Phase - Here's what's working now:
   optionally county/city), trigger resolves the centroid and fills everything else in      
   - 4 warning POIs inserted for FL, ID, UT, KS with severity 8, tagged legal, trans-safety,
    bathroom 
+
+------
+
+   Task 11 — billStatus prop plumbed through:
+  - After loading findings, batch-queries legislation_bills filtered by the unique states present in ACLU findings, then builds a
+  state:bill → status map
+  - Each finding gets _bill_status populated from that map
+  - ApprovePanel now receives billStatus={f._bill_status}, which drives the isPassed check and switches between the full POI flow
+  vs. the "add to watch list" confirm path
+
+  Task 12 — Bulk approve:
+  - A "Bulk approve N as watch items" button appears in the Low Priority section header when there's more than one pending item
+  - handleBulkApprove creates a watch item for each finding in parallel, marks each finding applied_at, and re-fetches on completion
+  - Individual findings in the low-priority section still show the per-item Approve/Dismiss controls for cases where you want to
+  handle one differently
