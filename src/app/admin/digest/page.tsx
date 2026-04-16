@@ -73,10 +73,12 @@ export default function DigestRunsPage() {
           <tbody className="divide-y divide-gray-100">
             {runs.map((run) => (
               <tr key={run.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-800">
-                  {new Date(run.run_at).toLocaleDateString(undefined, {
-                    year: "numeric", month: "short", day: "numeric",
-                  })}
+                <td className="px-4 py-3 font-medium">
+                  <Link href={`/admin/digest/${run.id}`} className="text-gray-800 hover:text-blue-600 hover:underline">
+                    {new Date(run.run_at).toLocaleDateString(undefined, {
+                      year: "numeric", month: "short", day: "numeric",
+                    })}
+                  </Link>
                   <span className="ml-2 text-xs text-gray-400">
                     {new Date(run.run_at).toLocaleTimeString(undefined, {
                       hour: "2-digit", minute: "2-digit",

@@ -212,7 +212,7 @@ export const LAYERS: LayerSpecification[] = [
     source: "counties",
     ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
     paint: {
-      "fill-color": ["coalesce", ["feature-state", "severity_color"], ["get", "fill_color"], "#f1f5f9"],
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], ["feature-state", "state_color"], ["get", "fill_color"], "#f1f5f9"],
       // Fades in as state fills fade out
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
@@ -351,7 +351,7 @@ export const LAYERS: LayerSpecification[] = [
     source: "places",
     ...(pmtilesUrl ? { "source-layer": "places" } : {}),
     paint: {
-      "fill-color": ["coalesce", ["feature-state", "severity_color"], "#e2e8f0"],
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], ["feature-state", "state_color"], "#e2e8f0"],
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
         8, 0,
