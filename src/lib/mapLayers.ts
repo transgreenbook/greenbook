@@ -148,63 +148,6 @@ export const LAYERS: LayerSpecification[] = [
     },
   },
 
-  // --- Reservation fills (zoom 4–10) ---
-  // Earthy amber/tan fill — visually distinct from state gray and county blue-gray.
-  // Dashed border signals "different jurisdiction, not a state sub-unit."
-  {
-    id: "reservations-fill",
-    type: "fill",
-    source: "reservations",
-    paint: {
-      "fill-color": "#fef3c7",
-      "fill-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        4, 0.5,
-        7, 0.35,
-        10, 0.2,
-      ],
-    },
-  },
-  {
-    id: "reservations-line",
-    type: "line",
-    source: "reservations",
-    paint: {
-      "line-color": "#d97706",
-      "line-width": 1.2,
-      "line-dasharray": [3, 2],
-      "line-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        4, 0.8,
-        10, 0.5,
-      ],
-    },
-  },
-  {
-    id: "reservations-label",
-    type: "symbol",
-    source: "reservations-centroids",
-    layout: {
-      "text-field": ["get", "NAME"],
-      "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
-      "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 9, 13],
-      "text-anchor": "center",
-      "text-max-width": 8,
-      "text-allow-overlap": false,
-    },
-    paint: {
-      "text-color": "#92400e",
-      "text-halo-color": "#fffbeb",
-      "text-halo-width": 1.5,
-      "text-opacity": [
-        "interpolate", ["linear"], ["zoom"],
-        5, 0,
-        6, 1,
-        10, 1,
-      ],
-    },
-  },
-
   // --- County fills (zoom 6–12) ---
   {
     id: "counties-fill",
@@ -392,6 +335,64 @@ export const LAYERS: LayerSpecification[] = [
       "text-opacity": [
         "interpolate", ["linear"], ["zoom"],
         9, 0,
+        10, 1,
+      ],
+    },
+  },
+
+  // --- Reservation fills (zoom 4–10) ---
+  // Rendered AFTER counties and cities so the reservation amber always paints
+  // over any inherited state color tint on underlying county/city features.
+  // Dashed border signals "different jurisdiction, not a state sub-unit."
+  {
+    id: "reservations-fill",
+    type: "fill",
+    source: "reservations",
+    paint: {
+      "fill-color": "#fef3c7",
+      "fill-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        4, 0.5,
+        7, 0.35,
+        10, 0.2,
+      ],
+    },
+  },
+  {
+    id: "reservations-line",
+    type: "line",
+    source: "reservations",
+    paint: {
+      "line-color": "#d97706",
+      "line-width": 1.2,
+      "line-dasharray": [3, 2],
+      "line-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        4, 0.8,
+        10, 0.5,
+      ],
+    },
+  },
+  {
+    id: "reservations-label",
+    type: "symbol",
+    source: "reservations-centroids",
+    layout: {
+      "text-field": ["get", "NAME"],
+      "text-font": ["literal", ["Open Sans Regular", "Arial Unicode MS Regular"]],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 9, 13],
+      "text-anchor": "center",
+      "text-max-width": 8,
+      "text-allow-overlap": false,
+    },
+    paint: {
+      "text-color": "#92400e",
+      "text-halo-color": "#fffbeb",
+      "text-halo-width": 1.5,
+      "text-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        5, 0,
+        6, 1,
         10, 1,
       ],
     },
