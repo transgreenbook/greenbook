@@ -47,9 +47,10 @@ export default function POIMiniForm({
 }: Props) {
   const [categories, setCategories]     = useState<Category[]>([]);
   const [centroids,  setCentroids]      = useState<StateCentroid[]>([]);
-  const [title,       setTitle]         = useState('');
-  const [description, setDescription]  = useState('');
-  const [categoryId,  setCategoryId]   = useState('');
+  const [title,            setTitle]           = useState('');
+  const [description,      setDescription]     = useState('');
+  const [longDescription,  setLongDescription] = useState('');
+  const [categoryId,       setCategoryId]      = useState('');
   const [severity,    setSeverity]     = useState(defaultSeverity);
   const [saving,      setSaving]       = useState(false);
   const [error,       setError]        = useState<string | null>(null);
@@ -105,8 +106,9 @@ export default function POIMiniForm({
     const { data, error: err } = await supabase
       .from('points_of_interest')
       .insert({
-        title:       title.trim(),
-        description: description.trim() || null,
+        title:            title.trim(),
+        description:      description.trim() || null,
+        long_description: longDescription.trim() || null,
         geom:        `POINT(${centroid.lng} ${centroid.lat})`,
         effect_scope: 'state',
         prominence:  'regional',
@@ -194,13 +196,29 @@ export default function POIMiniForm({
 
       {/* Description */}
       <div>
-        <label className={labelCls}>Description</label>
+        <label className={labelCls}>
+          Description <span className="font-normal text-gray-400">plain text</span>
+        </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
           className={inputCls}
           placeholder="Brief description of what this POI tracks"
+        />
+      </div>
+
+      {/* Long description */}
+      <div>
+        <label className={labelCls}>
+          Long Description <span className="font-normal text-gray-400">md format</span>
+        </label>
+        <textarea
+          value={longDescription}
+          onChange={(e) => setLongDescription(e.target.value)}
+          rows={4}
+          className={inputCls}
+          placeholder="Detailed notes, links, why this is problematic… (supports **bold**, *italic*, bullet lists)"
         />
       </div>
 

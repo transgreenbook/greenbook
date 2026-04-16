@@ -335,9 +335,9 @@ export default function ApprovePanel({
                 className="px-2 py-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 rounded-r text-sm font-mono"
               >+</button>
             </div>
-            {delta !== 0 && newSeverity !== null && (
+            {newSeverity !== null && (
               <span className="text-xs text-gray-500 shrink-0">
-                → <span className={newSeverity < 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}>
+                → <span className={newSeverity < 0 ? 'text-red-600 font-semibold' : newSeverity > 0 ? 'text-green-600 font-semibold' : 'text-gray-400 font-semibold'}>
                   {newSeverity > 0 ? `+${newSeverity}` : newSeverity}
                 </span>
               </span>
