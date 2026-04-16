@@ -92,7 +92,8 @@ export const SOURCES: Record<string, SourceSpecification> = {
 // ---------------------------------------------------------------------------
 
 export const LAYERS: LayerSpecification[] = [
-  // --- State fills (zoom 3–8) ---
+  // --- State fills ---
+  // Main fill: full opacity at low zoom, fades out by zoom 8.
   {
     id: "states-fill",
     type: "fill",
@@ -100,12 +101,29 @@ export const LAYERS: LayerSpecification[] = [
     ...(pmtilesUrl ? { "source-layer": "states" } : {}),
     paint: {
       "fill-color": ["coalesce", ["feature-state", "severity_color"], ["get", "fill_color"], "#e0e7ef"],
-      // Full opacity at zoom 5, fades out by zoom 8
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
         3, 0.7,
         5, 0.7,
         8, 0,
+      ],
+    },
+  },
+  // Persistent fill: fades IN at zoom 8 (as the main fill fades out) and stays
+  // at low opacity. Counties/cities without their own POI are transparent, so
+  // the parent state's tint shows through underneath them.
+  // Only states with a severity_color show this tint — neutral states are transparent.
+  {
+    id: "states-fill-persistent",
+    type: "fill",
+    source: "states",
+    ...(pmtilesUrl ? { "source-layer": "states" } : {}),
+    paint: {
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], "rgba(0,0,0,0)"],
+      "fill-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        7, 0,
+        8, 0.3,
       ],
     },
   },
@@ -155,7 +173,7 @@ export const LAYERS: LayerSpecification[] = [
     source: "counties",
     ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
     paint: {
-      "fill-color": ["coalesce", ["feature-state", "severity_color"], ["feature-state", "state_color"], ["get", "fill_color"], "#f1f5f9"],
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], "rgba(0,0,0,0)"],
       // Fades in as state fills fade out
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
@@ -294,7 +312,7 @@ export const LAYERS: LayerSpecification[] = [
     source: "places",
     ...(pmtilesUrl ? { "source-layer": "places" } : {}),
     paint: {
-      "fill-color": ["coalesce", ["feature-state", "severity_color"], ["feature-state", "state_color"], "#e2e8f0"],
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], "rgba(0,0,0,0)"],
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
         8, 0,
@@ -341,9 +359,21 @@ export const LAYERS: LayerSpecification[] = [
   },
 
   // --- Reservation fills (zoom 4–10) ---
-  // Rendered AFTER counties and cities so the reservation amber always paints
-  // over any inherited state color tint on underlying county/city features.
-  // Dashed border signals "different jurisdiction, not a state sub-unit."
+  // Rendered AFTER counties and cities. A near-opaque cover layer blocks the
+  // persistent state tint from bleeding through the semi-transparent amber fill.
+  {
+    id: "reservations-fill-cover",
+    type: "fill",
+    source: "reservations",
+    paint: {
+      "fill-color": "#fffbeb",
+      "fill-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        4, 0.75,
+        10, 0.75,
+      ],
+    },
+  },
   {
     id: "reservations-fill",
     type: "fill",
