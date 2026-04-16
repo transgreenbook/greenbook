@@ -75,11 +75,14 @@ export default function POIMiniForm({
   // Set pre-filled title + description once state name resolves
   useEffect(() => {
     if (!stateName) return;
-    setTitle(`${stateName} — Anti-Trans Legislation`);
+    const prefix = stateAbbr && billNumber
+      ? `${stateAbbr} ${billNumber}`
+      : stateName;
+    setTitle(`${prefix} — Anti-Trans Legislation`);
     if (issues.length > 0) {
       setDescription(`Covers: ${issues.map(issueLabel).join(', ')}.`);
     }
-  }, [stateName, issues]);
+  }, [stateName, stateAbbr, billNumber, issues]);
 
   async function handleSave() {
     if (!title.trim()) { setError('Title is required.'); return; }

@@ -8,6 +8,7 @@ export default function POIFilter() {
   const hiddenCategoryIds = useFilterStore((s) => s.hiddenCategoryIds);
   const toggleCategory    = useFilterStore((s) => s.toggleCategory);
   const showAll           = useFilterStore((s) => s.showAll);
+  const hideAll           = useFilterStore((s) => s.hideAll);
   const loadCategories    = useFilterStore((s) => s.loadCategories);
 
   useEffect(() => { loadCategories(); }, []);
@@ -24,12 +25,13 @@ export default function POIFilter() {
     <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-gray-500">Filter by category</span>
-        {hiddenCategoryIds.length > 0 && (
-          <button
-            onClick={showAll}
-            className="text-xs text-blue-600 hover:underline"
-          >
-            Show all
+        {hiddenCategoryIds.length === 0 ? (
+          <button onClick={hideAll} className="text-xs text-blue-600 hover:underline">
+            Clear All
+          </button>
+        ) : (
+          <button onClick={showAll} className="text-xs text-blue-600 hover:underline">
+            Show All
           </button>
         )}
       </div>

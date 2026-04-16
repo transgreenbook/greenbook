@@ -17,6 +17,7 @@ interface FilterStore {
   loadCategories: () => Promise<void>;
   toggleCategory: (id: number) => void;
   showAll: () => void;
+  hideAll: () => void;
 }
 
 export const useFilterStore = create<FilterStore>((set, get) => ({
@@ -41,4 +42,5 @@ export const useFilterStore = create<FilterStore>((set, get) => ({
     })),
 
   showAll: () => set({ hiddenCategoryIds: [] }),
+  hideAll: () => set((s) => ({ hiddenCategoryIds: s.categories.map((c) => c.id) })),
 }));
