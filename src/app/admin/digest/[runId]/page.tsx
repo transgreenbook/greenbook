@@ -218,8 +218,9 @@ export default function DigestRunPage() {
         <div className="flex flex-wrap gap-2 mb-3 text-xs">
           {f.legislation_url && (
             <a href={f.legislation_url} target="_blank" rel="noopener noreferrer"
-              className="text-purple-600 hover:underline font-medium">
-              Primary source →
+              className="text-purple-600 hover:underline font-medium"
+              title="May not exist if Trans Legislation Tracker doesn't cover this bill">
+              Trans Legislation Tracker →
             </a>
           )}
           {f.article_url && !isLegislation && (

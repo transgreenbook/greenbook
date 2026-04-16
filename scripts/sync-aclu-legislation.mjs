@@ -128,6 +128,27 @@ function normalizeIssues(raw) {
 }
 
 /**
+ * Build a Trans Legislation Tracker URL for a bill.
+ * Pattern: https://translegislation.com/bills/{year}/{state}/{billCode}
+ * where billCode strips dots/spaces and zero-pads the numeric suffix to 4 digits.
+ * e.g. "H.928" → "H0928",  "SB 1264" → "SB1264",  "HB 42" → "HB0042"
+ *
+ * Year is derived from statusDate if provided, otherwise current year.
+ * Note: may not match if a bill's session year differs from its last status date year.
+ */
+function buildTrackerUrl(stateAbbr, billNumber, statusDate) {
+  if (!stateAbbr || !billNumber) return null;
+  const year = statusDate ? statusDate.slice(0, 4) : new Date().getFullYear().toString();
+  // Strip dots and spaces, then split into letter prefix + numeric suffix
+  const compact = billNumber.replace(/[\s.]/g, '').toUpperCase();
+  const match   = compact.match(/^([A-Z]+)(\d+)$/);
+  if (!match) return null;
+  const [, letters, digits] = match;
+  const paddedDigits = digits.padStart(4, '0');
+  return `https://translegislation.com/bills/${year}/${stateAbbr}/${letters}${paddedDigits}`;
+}
+
+/**
  * Parse MM/DD/YYYY → YYYY-MM-DD, or return null.
  */
 function parseDate(raw) {
@@ -164,20 +185,93 @@ function parseCsv(text) {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch + parse ACLU CSV
+// Fetch + parse ACLU CSV (with ETag/Last-Modified conditional request)
 // ---------------------------------------------------------------------------
 
-async function fetchAcluBills() {
+/**
+ * Fetch the ACLU CSV, using conditional headers if we have cached ones.
+ * Returns { rows, etag, lastModified } on success, or { unchanged: true } if
+ * the server returned 304 Not Modified.
+ */
+async function fetchAcluBills(cachedEtag, cachedLastModified) {
   console.log(`Fetching ACLU CSV from ${ACLU_CSV_URL} …`);
+
+  const headers = { 'User-Agent': 'TransSafeTravels-Sync/1.0' };
+  if (cachedEtag)         headers['If-None-Match']     = cachedEtag;
+  if (cachedLastModified) headers['If-Modified-Since'] = cachedLastModified;
+
   const resp = await fetch(ACLU_CSV_URL, {
-    headers: { 'User-Agent': 'TransSafeTravels-Sync/1.0' },
+    headers,
     signal: AbortSignal.timeout(30_000),
   });
+
+  if (resp.status === 304) {
+    console.log('  304 Not Modified — CSV unchanged since last sync.');
+    return { unchanged: true };
+  }
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const text = await resp.text();
-  const rows = parseCsv(text);
-  console.log(`  ${rows.length} rows parsed`);
-  return rows;
+
+  const etag         = resp.headers.get('etag')          ?? null;
+  const lastModified = resp.headers.get('last-modified') ?? null;
+  const text         = await resp.text();
+  const rows         = parseCsv(text);
+  console.log(`  ${rows.length} rows parsed (ETag: ${etag ?? 'none'}, Last-Modified: ${lastModified ?? 'none'})`);
+  return { rows, etag, lastModified };
+}
+
+// ---------------------------------------------------------------------------
+// Trans Legislation Tracker URL verification
+// ---------------------------------------------------------------------------
+
+const TRACKER_CONCURRENCY = 8;    // parallel HEAD requests
+const TRACKER_BATCH_DELAY = 500;  // ms between batches
+
+/**
+ * Verify a list of candidate tracker URLs in parallel batches.
+ * Returns a Map of url → status code (200, 404, 429, 503, 0 for network error).
+ * Aborts remaining checks if a rate-limit response (429 or 503) is received.
+ */
+async function verifyTrackerUrls(urls) {
+  const results = new Map();
+  let rateLimited = false;
+
+  for (let i = 0; i < urls.length; i += TRACKER_CONCURRENCY) {
+    if (rateLimited) {
+      // Mark remaining as unchecked (null status — will retry next run)
+      console.log(`  Rate limited — skipping remaining ${urls.length - i} URL checks.`);
+      break;
+    }
+
+    const batch = urls.slice(i, i + TRACKER_CONCURRENCY);
+    const checks = batch.map(async (url) => {
+      try {
+        const resp = await fetch(url, {
+          method:  'HEAD',
+          headers: { 'User-Agent': 'TransSafeTravels-Sync/1.0' },
+          signal:  AbortSignal.timeout(8_000),
+          redirect: 'follow',
+        });
+        results.set(url, resp.status);
+        if (resp.status === 429 || resp.status === 503) rateLimited = true;
+      } catch {
+        results.set(url, 0); // network error / timeout
+      }
+    });
+
+    await Promise.all(checks);
+
+    const found    = batch.filter((u) => results.get(u) === 200).length;
+    const notFound = batch.filter((u) => results.get(u) === 404).length;
+    const errors   = batch.filter((u) => (results.get(u) ?? 0) <= 0).length;
+    const limited  = batch.filter((u) => results.get(u) === 429 || results.get(u) === 503).length;
+    console.log(`  Batch ${Math.floor(i / TRACKER_CONCURRENCY) + 1}: ${found} found, ${notFound} not tracked${errors ? `, ${errors} errors` : ''}${limited ? `, ${limited} rate limited` : ''}`);
+
+    if (i + TRACKER_CONCURRENCY < urls.length && !rateLimited) {
+      await new Promise((r) => setTimeout(r, TRACKER_BATCH_DELAY));
+    }
+  }
+
+  return results;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,8 +282,33 @@ async function main() {
   const runDate = new Date().toISOString().slice(0, 10);
   console.log(`\nACLU Legislation Sync — ${runDate}${DRY_RUN ? ' [DRY RUN]' : ''}\n`);
 
-  // 1. Fetch CSV
-  const rawRows = await fetchAcluBills();
+  // 1. Load cached ETag/Last-Modified from last successful sync
+  let cachedEtag = null, cachedLastModified = null;
+  if (!DRY_RUN) {
+    const { data: lastRun } = await supabase
+      .from('digest_runs')
+      .select('attributes')
+      .eq('attributes->>source', 'aclu_sync')
+      .not('attributes->etag', 'is', null)
+      .order('run_at', { ascending: false })
+      .limit(1)
+      .single();
+    if (lastRun?.attributes) {
+      cachedEtag         = lastRun.attributes.etag          ?? null;
+      cachedLastModified = lastRun.attributes.last_modified ?? null;
+      if (cachedEtag || cachedLastModified) {
+        console.log(`Using cached headers — ETag: ${cachedEtag ?? 'none'}, Last-Modified: ${cachedLastModified ?? 'none'}`);
+      }
+    }
+  }
+
+  // 2. Fetch CSV (conditional request)
+  const fetchResult = await fetchAcluBills(cachedEtag, cachedLastModified);
+  if (fetchResult.unchanged) {
+    console.log('Nothing to do — skipping sync.');
+    return;
+  }
+  const { rows: rawRows, etag: newEtag, lastModified: newLastModified } = fetchResult;
 
   // 2. Normalize
   const bills = [];
@@ -291,7 +410,50 @@ async function main() {
 
   console.log(`  ${upserted} rows upserted`);
 
-  // 6. Create digest findings for new and changed bills
+  // 6. Verify Trans Legislation Tracker URLs for new bills
+  //    (bills already in DB keep their stored tracker_url_status — skip re-checking)
+  const billsNeedingVerification = newBills
+    .map((b) => ({ bill: b, url: buildTrackerUrl(b.state_abbr, b.bill_number, b.status_date) }))
+    .filter((x) => x.url !== null);
+
+  if (billsNeedingVerification.length > 0 && !DRY_RUN) {
+    console.log(`\nVerifying ${billsNeedingVerification.length} Trans Legislation Tracker URLs…`);
+    const urlStatuses = await verifyTrackerUrls(billsNeedingVerification.map((x) => x.url));
+
+    // Update legislation_bills with results
+    const checkedAt = new Date().toISOString();
+    for (const { bill, url } of billsNeedingVerification) {
+      const status = urlStatuses.has(url) ? urlStatuses.get(url) : null;
+      await supabase
+        .from('legislation_bills')
+        .update({
+          tracker_url:            status === 200 ? url : null,
+          tracker_url_status:     status ?? null,
+          tracker_url_checked_at: checkedAt,
+        })
+        .eq('state_abbr', bill.state_abbr ?? '')
+        .eq('bill_number', bill.bill_number);
+    }
+
+    const verified   = [...urlStatuses.values()].filter((s) => s === 200).length;
+    const notTracked = [...urlStatuses.values()].filter((s) => s === 404).length;
+    const limited    = [...urlStatuses.values()].filter((s) => s === 429 || s === 503).length;
+    const errors     = [...urlStatuses.values()].filter((s) => s === 0).length;
+    const skipped    = billsNeedingVerification.length - urlStatuses.size;
+    console.log(`  Results: ${verified} verified, ${notTracked} not tracked, ${limited} rate limited, ${errors} errors${skipped ? `, ${skipped} skipped (rate limit)` : ''}`);
+  }
+
+  // 7. Create digest findings for new and changed bills
+  //    Use verified tracker_url from DB where available
+  const verifiedUrls = new Map(
+    billsNeedingVerification
+      .filter(({ url }) => url !== null)
+      .map(({ bill, url }) => [
+        `${bill.state_abbr ?? ''}|${bill.bill_number}`,
+        url,
+      ])
+  );
+
   const findings = [];
 
   // Fetch the digest_run for today, or create one
@@ -317,6 +479,8 @@ async function main() {
   }
 
   for (const bill of newBills) {
+    const key        = `${bill.state_abbr ?? ''}|${bill.bill_number}`;
+    const trackerUrl = verifiedUrls.get(key) ?? null;
     findings.push({
       digest_run_id:    runId,
       article_url:      `aclu:${bill.state_abbr ?? 'US'}:${bill.bill_number}`,
@@ -328,11 +492,19 @@ async function main() {
       confidence:       0.95,
       relevance:        bill.status === 'signed' || bill.status === 'passed' ? 'high' : 'medium',
       jurisdiction_type: bill.state_abbr ? 'state' : 'federal',
+      legislation_url:  trackerUrl,
     });
   }
 
   for (const bill of changedBills) {
-    const isPassed = bill.status === 'signed' || bill.status === 'passed';
+    const isPassed   = bill.status === 'signed' || bill.status === 'passed';
+    // For changed bills, look up tracker_url from DB (already verified from initial sync)
+    const { data: billRow } = await supabase
+      .from('legislation_bills')
+      .select('tracker_url')
+      .eq('state_abbr', bill.state_abbr ?? '')
+      .eq('bill_number', bill.bill_number)
+      .single();
     findings.push({
       digest_run_id:    runId,
       article_url:      `aclu:${bill.state_abbr ?? 'US'}:${bill.bill_number}:${bill.status}`,
@@ -344,6 +516,7 @@ async function main() {
       confidence:       0.98,
       relevance:        isPassed ? 'high' : 'medium',
       jurisdiction_type: bill.state_abbr ? 'state' : 'federal',
+      legislation_url:  billRow?.tracker_url ?? null,
     });
   }
 
@@ -353,14 +526,16 @@ async function main() {
     if (error) console.warn('Failed to insert findings:', error.message);
     else console.log('  Done.');
 
-    // Update run totals
+    // Update run totals — store ETag/Last-Modified for next conditional request
     await supabase.from('digest_runs').update({
       findings_count:   findings.length,
       articles_fetched: bills.length,
       attributes:       {
-        source: 'aclu_sync',
-        new_bills: newBills.length,
+        source:         'aclu_sync',
+        new_bills:      newBills.length,
         status_changes: changedBills.length,
+        etag:           newEtag,
+        last_modified:  newLastModified,
       },
     }).eq('id', runId);
   } else if (findings.length === 0) {
