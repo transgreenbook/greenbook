@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import ApprovePanel from "@/components/admin/digest/ApprovePanel";
 
 type Finding = {
   id: number;
@@ -27,8 +28,10 @@ type Finding = {
   poi_title: string | null;
   poi_severity: number | null;
   watch_item_title: string | null;
-  // local UI state
-  _delta: number;
+  // parsed from article_url for legislation findings
+  _state_abbr: string | null;
+  _bill_number: string;
+  _issues: string[];
 };
 
 type DigestRun = {
@@ -42,7 +45,6 @@ const RELEVANCE_ORDER = ["high", "medium", "low"] as const;
 
 function relevanceLabel(f: Finding): "high" | "medium" | "low" {
   if (f.relevance === "high" || f.relevance === "medium" || f.relevance === "low") return f.relevance;
-  // Fallback for older findings without stored relevance
   const c = f.confidence ?? 0;
   if (c >= 0.9) return "high";
   if (c >= 0.7) return "medium";
@@ -56,20 +58,28 @@ function relevanceColor(r: string) {
 }
 
 function statusBadge(f: Finding) {
-  if (f.applied_at) return <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Applied</span>;
+  if (f.applied_at)   return <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Applied</span>;
   if (f.dismissed_at) return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 font-medium">Dismissed</span>;
   return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">Pending</span>;
 }
 
+/** Parse "aclu:TX:SB 1264" into state abbr + bill number. */
+function parseLegislationUrl(url: string): { stateAbbr: string | null; billNumber: string } {
+  if (!url.startsWith('aclu:')) return { stateAbbr: null, billNumber: '' };
+  const parts = url.split(':');
+  // parts: ["aclu", "TX", "SB 1264"] or ["aclu", "TX", "SB 1264", "signed"]
+  return { stateAbbr: parts[1] ?? null, billNumber: parts[2] ?? '' };
+}
+
 export default function DigestRunPage() {
   const params = useParams();
-  const router = useRouter();
-  const runId = Number(params.runId);
+  const runId  = Number(params.runId);
 
-  const [run, setRun] = useState<DigestRun | null>(null);
+  const [run,      setRun]      = useState<DigestRun | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<number | null>(null); // finding id being acted on
+  const [loading,  setLoading]  = useState(true);
+  const [approvingId, setApprovingId] = useState<number | null>(null); // which finding has panel open
+  const [busy,     setBusy]     = useState<number | null>(null);       // dismiss spinner
 
   const fetchData = useCallback(async () => {
     const [{ data: runData }, { data: findingsData }] = await Promise.all([
@@ -96,82 +106,68 @@ export default function DigestRunPage() {
 
     setRun(runData);
     setFindings(
-      (findingsData ?? []).map((f: Record<string, unknown>) => ({
-        ...f,
-        source_name: (f.news_sources as { name: string } | null)?.name ?? null,
-        poi_title: (f.points_of_interest as { title: string; severity: number } | null)?.title ?? null,
-        poi_severity: (f.points_of_interest as { title: string; severity: number } | null)?.severity ?? null,
-        watch_item_title: (f.watch_items as { title: string } | null)?.title ?? null,
-        _delta: (f.severity_delta as number | null) ?? 0,
-      }))
+      (findingsData ?? []).map((f: Record<string, unknown>): Finding => {
+        const { stateAbbr, billNumber } = parseLegislationUrl((f.article_url as string) ?? '');
+        return {
+          id:               f.id as number,
+          article_title:    f.article_title as string | null,
+          article_url:      f.article_url as string,
+          article_date:     f.article_date as string | null,
+          summary:          f.summary as string | null,
+          suggested_action: f.suggested_action as string | null,
+          confidence:       f.confidence as number | null,
+          relevance:        f.relevance as string | null,
+          jurisdiction_type: f.jurisdiction_type as string | null,
+          severity_delta:   f.severity_delta as number | null,
+          linked_poi_id:    f.linked_poi_id as number | null,
+          legislation_url:  f.legislation_url as string | null,
+          watch_item_id:    f.watch_item_id as number | null,
+          applied_at:       f.applied_at as string | null,
+          dismissed_at:     f.dismissed_at as string | null,
+          reviewer_notes:   f.reviewer_notes as string | null,
+          source_name:      (f.news_sources as { name: string } | null)?.name ?? null,
+          poi_title:        (f.points_of_interest as { title: string; severity: number } | null)?.title ?? null,
+          poi_severity:     (f.points_of_interest as { title: string; severity: number } | null)?.severity ?? null,
+          watch_item_title: (f.watch_items as { title: string } | null)?.title ?? null,
+          _state_abbr:      stateAbbr,
+          _bill_number:     billNumber,
+          _issues:          [],
+        };
+      })
     );
     setLoading(false);
   }, [runId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  function adjustDelta(id: number, dir: 1 | -1) {
-    setFindings((prev) =>
-      prev.map((f) => f.id === id ? { ...f, _delta: f._delta + dir } : f)
-    );
-  }
-
-  async function handleApprove(finding: Finding) {
-    setBusy(finding.id);
-    try {
-      // Apply severity delta to POI if present
-      if (finding._delta !== 0 && finding.linked_poi_id && finding.poi_severity !== null) {
-        const newSeverity = Math.max(-10, Math.min(10, finding.poi_severity + finding._delta));
-        const { error } = await supabase
-          .from("points_of_interest")
-          .update({ severity: newSeverity })
-          .eq("id", finding.linked_poi_id);
-        if (error) { alert("Failed to update POI severity: " + error.message); return; }
-      }
-
-      // Mark finding as applied
-      const { error } = await supabase
-        .from("digest_findings")
-        .update({ applied_at: new Date().toISOString(), severity_delta: finding._delta })
-        .eq("id", finding.id);
-      if (error) { alert("Failed to mark finding as applied: " + error.message); return; }
-
-      setFindings((prev) =>
-        prev.map((f) => f.id === finding.id ? { ...f, applied_at: new Date().toISOString() } : f)
-      );
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function handleDismiss(finding: Finding) {
     if (!confirm("Dismiss this finding? It will be deleted.")) return;
     setBusy(finding.id);
-    try {
-      const { error } = await supabase
-        .from("digest_findings")
-        .delete()
-        .eq("id", finding.id);
-      if (error) { alert("Failed to dismiss finding: " + error.message); return; }
-      setFindings((prev) => prev.filter((f) => f.id !== finding.id));
-    } finally {
-      setBusy(null);
-    }
+    const { error } = await supabase
+      .from("digest_findings")
+      .delete()
+      .eq("id", finding.id);
+    setBusy(null);
+    if (error) { alert("Failed to dismiss: " + error.message); return; }
+    setFindings((prev) => prev.filter((f) => f.id !== finding.id));
   }
 
-  if (loading) {
-    return <div className="p-6 text-sm text-gray-400">Loading...</div>;
+  function handleApproved(findingId: number) {
+    setApprovingId(null);
+    setFindings((prev) =>
+      prev.map((f) => f.id === findingId ? { ...f, applied_at: new Date().toISOString() } : f)
+    );
   }
-  if (!run) {
-    return <div className="p-6 text-sm text-gray-500">Digest run not found.</div>;
-  }
+
+  if (loading) return <div className="p-6 text-sm text-gray-400">Loading...</div>;
+  if (!run)    return <div className="p-6 text-sm text-gray-500">Digest run not found.</div>;
 
   const runDate = new Date(run.run_at).toLocaleDateString(undefined, {
     year: "numeric", month: "long", day: "numeric",
   });
 
-  const pending   = findings.filter((f) => !f.applied_at && !f.dismissed_at);
-  const reviewed  = findings.filter((f) =>  f.applied_at || f.dismissed_at);
+  const pending  = findings.filter((f) => !f.applied_at && !f.dismissed_at);
+  const reviewed = findings.filter((f) =>  f.applied_at || f.dismissed_at);
 
   const grouped = RELEVANCE_ORDER.map((rel) => ({
     label: rel,
@@ -179,11 +175,18 @@ export default function DigestRunPage() {
   })).filter((g) => g.items.length > 0);
 
   function renderFinding(f: Finding) {
-    const isBusy = busy === f.id;
-    const isPending = !f.applied_at && !f.dismissed_at;
+    const isPending      = !f.applied_at && !f.dismissed_at;
+    const isApproving    = approvingId === f.id;
+    const isDismissing   = busy === f.id;
+    const isLegislation  = f.article_url?.startsWith('aclu:');
+
+    const linkedPoi = f.linked_poi_id && f.poi_title !== null && f.poi_severity !== null
+      ? { id: f.linked_poi_id, title: f.poi_title, severity: f.poi_severity }
+      : null;
 
     return (
       <div key={f.id} className="border border-gray-200 rounded-lg p-4 mb-3 bg-white">
+        {/* Header */}
         <div className="flex items-start gap-3 mb-2">
           <span className={`shrink-0 mt-0.5 text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${relevanceColor(relevanceLabel(f))}`}>
             {relevanceLabel(f)}
@@ -193,16 +196,10 @@ export default function DigestRunPage() {
               {f.article_title ?? "(no title)"}
             </div>
             <div className="text-xs text-gray-400 mt-0.5">
-              {f.source_name ?? "unknown source"}
-              {f.article_date && (
-                <> · {new Date(f.article_date).toLocaleDateString()}</>
-              )}
-              {f.jurisdiction_type && (
-                <> · <span className="capitalize">{f.jurisdiction_type}</span></>
-              )}
-              {f.confidence !== null && (
-                <> · {Math.round(f.confidence * 100)}% confidence</>
-              )}
+              {f.source_name ?? (isLegislation ? "ACLU tracker" : "unknown source")}
+              {f.article_date && <> · {new Date(f.article_date).toLocaleDateString()}</>}
+              {f.jurisdiction_type && <> · <span className="capitalize">{f.jurisdiction_type}</span></>}
+              {f.confidence !== null && <> · {Math.round(f.confidence * 100)}% confidence</>}
             </div>
           </div>
           <div className="shrink-0">{statusBadge(f)}</div>
@@ -225,7 +222,7 @@ export default function DigestRunPage() {
               Primary source →
             </a>
           )}
-          {f.article_url && (
+          {f.article_url && !isLegislation && (
             <a href={f.article_url} target="_blank" rel="noopener noreferrer"
               className="text-gray-400 hover:underline">
               Article →
@@ -236,64 +233,37 @@ export default function DigestRunPage() {
           )}
         </div>
 
-        {isPending && (
-          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
-            {/* Severity delta adjuster */}
-            {f.linked_poi_id !== null ? (
-              <div className="flex items-center gap-2 mr-2">
-                <span className="text-xs text-gray-500">
-                  {f.poi_title ?? `POI #${f.linked_poi_id}`}
-                  {f.poi_severity !== null && (
-                    <span className="ml-1 text-gray-400">
-                      (severity {f.poi_severity}
-                      {f._delta !== 0 && (
-                        <span className={f._delta < 0 ? "text-red-500" : "text-green-600"}>
-                          {" → "}{Math.max(-10, Math.min(10, f.poi_severity + f._delta))}
-                        </span>
-                      )}
-                      )
-                    </span>
-                  )}
-                </span>
-                <div className="flex items-center gap-1 border border-gray-200 rounded">
-                  <button
-                    onClick={() => adjustDelta(f.id, -1)}
-                    disabled={f._delta <= -10}
-                    className="px-2 py-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 rounded-l text-sm font-mono"
-                  >−</button>
-                  <span className={`px-2 text-sm font-semibold tabular-nums min-w-[2.5rem] text-center ${
-                    f._delta < 0 ? "text-red-600" : f._delta > 0 ? "text-green-600" : "text-gray-400"
-                  }`}>
-                    {f._delta > 0 ? `+${f._delta}` : f._delta === 0 ? "±0" : f._delta}
-                  </span>
-                  <button
-                    onClick={() => adjustDelta(f.id, 1)}
-                    disabled={f._delta >= 10}
-                    className="px-2 py-0.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 rounded-r text-sm font-mono"
-                  >+</button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1" />
-            )}
-
-            <div className="flex gap-2 ml-auto">
-              <button
-                onClick={() => handleDismiss(f)}
-                disabled={isBusy}
-                className="px-3 py-1.5 text-xs font-medium rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Dismiss
-              </button>
-              <button
-                onClick={() => handleApprove(f)}
-                disabled={isBusy}
-                className="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isBusy ? "Saving…" : f.linked_poi_id && f._delta !== 0 ? "Apply & Approve" : "Approve"}
-              </button>
-            </div>
+        {/* Actions */}
+        {isPending && !isApproving && (
+          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+            <button
+              onClick={() => setApprovingId(f.id)}
+              className="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Approve…
+            </button>
+            <button
+              onClick={() => handleDismiss(f)}
+              disabled={isDismissing}
+              className="px-3 py-1.5 text-xs font-medium rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {isDismissing ? "Dismissing…" : "Dismiss"}
+            </button>
           </div>
+        )}
+
+        {/* Approve panel */}
+        {isPending && isApproving && (
+          <ApprovePanel
+            findingId={f.id}
+            stateAbbr={f._state_abbr}
+            billNumber={f._bill_number}
+            issues={f._issues}
+            jurisdictionType={f.jurisdiction_type}
+            linkedPoi={linkedPoi}
+            onApproved={handleApproved}
+            onCancel={() => setApprovingId(null)}
+          />
         )}
       </div>
     );
