@@ -28,6 +28,15 @@ function issueLabel(tag: string) {
   return tag.replace(/_/g, ' ');
 }
 
+/** Format a bill number in LegiScan style: letters uppercased, digits zero-padded to 4.
+ *  e.g. "SB 174" → "SB0174", "H928" → "H0928" */
+function formatBillNumber(raw: string): string {
+  const clean = raw.replace(/[\s.]/g, '');
+  const match = clean.match(/^([A-Za-z]+)(\d+)$/);
+  if (!match) return clean;
+  return `${match[1].toUpperCase()}${match[2].padStart(4, '0')}`;
+}
+
 export default function POIMiniForm({
   stateAbbr,
   billNumber,
@@ -76,7 +85,7 @@ export default function POIMiniForm({
   useEffect(() => {
     if (!stateName) return;
     const prefix = stateAbbr && billNumber
-      ? `${stateAbbr} ${billNumber}`
+      ? `${stateAbbr} ${formatBillNumber(billNumber)}`
       : stateName;
     setTitle(`${prefix} — Anti-Trans Legislation`);
     if (issues.length > 0) {
