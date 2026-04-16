@@ -135,13 +135,13 @@ ogr2ogr \
   "$ROOT/public/city-centroids.geojson" \
   "$TMP/place/cb_${YEAR}_us_place_500k.shp"
 
-echo "==> Building states PMTiles (zoom 2-8, no feature dropping)..."
+echo "==> Building states PMTiles (zoom 2-14, no feature dropping)..."
 tippecanoe \
   --output="$OUT/states.pmtiles" \
   --force \
   --no-tile-compression \
   --minimum-zoom=2 \
-  --maximum-zoom=8 \
+  --maximum-zoom=14 \
   --no-feature-limit \
   --no-simplification-of-shared-nodes \
   -L states:"$TMP/states.geojson"
