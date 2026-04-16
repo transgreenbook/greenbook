@@ -173,13 +173,14 @@ export const LAYERS: LayerSpecification[] = [
     source: "counties",
     ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
     paint: {
-      "fill-color": ["coalesce", ["feature-state", "severity_color"], "rgba(0,0,0,0)"],
-      // Fades in as state fills fade out
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], "#f1f5f9"],
+      // Only render if the county has its own severity — otherwise let the
+      // persistent state fill show through underneath.
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
         5, 0,
-        8, 0.6,
-        12, 0.4,
+        8, ["case", ["!=", ["feature-state", "severity_color"], null], 0.6, 0],
+        12, ["case", ["!=", ["feature-state", "severity_color"], null], 0.4, 0],
       ],
     },
   },
@@ -312,11 +313,13 @@ export const LAYERS: LayerSpecification[] = [
     source: "places",
     ...(pmtilesUrl ? { "source-layer": "places" } : {}),
     paint: {
-      "fill-color": ["coalesce", ["feature-state", "severity_color"], "rgba(0,0,0,0)"],
+      "fill-color": ["coalesce", ["feature-state", "severity_color"], "#e2e8f0"],
+      // Only render if the city has its own severity — otherwise let the
+      // persistent state fill show through underneath.
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
         8, 0,
-        10, ["case", ["!=", ["feature-state", "severity_color"], null], 0.55, 0.15],
+        10, ["case", ["!=", ["feature-state", "severity_color"], null], 0.55, 0],
       ],
     },
   },
