@@ -81,7 +81,8 @@ export default function DigestRunPage() {
   const [loading,  setLoading]  = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null); // which finding has panel open
   const [busy,        setBusy]     = useState<number | null>(null);       // dismiss spinner
-  const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkApproving,  setBulkApproving]  = useState(false);
+  const [bulkDismissing, setBulkDismissing] = useState(false);
 
   const fetchData = useCallback(async () => {
     const [{ data: runData }, { data: findingsData }] = await Promise.all([
@@ -193,37 +194,50 @@ export default function DigestRunPage() {
   }
 
   async function handleBulkApprove(items: Finding[]) {
-    if (!confirm(`Bulk approve ${items.length} pending low-priority findings as watch items?`)) return;
+    if (!confirm(`Bulk approve ${items.length} findings as watch items?`)) return;
     setBulkApproving(true);
     const now = new Date().toISOString();
     const results = await Promise.allSettled(
       items.map(async (f) => {
-        // Create watch item
-        const { data: wi } = await supabase
-          .from('watch_items')
-          .insert({
-            item_type:         'bill',
-            title:             f._bill_number
-              ? `${f._state_abbr ?? 'US'} ${f._bill_number}`
-              : `${f._state_abbr ?? 'US'} legislation`,
-            jurisdiction_type: f.jurisdiction_type ?? 'state',
-            status:            'monitoring',
-            linked_poi_id:     null,
-            attributes:        { auto_created: true, source: 'digest_bulk_approve' },
-          })
-          .select('id')
-          .single();
-        // Mark finding applied
+        let watchItemId: number | null = null;
+        if (f._bill_number) {
+          const { data: wi } = await supabase
+            .from('watch_items')
+            .insert({
+              item_type:         'bill',
+              title:             `${f._state_abbr ?? 'US'} ${f._bill_number}`,
+              jurisdiction_type: f.jurisdiction_type ?? 'state',
+              status:            'monitoring',
+              linked_poi_id:     null,
+              attributes:        { auto_created: true, source: 'digest_bulk_approve' },
+            })
+            .select('id')
+            .single();
+          watchItemId = wi?.id ?? null;
+        }
         await supabase
           .from('digest_findings')
-          .update({ applied_at: now, watch_item_id: wi?.id ?? null })
+          .update({ applied_at: now, watch_item_id: watchItemId })
           .eq('id', f.id);
       })
     );
     const failed = results.filter((r) => r.status === 'rejected').length;
     if (failed > 0) alert(`${failed} findings failed to approve. Refresh to check.`);
     setBulkApproving(false);
-    // Re-fetch to reflect updated state
+    fetchData();
+  }
+
+  async function handleBulkDismiss(items: Finding[]) {
+    if (!confirm(`Dismiss ${items.length} findings? This cannot be undone.`)) return;
+    setBulkDismissing(true);
+    const results = await Promise.allSettled(
+      items.map((f) =>
+        supabase.from('digest_findings').delete().eq('id', f.id)
+      )
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) alert(`${failed} findings failed to dismiss. Refresh to check.`);
+    setBulkDismissing(false);
     fetchData();
   }
 
@@ -369,28 +383,83 @@ export default function DigestRunPage() {
         <div className="text-sm text-gray-400 py-10 text-center">No findings for this run.</div>
       )}
 
-      {grouped.map(({ label, items }) => (
-        <div key={label} className="mb-6">
-          <div className="flex items-center gap-3 mb-3">
-            <h2 className={`text-xs font-bold uppercase tracking-wide ${
+      {grouped.map(({ label, items }) => {
+        const passedItems    = items.filter((f) => f._bill_status === 'signed' || f._bill_status === 'passed');
+        const nonPassedItems = items.filter((f) => f._bill_status !== 'signed' && f._bill_status !== 'passed');
+        const hasBoth = passedItems.length > 0 && nonPassedItems.length > 0;
+
+        return (
+          <div key={label} className="mb-6">
+            {/* Priority group header */}
+            <h2 className={`text-xs font-bold uppercase tracking-wide mb-3 ${
               label === "high" ? "text-red-600" : label === "medium" ? "text-amber-600" : "text-gray-400"
             }`}>
               {label === "high" ? "High Priority" : label === "medium" ? "Medium Priority" : "Low Priority / FYI"}
               <span className="ml-2 font-normal normal-case text-gray-400">({items.length})</span>
             </h2>
-            {label === "low" && items.length > 1 && (
-              <button
-                onClick={() => handleBulkApprove(items)}
-                disabled={bulkApproving}
-                className="ml-auto text-xs px-3 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {bulkApproving ? "Approving…" : `Bulk approve ${items.length} as watch items`}
-              </button>
+
+            {/* Passed/signed bills — individual review only, no bulk actions */}
+            {passedItems.length > 0 && (
+              <div className="mb-4">
+                {hasBoth && (
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2 pl-1">
+                    Passed / Signed
+                  </div>
+                )}
+                {passedItems.map(renderFinding)}
+              </div>
+            )}
+
+            {/* Non-passed bills + news articles — bulk actions available */}
+            {nonPassedItems.length > 0 && (
+              <div>
+                {hasBoth && (
+                  <div className="flex items-center gap-2 mb-2 pl-1">
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                      Advancing ({nonPassedItems.length})
+                    </span>
+                    <div className="ml-auto flex gap-2">
+                      <button
+                        onClick={() => handleBulkApprove(nonPassedItems)}
+                        disabled={bulkApproving || bulkDismissing}
+                        className="text-xs px-3 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {bulkApproving ? "Approving…" : `Approve ${nonPassedItems.length} as watch items`}
+                      </button>
+                      <button
+                        onClick={() => handleBulkDismiss(nonPassedItems)}
+                        disabled={bulkApproving || bulkDismissing}
+                        className="text-xs px-3 py-1 rounded border border-red-100 text-red-400 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {bulkDismissing ? "Dismissing…" : `Dismiss ${nonPassedItems.length}`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {!hasBoth && nonPassedItems.length > 1 && (
+                  <div className="flex justify-end gap-2 mb-3">
+                    <button
+                      onClick={() => handleBulkApprove(nonPassedItems)}
+                      disabled={bulkApproving || bulkDismissing}
+                      className="text-xs px-3 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {bulkApproving ? "Approving…" : `Approve ${nonPassedItems.length} as watch items`}
+                    </button>
+                    <button
+                      onClick={() => handleBulkDismiss(nonPassedItems)}
+                      disabled={bulkApproving || bulkDismissing}
+                      className="text-xs px-3 py-1 rounded border border-red-100 text-red-400 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {bulkDismissing ? "Dismissing…" : `Dismiss ${nonPassedItems.length}`}
+                    </button>
+                  </div>
+                )}
+                {nonPassedItems.map(renderFinding)}
+              </div>
             )}
           </div>
-          {items.map(renderFinding)}
-        </div>
-      ))}
+        );
+      })}
 
       {reviewed.length > 0 && (
         <div className="mt-8">
