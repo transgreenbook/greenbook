@@ -221,6 +221,7 @@ async function main() {
       source:            SOURCE,
       source_id:         law.source_id,
       visible_end:       visibleEnd ?? null,
+      source_date:       law.enacted_date ?? null,
       attributes: {
         enacted_date:  law.enacted_date  ?? null,
         penalty_type:  law.penalty_type  ?? null,

@@ -246,6 +246,7 @@ async function main() {
       source:            SOURCE,
       source_id:         sourceId,
       website_url:       SOURCE_URL,
+      source_date:       CATPALM_DATA_AS_OF,
       attributes: {
         state_abbr:         entry.abbr,
         catpalm_rating:     entry.rating,

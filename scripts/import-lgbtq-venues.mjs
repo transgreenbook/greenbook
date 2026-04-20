@@ -205,19 +205,30 @@ async function main() {
 
     const osmId = `osm-${el.type}-${el.id}`;
 
+    const houseNum = tags['addr:housenumber'];
+    const street   = tags['addr:street'];
+    const city     = tags['addr:city'];
+    const state    = tags['addr:state'];
+    const streetAddress = [
+      houseNum && street ? `${houseNum} ${street}` : street ?? null,
+      city,
+      state,
+    ].filter(Boolean).join(', ') || null;
+
     const poi = {
-      title:        name,
-      description:  buildDescription(tags),
-      geom:         `SRID=4326;POINT(${coords.lng} ${coords.lat})`,
-      category_id:  categoryId,
-      tags:         buildTags(tags),
-      website_url:  tags.website ?? tags['contact:website'] ?? null,
-      phone:        tags.phone ?? tags['contact:phone'] ?? null,
-      is_verified:  true,
-      effect_scope: 'point',
-      prominence:   'local',
-      source:       'openstreetmap',
-      source_id:    osmId,
+      title:          name,
+      description:    buildDescription(tags),
+      geom:           `SRID=4326;POINT(${coords.lng} ${coords.lat})`,
+      category_id:    categoryId,
+      tags:           buildTags(tags),
+      street_address: streetAddress,
+      website_url:    tags.website ?? tags['contact:website'] ?? null,
+      phone:          tags.phone ?? tags['contact:phone'] ?? null,
+      is_verified:    true,
+      effect_scope:   'point',
+      prominence:     'local',
+      source:         'openstreetmap',
+      source_id:      osmId,
     };
 
     if (DRY_RUN) {

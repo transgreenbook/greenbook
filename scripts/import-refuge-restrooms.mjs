@@ -131,6 +131,8 @@ function toPoiRecord(r, coords = null, categoryId = null) {
   const lng = coords ? coords.lng : r.longitude;
   const rating = computeRating(r);
 
+  const streetAddress = [r.street, r.city, r.state].filter(Boolean).join(', ') || null;
+
   return {
     title:            `RefugeRestroom - ${r.name}`,
     description:      r.directions || null,
@@ -141,6 +143,7 @@ function toPoiRecord(r, coords = null, categoryId = null) {
     effect_scope:     'point',
     category_id:      categoryId,
     is_user_submitted: false,
+    street_address:   streetAddress,
     attributes: {
       upvotes:   r.upvote,
       downvotes: r.downvote,
