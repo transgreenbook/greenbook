@@ -46,6 +46,8 @@ type POIFormData = {
   visible_start: string;
   visible_end: string;
   source_date: string;
+  source: string;
+  source_id: string;
 };
 
 type Props = {
@@ -76,6 +78,8 @@ const EMPTY: POIFormData = {
   visible_start: "",
   visible_end: "",
   source_date: "",
+  source: "",
+  source_id: "",
 };
 
 // Find the array entry whose lat/lng is closest to the given coordinates.
@@ -314,6 +318,8 @@ export default function POIForm({ initialData }: Props) {
       visible_start: form.visible_start || null,
       visible_end:   form.visible_end || null,
       source_date:   form.source_date || null,
+      source:        form.source.trim() || null,
+      source_id:     form.source_id.trim() || null,
     };
 
     let err;
@@ -634,6 +640,36 @@ export default function POIForm({ initialData }: Props) {
               className={inputCls}
             />
           </div>
+        </div>
+      </div>
+
+      {/* ── Source tracking ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className={labelCls}>
+            Source{" "}
+            <span className="text-gray-400 font-normal">(e.g. manual, roadtrippers, catpalm)</span>
+          </label>
+          <input
+            type="text"
+            value={form.source}
+            onChange={(e) => set("source", e.target.value)}
+            placeholder="manual"
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>
+            Source ID{" "}
+            <span className="text-gray-400 font-normal">(import dedup key)</span>
+          </label>
+          <input
+            type="text"
+            value={form.source_id}
+            onChange={(e) => set("source_id", e.target.value)}
+            placeholder="camping-example-campground"
+            className={inputCls}
+          />
         </div>
       </div>
 
