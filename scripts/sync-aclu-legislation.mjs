@@ -529,7 +529,10 @@ async function main() {
 
   if (findings.length > 0 && runId) {
     console.log(`\nCreating ${findings.length} digest findings…`);
-    const { error } = await supabase.from('digest_findings').insert(findings);
+    const { error } = await supabase.from('digest_findings').upsert(findings, {
+      onConflict: 'digest_run_id,article_url',
+      ignoreDuplicates: true,
+    });
     if (error) console.warn('Failed to insert findings:', error.message);
     else console.log('  Done.');
 

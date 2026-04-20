@@ -31,6 +31,7 @@ export default async function EditPOIPage({
           is_verified:      poi.is_verified,
           tags:             poi.tags ? poi.tags.join(", ") : "",
           website_url:      poi.website_url ?? "",
+          legislation_url:  poi.legislation_url ?? "",
           phone:            poi.phone ?? "",
           icon:             poi.icon ?? "",
           color:            poi.color ?? "",

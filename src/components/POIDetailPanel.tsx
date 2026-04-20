@@ -18,6 +18,7 @@ interface FullPOI {
   lat: number;
   lng: number;
   is_verified: boolean;
+  legislation_url: string | null;
   attributes: Record<string, unknown> | null;
 }
 
@@ -80,7 +81,7 @@ export default function POIDetailPanel() {
 
     supabase
       .from("pois")
-      .select("id, title, description, long_description, tags, lat, lng, is_verified, attributes")
+      .select("id, title, description, long_description, tags, lat, lng, is_verified, legislation_url, attributes")
       .eq("id", selectedPOI.id)
       .single()
       .then(({ data }) => {
@@ -106,9 +107,10 @@ export default function POIDetailPanel() {
 
   const poi = fullPOI ?? selectedPOI;
   const recency = getRecencyTier(fullPOI?.attributes);
-  const sourceUrl = typeof fullPOI?.attributes?.source_url === "string"
+  const sourceUrl      = typeof fullPOI?.attributes?.source_url === "string"
     ? fullPOI.attributes.source_url
     : null;
+  const legislationUrl = fullPOI?.legislation_url ?? null;
 
   // Badges shown in the header (Verified + recency)
   const badges = (
@@ -170,6 +172,19 @@ export default function POIDetailPanel() {
           </svg>
           Get directions
         </button>
+        {legislationUrl && (
+          <a
+            href={legislationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            View legislation
+          </a>
+        )}
         {sourceUrl && (
           <a
             href={sourceUrl}

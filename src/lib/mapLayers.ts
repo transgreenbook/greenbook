@@ -109,6 +109,22 @@ export const LAYERS: LayerSpecification[] = [
       ],
     },
   },
+  // Positive fill: mirrors states-fill for affirming POIs (green channel).
+  {
+    id: "states-fill-positive",
+    type: "fill",
+    source: "states",
+    ...(pmtilesUrl ? { "source-layer": "states" } : {}),
+    paint: {
+      "fill-color": ["coalesce", ["feature-state", "positive_color"], "rgba(0,0,0,0)"],
+      "fill-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        3, 0.7,
+        5, 0.7,
+        8, 0,
+      ],
+    },
+  },
   // Persistent fill: fades IN at zoom 8 (as the main fill fades out) and stays
   // at low opacity. Counties/cities without their own POI are transparent, so
   // the parent state's tint shows through underneath them.
@@ -120,6 +136,20 @@ export const LAYERS: LayerSpecification[] = [
     ...(pmtilesUrl ? { "source-layer": "states" } : {}),
     paint: {
       "fill-color": ["coalesce", ["feature-state", "severity_color"], "rgba(0,0,0,0)"],
+      "fill-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        7, 0,
+        8, 0.3,
+      ],
+    },
+  },
+  {
+    id: "states-fill-persistent-positive",
+    type: "fill",
+    source: "states",
+    ...(pmtilesUrl ? { "source-layer": "states" } : {}),
+    paint: {
+      "fill-color": ["coalesce", ["feature-state", "positive_color"], "rgba(0,0,0,0)"],
       "fill-opacity": [
         "interpolate", ["linear"], ["zoom"],
         7, 0,
@@ -181,6 +211,21 @@ export const LAYERS: LayerSpecification[] = [
         5, 0,
         8, ["case", ["!=", ["feature-state", "severity_color"], null], 0.6, 0],
         12, ["case", ["!=", ["feature-state", "severity_color"], null], 0.4, 0],
+      ],
+    },
+  },
+  {
+    id: "counties-fill-positive",
+    type: "fill",
+    source: "counties",
+    ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
+    paint: {
+      "fill-color": ["coalesce", ["feature-state", "positive_color"], "rgba(0,0,0,0)"],
+      "fill-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        5, 0,
+        8, ["case", ["!=", ["feature-state", "positive_color"], null], 0.6, 0],
+        12, ["case", ["!=", ["feature-state", "positive_color"], null], 0.4, 0],
       ],
     },
   },
@@ -320,6 +365,20 @@ export const LAYERS: LayerSpecification[] = [
         "interpolate", ["linear"], ["zoom"],
         8, 0,
         10, ["case", ["!=", ["feature-state", "severity_color"], null], 0.55, 0],
+      ],
+    },
+  },
+  {
+    id: "cities-fill-positive",
+    type: "fill",
+    source: "places",
+    ...(pmtilesUrl ? { "source-layer": "places" } : {}),
+    paint: {
+      "fill-color": ["coalesce", ["feature-state", "positive_color"], "rgba(0,0,0,0)"],
+      "fill-opacity": [
+        "interpolate", ["linear"], ["zoom"],
+        8, 0,
+        10, ["case", ["!=", ["feature-state", "positive_color"], null], 0.55, 0],
       ],
     },
   },

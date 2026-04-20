@@ -11,6 +11,7 @@ type RegionPOI = {
   title: string;
   effect_scope: string;
   severity: number | null;
+  severity_weight: number;
   color: string | null;
   lat: number;
   lng: number;
@@ -35,11 +36,14 @@ function nearest<T extends LatLng>(items: T[], lat: number, lng: number): T | nu
 // Map a severity value to an hsla fill color.
 // Negative severity → red-orange spectrum (danger/warning).
 // Positive severity → green spectrum (affirming/safe).
-function severityColor(severity: number | null, poiColor: string | null): string | null {
+// severity_weight (0–100) scales the final opacity so low-weight categories
+// appear dim even at full severity (e.g. weight=25 → 25% as bright).
+function severityColor(severity: number | null, poiColor: string | null, weight = 100): string | null {
   if (poiColor) return poiColor;
-  if (!severity) return null;
-  const intensity = Math.abs(severity) / 10;
-  const opacity   = (0.15 + intensity * 0.5).toFixed(2);
+  if (!severity || weight === 0) return null;
+  const intensity   = Math.abs(severity) / 10;
+  const baseOpacity = 0.15 + intensity * 0.5;
+  const opacity     = (baseOpacity * (weight / 100)).toFixed(2);
   return severity < 0
     ? `hsla(10, 85%, 50%, ${opacity})`   // red-orange
     : `hsla(120, 70%, 40%, ${opacity})`; // green
@@ -59,21 +63,28 @@ export function useRegionColors(map: maplibregl.Map | null) {
       const { data: pois, error } = await supabase.rpc("get_region_scoped_pois");
       if (error || !pois?.length) return;
 
-      // Sort ascending by severity magnitude so the most severe POI is
-      // processed last and wins when multiple laws share the same region.
-      const bySeverity = (a: RegionPOI, b: RegionPOI) =>
-        Math.abs(a.severity ?? 0) - Math.abs(b.severity ?? 0);
+      // Sort ascending by dominance (|severity| × weight) so the most dominant
+      // POI is processed last and wins when multiple POIs share the same region.
+      const byDominance = (a: RegionPOI, b: RegionPOI) =>
+        Math.abs(a.severity ?? 0) * a.severity_weight - Math.abs(b.severity ?? 0) * b.severity_weight;
 
-      const statePOIs  = (pois as RegionPOI[]).filter((p) => p.effect_scope === "state").sort(bySeverity);
-      const countyPOIs = (pois as RegionPOI[]).filter((p) => p.effect_scope === "county").sort(bySeverity);
-      const cityPOIs   = (pois as RegionPOI[]).filter((p) => p.effect_scope === "city").sort(bySeverity);
+      const allState  = (pois as RegionPOI[]).filter((p) => p.effect_scope === "state");
+      const allCounty = (pois as RegionPOI[]).filter((p) => p.effect_scope === "county");
+      const allCity   = (pois as RegionPOI[]).filter((p) => p.effect_scope === "city");
+
+      // Split into negative (danger) and positive (affirming) — each renders
+      // its own fill layer so both signals can be visible simultaneously.
+      const statePOIs         = allState.filter((p)  => (p.severity ?? 0) < 0).sort(byDominance);
+      const statePositivePOIs = allState.filter((p)  => (p.severity ?? 0) > 0).sort(byDominance);
+      const countyPOIs        = allCounty.filter((p) => (p.severity ?? 0) < 0).sort(byDominance);
+      const countyPositivePOIs = allCounty.filter((p) => (p.severity ?? 0) > 0).sort(byDominance);
+      const cityPOIs          = allCity.filter((p)   => (p.severity ?? 0) < 0).sort(byDominance);
+      const cityPositivePOIs  = allCity.filter((p)   => (p.severity ?? 0) > 0).sort(byDominance);
 
       // ── States ────────────────────────────────────────────────────────
-      // severity_color is set on the state feature for both the main fade-out
-      // fill AND the persistent low-opacity fill that bleeds through at higher
-      // zoom levels (counties/cities without their own POI are transparent,
-      // so the state color shows through underneath them).
-      if (statePOIs.length) {
+      // severity_color (negative) and positive_color are set on state features.
+      // Each has its own fill layer so both can render simultaneously.
+      if (statePOIs.length || statePositivePOIs.length) {
         const geo = await fetch("/state-centroids.geojson").then((r) => r.json());
         const centroids = (geo.features as { properties: { STUSPS: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
@@ -85,18 +96,25 @@ export function useRegionColors(map: maplibregl.Map | null) {
         for (const poi of statePOIs) {
           const c = nearest(centroids, poi.lat, poi.lng);
           if (!c) continue;
-          const color = severityColor(poi.severity, poi.color);
-          if (color) {
-            mapRef.setFeatureState(
-              { source: "states", sourceLayer: "states", id: c.abbr },
-              { severity_color: color },
-            );
-          }
+          const color = severityColor(poi.severity, poi.color, poi.severity_weight);
+          if (color) mapRef.setFeatureState(
+            { source: "states", sourceLayer: "states", id: c.abbr },
+            { severity_color: color },
+          );
+        }
+        for (const poi of statePositivePOIs) {
+          const c = nearest(centroids, poi.lat, poi.lng);
+          if (!c) continue;
+          const color = severityColor(poi.severity, poi.color, poi.severity_weight);
+          if (color) mapRef.setFeatureState(
+            { source: "states", sourceLayer: "states", id: c.abbr },
+            { positive_color: color },
+          );
         }
       }
 
       // ── Cities ────────────────────────────────────────────────────────
-      if (cityPOIs.length) {
+      if (cityPOIs.length || cityPositivePOIs.length) {
         const geo = await fetch("/city-centroids.geojson").then((r) => r.json());
         const centroids = (geo.features as { properties: { NAME: string; STATEFP: string; PLACEFP: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
@@ -108,18 +126,25 @@ export function useRegionColors(map: maplibregl.Map | null) {
         for (const poi of cityPOIs) {
           const c = nearest(centroids, poi.lat, poi.lng);
           if (!c) continue;
-          const color = severityColor(poi.severity, poi.color);
-          if (color) {
-            mapRef.setFeatureState(
-              { source: "places", sourceLayer: "places", id: c.placefp },
-              { severity_color: color },
-            );
-          }
+          const color = severityColor(poi.severity, poi.color, poi.severity_weight);
+          if (color) mapRef.setFeatureState(
+            { source: "places", sourceLayer: "places", id: c.placefp },
+            { severity_color: color },
+          );
+        }
+        for (const poi of cityPositivePOIs) {
+          const c = nearest(centroids, poi.lat, poi.lng);
+          if (!c) continue;
+          const color = severityColor(poi.severity, poi.color, poi.severity_weight);
+          if (color) mapRef.setFeatureState(
+            { source: "places", sourceLayer: "places", id: c.placefp },
+            { positive_color: color },
+          );
         }
       }
 
       // ── Counties ──────────────────────────────────────────────────────
-      if (countyPOIs.length) {
+      if (countyPOIs.length || countyPositivePOIs.length) {
         const geo = await fetch("/county-centroids.geojson").then((r) => r.json());
         const centroids = (geo.features as { properties: { STATEFP: string; COUNTYFP: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
@@ -131,13 +156,20 @@ export function useRegionColors(map: maplibregl.Map | null) {
         for (const poi of countyPOIs) {
           const c = nearest(centroids, poi.lat, poi.lng);
           if (!c) continue;
-          const color = severityColor(poi.severity, poi.color);
-          if (color) {
-            mapRef.setFeatureState(
-              { source: "counties", sourceLayer: "counties", id: c.geoid },
-              { severity_color: color },
-            );
-          }
+          const color = severityColor(poi.severity, poi.color, poi.severity_weight);
+          if (color) mapRef.setFeatureState(
+            { source: "counties", sourceLayer: "counties", id: c.geoid },
+            { severity_color: color },
+          );
+        }
+        for (const poi of countyPositivePOIs) {
+          const c = nearest(centroids, poi.lat, poi.lng);
+          if (!c) continue;
+          const color = severityColor(poi.severity, poi.color, poi.severity_weight);
+          if (color) mapRef.setFeatureState(
+            { source: "counties", sourceLayer: "counties", id: c.geoid },
+            { positive_color: color },
+          );
         }
       }
     }

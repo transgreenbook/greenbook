@@ -35,6 +35,7 @@ type POIFormData = {
   is_verified: boolean;
   tags: string;
   website_url: string;
+  legislation_url: string;
   phone: string;
   icon: string;
   color: string;
@@ -62,6 +63,7 @@ const EMPTY: POIFormData = {
   is_verified: false,
   tags: "",
   website_url: "",
+  legislation_url: "",
   phone: "",
   icon: "",
   color: "",
@@ -296,8 +298,9 @@ export default function POIForm({ initialData }: Props) {
       tags:             form.tags
         ? form.tags.split(",").map((t) => t.trim()).filter(Boolean)
         : null,
-      website_url:  form.website_url.trim() || null,
-      phone:        form.phone.trim() || null,
+      website_url:      form.website_url.trim() || null,
+      legislation_url:  form.legislation_url.trim() || null,
+      phone:            form.phone.trim() || null,
       icon:         form.icon.trim() || null,
       color:        form.color.trim() || null,
       effect_scope: form.effect_scope || "point",
@@ -572,6 +575,17 @@ export default function POIForm({ initialData }: Props) {
             className={inputCls}
           />
         </div>
+      </div>
+
+      <div>
+        <label className={labelCls}>Legislation URL</label>
+        <input
+          type="url"
+          value={form.legislation_url}
+          onChange={(e) => set("legislation_url", e.target.value)}
+          placeholder="https://legiscan.com/…"
+          className={inputCls}
+        />
       </div>
 
       {/* ── Appearance ─────────────────────────────────────────────────── */}

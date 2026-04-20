@@ -1,12 +1,13 @@
 import { create } from "zustand";
 
-export type AppMode = "map" | "route" | "poi" | "about" | "federal";
+export type AppMode = "map" | "route" | "poi" | "about" | "federal" | "resources";
 
 interface PanelWidths {
   route: number;
   poi: number;
   about: number;
   federal: number;
+  resources: number;
 }
 
 interface AppStore {
@@ -35,7 +36,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   closePOI: () => set((s) => ({ mode: s.previousMode })),
 
-  panelWidths: { route: 320, poi: 320, about: 320, federal: 340 },
+  panelWidths: { route: 320, poi: 320, about: 320, federal: 340, resources: 340 },
   setPanelWidth: (panel, width) =>
     set((s) => ({ panelWidths: { ...s.panelWidths, [panel]: width } })),
 }));

@@ -141,6 +141,41 @@ Structured data sources used by automated sync scripts to populate the `legislat
 
 ---
 
+### Open States API
+
+**URL:** https://openstates.org/  
+**API docs:** https://docs.openstates.org/api-v3/  
+**API base:** `https://v3.openstates.org`  
+**Type:** RESTful API — state legislative data (bills, votes, sponsors, actions)  
+**Coverage:** All 50 states + DC + territories; tracks full bill lifecycle  
+**API:** Yes — free tier requires API key; register and manage key at https://open.pluralpolicy.com/accounts/profile/  
+**Authentication:** API key via `X-API-KEY` header or `?apikey=` query parameter  
+**Script:** `scripts/lookup-openstates-bill.mjs`  
+
+**Rate limits (default tier):**
+- 500 requests/day
+- 1 request/sec
+
+**Best for:**
+- Looking up a specific bill by state + identifier to get the full title, sponsors, and official legislature URL
+- Keyword searching for bills across all states (e.g. "transgender birth certificate")
+- Enriching `legislation_url` on POIs with the direct state legislature page link
+
+**Key endpoints:**
+- `GET /bills?jurisdiction={state}&identifier={bill}` — exact bill lookup by state (2-letter lowercase) and identifier
+- `GET /bills?q={keywords}&jurisdiction={state}` — keyword search
+- `GET /bills/{ocd-bill-id}?include=sponsorships,abstracts,sources` — full bill detail
+
+**Usage example:**
+```bash
+node scripts/lookup-openstates-bill.mjs --state ia --bill "SF 418"
+node scripts/lookup-openstates-bill.mjs --query "gender marker" --state fl
+```
+
+**Notes:** Add `OPENSTATES_API_KEY` to `.env.local`. The 500 req/day cap means this is suitable for admin lookups and one-off enrichment runs — not for automated daily sync. At 2 requests per bill lookup (search + detail), a full enrichment run of 56 CATPALM entries costs ~112 requests. The scrapers are open source at https://github.com/openstates/openstates-scrapers (Python, Docker, GPL-3.0) if self-hosting becomes desirable.
+
+---
+
 ### LegiScan API
 
 **URL:** https://legiscan.com/  
@@ -186,11 +221,132 @@ Feed URLs are stored in the `news_sources` table (seeded in `supabase/migrations
 
 ---
 
+## CATPALM Policy Datasets
+
+Structured policy data imported from Transitics' Comprehensive Anti-Trans Policy and Litigation Map (CATPALM) as state-scoped POIs. Each dataset is a separate import script that upserts on `source_id` — re-running is safe and will update existing records.
+
+---
+
+### Birth Certificate Gender Marker Policies
+
+**URL:** https://transitics.substack.com/p/transitics-comprehensive-anti-trans-586  
+**Type:** Multi-page table — one row per US jurisdiction  
+**Coverage:** All 50 states + DC + 5 territories (56 total)  
+**Script:** `scripts/import-catpalm-birth-certs.mjs`  
+**Source ID pattern:** `catpalm-bc-{abbr}` (e.g. `catpalm-bc-az`)  
+**Category:** `policy-rating-birth-cert` (map_visible: false, severity_weight: 25)  
+**Last imported:** 2026-04-17  
+**Data as of:** 2026-04-10 (stored in `attributes.catpalm_data_as_of`)
+
+**Severity scale:**
+
+| CATPALM Rating | Severity |
+|----------------|----------|
+| Most Progressive | +3 |
+| Highly Progressive | +2 |
+| Progressive | +1 |
+| Neutral | 0 |
+| Restrictive | −2 |
+| Most Restrictive | −3 |
+
+**To update:** Paste the new table data into the `DATA` array in the script, update `CATPALM_DATA_AS_OF`, and re-run:
+```bash
+node scripts/import-catpalm-birth-certs.mjs --dry-run   # preview
+node scripts/import-catpalm-birth-certs.mjs              # apply
+```
+
+**Fields stored per POI:**
+- `description` — status text + `Law/Policy:` citation
+- `website_url` — link back to the Transitics CATPALM source page
+- `legislation_url` — individual law/policy link (fill in manually via admin)
+- `attributes.catpalm_rating` — e.g. "Most Restrictive"
+- `attributes.catpalm_risk` — 2-year risk tier (Low / Moderate / Cannot Worsen)
+- `attributes.catpalm_laws` — citation text (links not captured — follow `website_url`)
+- `attributes.since_date` — date the current policy took effect
+- `attributes.change_since_2024` — rating change string if applicable
+- `attributes.catpalm_data_as_of` — source data freshness date
+
+---
+
+### Bathroom Access Policies
+
+**URL:** https://transitics.substack.com/p/transitics-comprehensive-anti-trans (bathroom page)
+**Type:** Multi-page table — one row per US jurisdiction
+**Coverage:** All 50 states + DC + 5 territories (56 total)
+**Script:** `scripts/import-catpalm-bathrooms.mjs`
+**Source ID pattern:** `catpalm-bathroom-{abbr}` (e.g. `catpalm-bathroom-az`)
+**Category:** `policy-rating-bathroom` (map_visible: false, severity_weight: 75)
+**Last imported:** 2026-04-17
+**Data as of:** 2026-04-10 (stored in `attributes.catpalm_data_as_of`)
+
+**Severity scale:**
+
+| CATPALM Rating | Severity |
+|----------------|----------|
+| Most Progressive | +3 |
+| Neutral | 0 |
+| Restrictive | −1 |
+| Highly Restrictive | −2 |
+| Most Restrictive | −3 |
+| Do Not Travel | −5 |
+
+**Extra field:** `attributes.litigation` — captures active litigation notes
+
+---
+
+### Driver's License Gender Marker Policies
+
+**URL:** https://transitics.substack.com/p/transitics-comprehensive-anti-trans (DL page)
+**Type:** Multi-page table — one row per US jurisdiction
+**Coverage:** All 50 states + DC + 5 territories (56 total)
+**Script:** `scripts/import-catpalm-drivers-license.mjs`
+**Source ID pattern:** `catpalm-dl-{abbr}` (e.g. `catpalm-dl-az`)
+**Category:** `policy-rating-drivers-license` (map_visible: false, severity_weight: 65)
+**Last imported:** 2026-04-17
+**Data as of:** 2026-04-10 (stored in `attributes.catpalm_data_as_of`)
+
+**Severity scale:**
+
+| CATPALM Rating | Severity |
+|----------------|----------|
+| Most Progressive | +3 |
+| Highly Progressive | +2 |
+| Progressive | +1 |
+| Neutral | 0 |
+| Restrictive | −2 |
+| Most Restrictive | −4 |
+
+---
+
+### Non-Binary Gender Recognition Policies
+
+**URL:** https://transitics.substack.com/p/transitics-comprehensive-anti-trans (non-binary page)
+**Type:** Multi-page table — one row per US jurisdiction
+**Coverage:** All 50 states + DC + 5 territories (56 total)
+**Script:** `scripts/import-catpalm-nonbinary.mjs`
+**Source ID pattern:** `catpalm-nb-{abbr}` (e.g. `catpalm-nb-az`)
+**Category:** `policy-rating-nonbinary` (map_visible: false, severity_weight: 50)
+**Last imported:** 2026-04-17
+**Data as of:** 2026-04-10 (stored in `attributes.catpalm_data_as_of`)
+
+**Severity scale:**
+
+| CATPALM Rating | Severity |
+|----------------|----------|
+| Most Progressive | +3 |
+| Progressive | +1 |
+| Neutral | 0 |
+| Most Restrictive | −3 |
+
+**Note:** This dataset has no "2yr Risk", "Since", or "Change Since 2024" columns — those attributes are not stored for non-binary POIs.
+
+---
+
 ## Sources Under Consideration
 
 These have not been used yet but may be useful:
 
-- **OpenStates** (https://openstates.org/) — alternative to LegiScan for state bill data; open source; overlaps significantly with LegiScan coverage
+- **OpenStates** — see full entry in Legislation Sync Sources above
 - **HRC (Human Rights Campaign)** — state scorecards for employer/public accommodation protections
 
 ---

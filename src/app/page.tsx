@@ -11,6 +11,7 @@ import RouteBufferSlider from "@/components/RouteBufferSlider";
 import POIDetailPanel from "@/components/POIDetailPanel";
 import AboutPanel from "@/components/AboutPanel";
 import FederalPanel from "@/components/FederalPanel";
+import ResourcesPanel from "@/components/ResourcesPanel";
 
 export default function Home() {
   const mode = useAppStore((s) => s.mode);
@@ -44,6 +45,8 @@ export default function Home() {
         {mode === "about" && <AboutPanel />}
 
         {mode === "federal" && <FederalPanel />}
+
+        {mode === "resources" && <ResourcesPanel />}
       </div>
     </main>
   );

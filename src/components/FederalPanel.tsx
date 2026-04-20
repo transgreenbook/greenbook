@@ -172,11 +172,11 @@ export default function FederalPanel() {
     <>
       {/* Desktop sidebar */}
       <div
-        className="absolute top-0 left-0 h-full bg-white shadow-lg border-r border-gray-200 z-20 flex-col hidden md:flex"
+        className="absolute top-0 right-0 h-full bg-white shadow-lg border-l border-gray-200 z-20 flex-col hidden md:flex"
         style={{ width: panelWidth }}
       >
         <div
-          className="absolute top-0 right-0 h-full w-1 cursor-col-resize hover:bg-blue-300 active:bg-blue-400 z-10"
+          className="absolute top-0 left-0 h-full w-1 cursor-col-resize hover:bg-blue-300 active:bg-blue-400 z-10"
           onMouseDown={onDragHandleMouseDown}
         />
         {content}

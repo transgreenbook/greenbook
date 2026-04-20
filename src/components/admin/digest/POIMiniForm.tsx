@@ -50,6 +50,7 @@ export default function POIMiniForm({
   const [title,            setTitle]           = useState('');
   const [description,      setDescription]     = useState('');
   const [longDescription,  setLongDescription] = useState('');
+  const [legislationUrl,   setLegislationUrl]  = useState('');
   const [categoryId,       setCategoryId]      = useState('');
   const [severity,    setSeverity]     = useState(defaultSeverity);
   const [saving,      setSaving]       = useState(false);
@@ -109,6 +110,7 @@ export default function POIMiniForm({
         title:            title.trim(),
         description:      description.trim() || null,
         long_description: longDescription.trim() || null,
+        legislation_url:  legislationUrl.trim() || null,
         geom:        `POINT(${centroid.lng} ${centroid.lat})`,
         effect_scope: 'state',
         prominence:  'regional',
@@ -219,6 +221,18 @@ export default function POIMiniForm({
           rows={4}
           className={inputCls}
           placeholder="Detailed notes, links, why this is problematic… (supports **bold**, *italic*, bullet lists)"
+        />
+      </div>
+
+      {/* Legislation URL */}
+      <div>
+        <label className={labelCls}>Legislation URL</label>
+        <input
+          type="url"
+          value={legislationUrl}
+          onChange={(e) => setLegislationUrl(e.target.value)}
+          className={inputCls}
+          placeholder="https://legiscan.com/…"
         />
       </div>
 

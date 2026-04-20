@@ -11,6 +11,7 @@ type POI = {
   created_at: string;
   category_id: number | null;
   category_name: string | null;
+  source: string | null;
 };
 
 type Category = { id: number; name: string; color: string | null };
@@ -25,8 +26,8 @@ export default function AdminPOIsPage() {
     const [{ data: poiData }, { data: catData }] = await Promise.all([
       supabase
         .from("points_of_interest")
-        .select("id, title, is_verified, created_at, category_id, categories(name)")
-        .is("source", null)
+        .select("id, title, is_verified, created_at, category_id, categories(name), source")
+        .not("source", "in", '("refuge_restrooms","lgbtq_venues")')
         .order("created_at", { ascending: false }),
       supabase
         .from("categories")
@@ -42,6 +43,7 @@ export default function AdminPOIsPage() {
         created_at:    p.created_at as string,
         category_id:   p.category_id as number | null,
         category_name: (p.categories as { name: string } | null)?.name ?? null,
+        source:        p.source as string | null,
       }))
     );
     setCategories(catData ?? []);
@@ -158,7 +160,11 @@ export default function AdminPOIsPage() {
             {visiblePois.map((poi, i) => (
               <tr key={poi.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 text-right text-gray-400 tabular-nums">{i + 1}</td>
-                <td className="px-4 py-3 font-medium text-gray-800">{poi.title}</td>
+                <td className="px-4 py-3 font-medium text-gray-800">
+                  <Link href={`/admin/pois/${poi.id}/edit`} className="hover:text-blue-600 hover:underline">
+                    {poi.title}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-gray-500">{poi.category_name ?? "—"}</td>
                 <td className="px-4 py-3">
                   <button
