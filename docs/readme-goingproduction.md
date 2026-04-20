@@ -96,6 +96,30 @@ When testing on a physical phone, the browser JS runs on the phone. `http://127.
 
 **Revert before deploying** — the production Supabase URL goes here instead.
 
+### Geolocation and other secure-context features
+
+The browser Geolocation API (used by the "locate me" button on the map) requires a **secure context** — either `https://` or `http://localhost`. It will not work when the app is accessed via a plain HTTP IP address (e.g. `http://192.168.x.x:3000`), which is common during phone testing on the local network.
+
+**Workarounds for local phone testing:**
+
+- **Use localhost on the same machine** — `http://localhost:3000` works fine in desktop browsers.
+- **Use mkcert for local HTTPS** — allows geolocation to work on phones and other devices on the network:
+  ```bash
+  # Install mkcert (once)
+  sudo apt install mkcert
+  mkcert -install
+
+  # Generate a cert for your local IP
+  mkcert 192.168.x.x localhost 127.0.0.1
+
+  # Run Next.js with HTTPS
+  next dev --experimental-https
+  # or use the generated cert files with a local proxy (e.g. caddy, nginx)
+  ```
+  You'll also need to install the mkcert root CA on the phone (mkcert prints instructions).
+
+**In production** — geolocation works automatically once the site is on a real HTTPS domain. No code changes needed.
+
 ---
 
 ## Security

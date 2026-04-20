@@ -23,7 +23,7 @@ Organizations whose data would be valuable to import but where we want to establ
 **What we want:** Provider list (name, specialty, city, state) from the OutList directory
 **Why it's valuable:** LGBTQ+-affirming individual providers (clinicians, therapists, GPs) — more granular than HRC's hospital-level data; specifically includes trans/GD-affirming specialists
 **Proposed use:** Import as `category: affirming-healthcare` with positive severity; link to OutCare provider page
-**Notes:** ToS explicitly prohibits scraping — outreach required. As a nonprofit with aligned mission, a data share is a reasonable ask. They also do not screen providers so any import should note that caveat in the POI description.
+**Notes:** ToS explicitly prohibits scraping — outreach required. Also does not screen providers so any import should note that caveat. As a nonprofit with aligned mission, a data share is a reasonable ask. They also do not screen providers so any import should note that caveat in the POI description.
 
 ---
 
@@ -36,5 +36,16 @@ Organizations whose data would be valuable to import but where we want to establ
 **Why it's valuable:** 2,700+ self-registered LGBTQ+-affirming providers across the US and Canada; includes virtual care; broader than HRC's hospital focus
 **Proposed use:** Import as `category: affirming-healthcare`; note profiles are self-reported and unverified
 **Notes:** No explicit ToS prohibition on data use found (unlike OutCare). Two orgs share ownership — either GLMA or Tegan and Sara Foundation could grant a data partnership. Good mission alignment. Providers are not screened at signup so POI descriptions should reflect that caveat.
+
+---
+
+## True Colors United — LGBTQ+ Youth Shelter Network
+
+**URL:** https://truecolorsunited.org
+**Contact:** https://truecolorsunited.org/contact
+**What we want:** Directory of LGBTQ+-affirming emergency shelters and transitional housing providers, with location data
+**Why it's valuable:** LGBTQ+ youth are 120% more likely to face homelessness; trans-affirming shelter locations are a life-safety resource for travelers in crisis
+**Proposed use:** Import as `category: trans-shelter` with high positive severity; note whether each provider is trans-specific or general LGBTQ+-affirming
+**Notes:** No public shelter database found on their site — data likely lives in their training/technical assistance programs. Outreach required. Also worth asking if they can refer us to regional affiliates who maintain local shelter lists.
 
 ---

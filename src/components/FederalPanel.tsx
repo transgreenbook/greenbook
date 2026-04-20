@@ -88,7 +88,7 @@ function WatchItemCard({ item }: { item: WatchItem }) {
 export default function FederalPanel() {
   const panelWidthValue = useAppStore((s) => s.panelWidths.federal);
   const setPanelWidth   = useAppStore((s) => s.setPanelWidth);
-  const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel({
+  const { width: panelWidth, onDragHandleMouseDown, onDragHandleTouchStart } = useResizablePanel({
     value: panelWidthValue,
     onChange: (w) => setPanelWidth("federal", w),
   });
@@ -178,6 +178,7 @@ export default function FederalPanel() {
         <div
           className="absolute top-0 left-0 h-full w-1 cursor-col-resize hover:bg-blue-300 active:bg-blue-400 z-10"
           onMouseDown={onDragHandleMouseDown}
+          onTouchStart={onDragHandleTouchStart}
         />
         {content}
       </div>

@@ -7,7 +7,7 @@ import { useMobileSheet } from "@/hooks/useMobileSheet";
 export default function AboutPanel() {
   const panelWidthValue = useAppStore((s) => s.panelWidths.about);
   const setPanelWidth   = useAppStore((s) => s.setPanelWidth);
-  const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel({
+  const { width: panelWidth, onDragHandleMouseDown, onDragHandleTouchStart } = useResizablePanel({
     value: panelWidthValue,
     onChange: (w) => setPanelWidth("about", w),
   });
@@ -50,7 +50,7 @@ export default function AboutPanel() {
       <div className="pt-2 space-y-1">
         <p className="font-bold text-gray-800">Contact</p>
         <p className="text-gray-500">
-          Questions, corrections, or contributions?{" "}
+          Spotted an error, know of a missing location, or want to report a problem with a listed place?{" "}
           <a
             href="mailto:transsafetravels@gmail.com"
             className="text-blue-600 hover:underline"
@@ -76,6 +76,7 @@ export default function AboutPanel() {
       >
         <div
           onMouseDown={onDragHandleMouseDown}
+          onTouchStart={onDragHandleTouchStart}
           className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-20 transition-colors"
           title="Drag to resize"
         />

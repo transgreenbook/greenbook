@@ -171,6 +171,11 @@ function formatDistance(meters: number): string {
 // POI row mapper
 // ---------------------------------------------------------------------------
 
+function dedupeById(pois: RoutePOI[]): RoutePOI[] {
+  const seen = new Set<number>();
+  return pois.filter((p) => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+}
+
 function mapPoiRow(row: RoutePOI & { lng: number; lat: number }): RoutePOI {
   return {
     id:               row.id,
@@ -242,7 +247,7 @@ export function usePOIsAlongRoute(map: maplibregl.Map | null) {
       if (!cancelled) {
         if (error) setError(error.message);
         if (data) {
-          setPoisAlongRoute((data as Array<RoutePOI & { lng: number; lat: number }>).map(mapPoiRow));
+          setPoisAlongRoute(dedupeById((data as Array<RoutePOI & { lng: number; lat: number }>).map(mapPoiRow)));
           setRouteBuffer(formatDistance(actualMeters));
         }
         setLoading(false);
@@ -276,7 +281,7 @@ export function usePOIsAlongRoute(map: maplibregl.Map | null) {
       });
       if (error) setError(error.message);
       if (data) {
-        setPoisAlongRoute((data as Array<RoutePOI & { lng: number; lat: number }>).map(mapPoiRow));
+        setPoisAlongRoute(dedupeById((data as Array<RoutePOI & { lng: number; lat: number }>).map(mapPoiRow)));
         setRouteBuffer(formatDistance(actualMeters));
       }
     }, 400);

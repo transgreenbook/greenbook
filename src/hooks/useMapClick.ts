@@ -131,7 +131,7 @@ export function useMapClick(map: maplibregl.Map | null) {
     const handleContextMenu = (e: maplibregl.MapMouseEvent) => {
       // POI right-click: select without flying to it (skip clusters — no zoom action makes sense)
       if (map.getLayer("pois-unclustered")) {
-        const poiLayers = ["pois-unclustered", "pois-unclustered-icons", "pois-along-route"]
+        const poiLayers = ["pois-unclustered", "pois-negative-unclustered", "pois-unclustered-icons", "pois-along-route"]
           .filter((l) => map.getLayer(l));
         const poiFeatures = map.queryRenderedFeatures(e.point, { layers: poiLayers });
         if (poiFeatures.length) {
@@ -178,7 +178,7 @@ export function useMapClick(map: maplibregl.Map | null) {
 
       // POI layers take priority
       if (map.getLayer("pois-cluster") && map.getLayer("pois-unclustered")) {
-        const poiLayers = ["pois-cluster", "pois-unclustered", "pois-unclustered-icons", "pois-along-route"]
+        const poiLayers = ["pois-cluster", "pois-negative-cluster", "pois-unclustered", "pois-negative-unclustered", "pois-unclustered-icons", "pois-along-route"]
           .filter((l) => map.getLayer(l));
         const poiFeatures = map.queryRenderedFeatures(e.point, {
           layers: poiLayers,
@@ -190,7 +190,8 @@ export function useMapClick(map: maplibregl.Map | null) {
           const center = feature.geometry.coordinates as [number, number];
 
           if (feature.properties?.cluster_id != null) {
-            const source = map.getSource("pois") as maplibregl.GeoJSONSource;
+            const sourceId = feature.layer.source as string;
+            const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
             source
               .getClusterExpansionZoom(feature.properties.cluster_id)
               .then((zoom) => map.easeTo({ center, zoom: Math.max(zoom + 1, 13) }))
@@ -319,10 +320,12 @@ export function useMapClick(map: maplibregl.Map | null) {
       const zoom = map.getZoom();
       const inStateBrowsing = stateBrowsingRef.current;
       const clickableLayers: string[] = [];
-      if (map.getLayer("pois-cluster"))          clickableLayers.push("pois-cluster");
-      if (map.getLayer("pois-unclustered"))      clickableLayers.push("pois-unclustered");
+      if (map.getLayer("pois-cluster"))           clickableLayers.push("pois-cluster");
+      if (map.getLayer("pois-negative-cluster"))  clickableLayers.push("pois-negative-cluster");
+      if (map.getLayer("pois-unclustered"))       clickableLayers.push("pois-unclustered");
+      if (map.getLayer("pois-negative-unclustered")) clickableLayers.push("pois-negative-unclustered");
       if (map.getLayer("pois-unclustered-icons")) clickableLayers.push("pois-unclustered-icons");
-      if (map.getLayer("pois-along-route"))      clickableLayers.push("pois-along-route");
+      if (map.getLayer("pois-along-route"))       clickableLayers.push("pois-along-route");
       if (!inStateBrowsing && zoom >= 9  && map.getLayer("cities-fill"))       clickableLayers.push("cities-fill");
       if (!inStateBrowsing && zoom >= 5  && map.getLayer("reservations-fill")) clickableLayers.push("reservations-fill");
       if (!inStateBrowsing && zoom >= 6  && map.getLayer("counties-fill"))     clickableLayers.push("counties-fill");

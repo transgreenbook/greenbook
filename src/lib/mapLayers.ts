@@ -61,7 +61,16 @@ export const SOURCES: Record<string, SourceSpecification> = {
     data: "/major-city-centroids.geojson",
   },
   // POIs are loaded dynamically from Supabase — data is swapped in by the POI hook.
+  // Positive/neutral POIs (severity >= 0 or null) — blue clusters.
   pois: {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+    cluster: true,
+    clusterMaxZoom: 12,
+    clusterRadius: 50,
+  },
+  // Negative POIs (severity < 0) — red/amber clusters.
+  "pois-negative": {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
     cluster: true,
@@ -605,19 +614,14 @@ export const LAYERS: LayerSpecification[] = [
     },
   },
 
-  // --- POI clusters (zoom 9–11) ---
+  // --- POI clusters — positive/neutral (zoom 9–11, blue) ---
   {
     id: "pois-cluster",
     type: "circle",
     source: "pois",
     filter: ["has", "point_count"],
     paint: {
-      "circle-color": [
-        "step", ["get", "point_count"],
-        "#60a5fa",   // blue  — < 10
-        10, "#f59e0b", // amber — 10–49
-        50, "#ef4444", // red   — 50+
-      ],
+      "circle-color": "#60a5fa",
       "circle-radius": [
         "step", ["get", "point_count"],
         16,
@@ -646,6 +650,46 @@ export const LAYERS: LayerSpecification[] = [
     },
   },
 
+  // --- POI clusters — negative (zoom 9–11, red/amber) ---
+  {
+    id: "pois-negative-cluster",
+    type: "circle",
+    source: "pois-negative",
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-color": [
+        "step", ["get", "point_count"],
+        "#f59e0b",   // amber — < 10
+        10, "#ef4444", // red   — 10+
+      ],
+      "circle-radius": [
+        "step", ["get", "point_count"],
+        16,
+        10, 22,
+        50, 28,
+      ],
+      "circle-opacity": 1,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-opacity": 1,
+    },
+  },
+  {
+    id: "pois-negative-cluster-count",
+    type: "symbol",
+    source: "pois-negative",
+    filter: ["has", "point_count"],
+    layout: {
+      "text-field": "{point_count_abbreviated}",
+      "text-font": ["Open Sans Bold"],
+      "text-size": 12,
+    },
+    paint: {
+      "text-color": "#ffffff",
+      "text-opacity": 1,
+    },
+  },
+
   // --- Individual POI circles — POIs without a named icon (zoom 12+) ---
   {
     id: "pois-unclustered",
@@ -654,6 +698,22 @@ export const LAYERS: LayerSpecification[] = [
     filter: ["!", ["has", "point_count"]],
     paint: {
       "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
+      "circle-radius": 6,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 1,
+      "circle-stroke-opacity": 1,
+    },
+  },
+
+  // --- Individual negative POI circles (zoom 12+) ---
+  {
+    id: "pois-negative-unclustered",
+    type: "circle",
+    source: "pois-negative",
+    filter: ["!", ["has", "point_count"]],
+    paint: {
+      "circle-color": ["coalesce", ["get", "color"], "#ef4444"],
       "circle-radius": 6,
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",

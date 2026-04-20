@@ -26,7 +26,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   mode: "map",
   previousMode: "map",
 
-  setMode: (mode) => set({ mode }),
+  setMode: (mode) => set((s) => ({
+    mode,
+    previousMode: (s.mode === "map" || s.mode === "route") ? s.mode : s.previousMode,
+  })),
 
   openPOI: (from) =>
     set((s) => ({

@@ -33,10 +33,9 @@ export function useResizablePanel({
   const dragStartX     = useRef<number | null>(null);
   const dragStartWidth = useRef<number>(width);
 
-  const onDragHandleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      dragStartX.current     = e.clientX;
+  const startDrag = useCallback(
+    (startX: number) => {
+      dragStartX.current     = startX;
       dragStartWidth.current = width;
 
       const onMouseMove = (ev: MouseEvent) => {
@@ -45,17 +44,42 @@ export function useResizablePanel({
         setWidth(Math.min(maxWidth, Math.max(minWidth, dragStartWidth.current + delta)));
       };
 
-      const onMouseUp = () => {
+      const onTouchMove = (ev: TouchEvent) => {
+        if (dragStartX.current === null) return;
+        const delta = dragStartX.current - ev.touches[0].clientX;
+        setWidth(Math.min(maxWidth, Math.max(minWidth, dragStartWidth.current + delta)));
+      };
+
+      const onEnd = () => {
         dragStartX.current = null;
         window.removeEventListener("mousemove", onMouseMove);
-        window.removeEventListener("mouseup",   onMouseUp);
+        window.removeEventListener("mouseup",   onEnd);
+        window.removeEventListener("touchmove", onTouchMove);
+        window.removeEventListener("touchend",  onEnd);
       };
 
       window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup",   onMouseUp);
+      window.addEventListener("mouseup",   onEnd);
+      window.addEventListener("touchmove", onTouchMove, { passive: true });
+      window.addEventListener("touchend",  onEnd);
     },
     [width, minWidth, maxWidth, setWidth],
   );
 
-  return { width, onDragHandleMouseDown };
+  const onDragHandleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      startDrag(e.clientX);
+    },
+    [startDrag],
+  );
+
+  const onDragHandleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      startDrag(e.touches[0].clientX);
+    },
+    [startDrag],
+  );
+
+  return { width, onDragHandleMouseDown, onDragHandleTouchStart };
 }

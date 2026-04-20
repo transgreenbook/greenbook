@@ -127,7 +127,7 @@ function ResourceCard({ resource }: { resource: Resource }) {
 export default function ResourcesPanel() {
   const panelWidthValue = useAppStore((s) => s.panelWidths.resources);
   const setPanelWidth   = useAppStore((s) => s.setPanelWidth);
-  const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel({
+  const { width: panelWidth, onDragHandleMouseDown, onDragHandleTouchStart } = useResizablePanel({
     value: panelWidthValue,
     onChange: (w) => setPanelWidth("resources", w),
   });
@@ -177,6 +177,7 @@ export default function ResourcesPanel() {
         <div
           className="absolute top-0 left-0 h-full w-1 cursor-col-resize hover:bg-blue-300 active:bg-blue-400 z-10"
           onMouseDown={onDragHandleMouseDown}
+          onTouchStart={onDragHandleTouchStart}
         />
         {content}
       </div>

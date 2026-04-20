@@ -63,12 +63,17 @@ const TABS: { id: AppMode; label: string; icon: React.ReactNode }[] = [
 ];
 
 export default function ModeToggle() {
-  const { mode, setMode } = useAppStore();
+  const { mode, setMode, previousMode } = useAppStore();
   const selectedPOI = useMapStore((s) => s.selectedPOI);
   const setRoutingMode = useRouteStore((s) => s.setRoutingMode);
 
+  const PANEL_TABS = new Set<AppMode>(["about", "federal", "resources"]);
+
   function handleSelect(id: AppMode) {
-    if (id === mode) return;
+    if (id === mode) {
+      if (PANEL_TABS.has(id)) setMode(previousMode);
+      return;
+    }
 
     if (id === "route") {
       setRoutingMode(true);

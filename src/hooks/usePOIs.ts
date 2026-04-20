@@ -54,6 +54,7 @@ async function fetchPOIs(bounds: Bounds): Promise<FeatureCollection<Point, POIPr
           tags: row.tags,
           color: row.color ?? null,
           icon: row.icon ?? null,
+          severity: row.severity ?? null,
         },
       })),
     };

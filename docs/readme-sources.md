@@ -342,6 +342,29 @@ node scripts/import-catpalm-birth-certs.mjs              # apply
 
 ---
 
+## Safe Space POI Sources
+
+### LGBTQ+-Friendly Campgrounds (Roadtrippers)
+
+**URL:** https://roadtrippers.com/magazine/lgbtq-friendly-campgrounds/
+**Type:** Editorial article — 10 LGBTQ+-friendly campgrounds
+**Coverage:** 10 campgrounds across 9 states (PA, NY, NC, FL, IA, MI, NM, TX, OR)
+**Script:** `scripts/import-lgbtq-campgrounds-roadtrippers.mjs`
+**Source ID pattern:** `camping-{slug}` (e.g. `camping-sawmill-resort`)
+**Category:** `trans-camping` (map_visible: true, severity_weight: 30)
+**Last imported:** 2026-04-20
+**Coordinates:** Hardcoded from Google Maps / Campendium / campground websites (no geocoding needed)
+
+All entries imported with `is_verified=false`, `severity=+2`, `prominence=local`. Each POI includes a `long_description` with address, phone, cost, age/membership restrictions, season, and amenities. Review in admin panel before marking verified.
+
+**To add more:** Add entries to the `CAMPGROUNDS` array in the script with `lat`/`lng` fields and re-run:
+```bash
+node scripts/import-lgbtq-campgrounds-roadtrippers.mjs --dry-run
+node scripts/import-lgbtq-campgrounds-roadtrippers.mjs
+```
+
+---
+
 ## Sources Under Consideration
 
 These have not been used yet but may be useful:

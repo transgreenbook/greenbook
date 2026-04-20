@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
-import { usePOIs, type Bounds } from "./usePOIs";
+import type { FeatureCollection, Point } from "geojson";
+import { usePOIs, type Bounds, type POIProperties } from "./usePOIs";
 
 function getBounds(map: maplibregl.Map): Bounds {
   const b = map.getBounds();
@@ -13,6 +14,8 @@ function getBounds(map: maplibregl.Map): Bounds {
     zoom: map.getZoom(),
   };
 }
+
+const EMPTY: FeatureCollection<Point, POIProperties> = { type: "FeatureCollection", features: [] };
 
 export function useMapPOIs(map: maplibregl.Map | null) {
   const [bounds, setBounds] = useState<Bounds | null>(null);
@@ -38,7 +41,28 @@ export function useMapPOIs(map: maplibregl.Map | null) {
 
   useEffect(() => {
     if (!map || !geojson) return;
-    const source = map.getSource("pois") as GeoJSONSource | undefined;
-    source?.setData(geojson);
+
+    const positive: FeatureCollection<Point, POIProperties> = {
+      type: "FeatureCollection",
+      features: geojson.features.filter(
+        (f) => f.properties.severity == null || f.properties.severity >= 0
+      ),
+    };
+    const negative: FeatureCollection<Point, POIProperties> = {
+      type: "FeatureCollection",
+      features: geojson.features.filter(
+        (f) => f.properties.severity != null && f.properties.severity < 0
+      ),
+    };
+
+    (map.getSource("pois") as GeoJSONSource | undefined)?.setData(positive);
+    (map.getSource("pois-negative") as GeoJSONSource | undefined)?.setData(negative);
+  }, [map, geojson]);
+
+  // Clear both sources when geojson is reset
+  useEffect(() => {
+    if (!map || geojson) return;
+    (map.getSource("pois") as GeoJSONSource | undefined)?.setData(EMPTY);
+    (map.getSource("pois-negative") as GeoJSONSource | undefined)?.setData(EMPTY);
   }, [map, geojson]);
 }
