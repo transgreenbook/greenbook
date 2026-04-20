@@ -49,3 +49,14 @@ Organizations whose data would be valuable to import but where we want to establ
 **Notes:** No public shelter database found on their site — data likely lives in their training/technical assistance programs. Outreach required. Also worth asking if they can refer us to regional affiliates who maintain local shelter lists.
 
 ---
+
+## Gay Camping Friends — LGBTQ+ Campground Directory
+
+**URL:** https://gaycampingfriends.com
+**Contact:** info@gaycampingfriends.com
+**What we want:** Full campground list (name, address, city, state, phone, website URL) for US entries across their LGBTQ+, Gay, Lesbian, LGBTQ+ Owned, and LGBT Friendly categories
+**Why it's valuable:** Community-maintained directory of ~150–200 US LGBTQ+-friendly campgrounds; broader coverage than the 10-entry Roadtrippers article already imported
+**Proposed use:** Import as `category: trans-camping`, severity +2, prominence `local`; note profiles are community-submitted and unverified
+**Notes:** Category listing pages are server-side rendered (name/city/state/brief description accessible). Individual campground pages are client-side rendered — address, phone, website, and coordinates require a headless browser scrape or data export. ToS has no explicit scraping prohibition but a data partnership ask is the cleaner path. Small community org with aligned mission. If they can provide a CSV or JSON export, a one-time import script would be straightforward.
+
+---
