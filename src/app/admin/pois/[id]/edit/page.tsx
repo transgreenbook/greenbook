@@ -40,6 +40,7 @@ export default async function EditPOIPage({
           severity:         poi.severity != null ? String(poi.severity) : "",
           visible_start:    poi.visible_start ?? "",
           visible_end:      poi.visible_end ?? "",
+          source_date:      poi.source_date ?? "",
         }}
       />
     </div>

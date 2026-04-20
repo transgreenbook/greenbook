@@ -44,6 +44,7 @@ type POIFormData = {
   severity: string;
   visible_start: string;
   visible_end: string;
+  source_date: string;
 };
 
 type Props = {
@@ -72,6 +73,7 @@ const EMPTY: POIFormData = {
   severity: "",
   visible_start: "",
   visible_end: "",
+  source_date: "",
 };
 
 // Find the array entry whose lat/lng is closest to the given coordinates.
@@ -308,6 +310,7 @@ export default function POIForm({ initialData }: Props) {
       severity:     form.severity !== "" ? parseInt(form.severity) : null,
       visible_start: form.visible_start || null,
       visible_end:   form.visible_end || null,
+      source_date:   form.source_date || null,
     };
 
     let err;
@@ -620,8 +623,20 @@ export default function POIForm({ initialData }: Props) {
         </div>
       </div>
 
-      {/* ── Visibility window ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* ── Dates ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className={labelCls}>
+            Source date{" "}
+            <span className="text-gray-400 font-normal">(data as-of)</span>
+          </label>
+          <input
+            type="date"
+            value={form.source_date}
+            onChange={(e) => set("source_date", e.target.value)}
+            className={inputCls}
+          />
+        </div>
         <div>
           <label className={labelCls}>Visible from</label>
           <input

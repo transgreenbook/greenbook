@@ -353,11 +353,12 @@ async function main() {
       prominence:       'local',
       effect_scope:     'point',
       is_verified:      false,
+      source_date:      '2022-06-24',
       geom:             `SRID=4326;POINT(${camp.lng} ${camp.lat})`,
       attributes: {
         address:     camp.address,
         source_url:  SOURCE_URL,
-        source_note: 'Listed in Roadtrippers LGBTQ+-friendly campgrounds article. Coordinates verified from Google Maps/Campendium/campground websites. Review before marking as verified.',
+        source_note: 'Listed in Roadtrippers LGBTQ+-friendly campgrounds article (Jun 2022). Coordinates verified from Google Maps/Campendium/campground websites. Review before marking as verified.',
       },
     };
 
