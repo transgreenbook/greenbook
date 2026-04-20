@@ -30,6 +30,7 @@ export default async function EditPOIPage({
           category_id:      poi.category_id ? String(poi.category_id) : "",
           is_verified:      poi.is_verified,
           tags:             poi.tags ? poi.tags.join(", ") : "",
+          street_address:   poi.street_address ?? "",
           website_url:      poi.website_url ?? "",
           legislation_url:  poi.legislation_url ?? "",
           phone:            poi.phone ?? "",

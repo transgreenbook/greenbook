@@ -34,6 +34,7 @@ type POIFormData = {
   category_id: string;
   is_verified: boolean;
   tags: string;
+  street_address: string;
   website_url: string;
   legislation_url: string;
   phone: string;
@@ -63,6 +64,7 @@ const EMPTY: POIFormData = {
   category_id: "",
   is_verified: false,
   tags: "",
+  street_address: "",
   website_url: "",
   legislation_url: "",
   phone: "",
@@ -300,6 +302,7 @@ export default function POIForm({ initialData }: Props) {
       tags:             form.tags
         ? form.tags.split(",").map((t) => t.trim()).filter(Boolean)
         : null,
+      street_address:   form.street_address.trim() || null,
       website_url:      form.website_url.trim() || null,
       legislation_url:  form.legislation_url.trim() || null,
       phone:            form.phone.trim() || null,
@@ -557,6 +560,17 @@ export default function POIForm({ initialData }: Props) {
       </div>
 
       {/* ── Contact ────────────────────────────────────────────────────── */}
+      <div>
+        <label className={labelCls}>Street address</label>
+        <input
+          type="text"
+          value={form.street_address}
+          onChange={(e) => set("street_address", e.target.value)}
+          placeholder="123 Main St, City, ST 00000"
+          className={inputCls}
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Website URL</label>
