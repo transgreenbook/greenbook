@@ -10,7 +10,7 @@ Venues that appeared closed or unreachable at time of review, worth checking aga
 **Last checked:** 2026-04-21
 **Status:** Website explicitly states "TEMPORARILY CLOSED — settling into the new location"
 **Contact:** coppercactus.reservation@gmail.com / 520-231-5034
-**Note:** Also excluded from import on inclusivity grounds (men-only). If they reopen and broaden their stated welcome policy, revisit both this list and readme-import-exclusions.md.
+**Note:** Also excluded from import on inclusivity grounds (men-only). If they reopen and broaden their stated welcome policy, revisit both this list and readme-import-exclusions.md (in this directory).
 
 ---
 
@@ -19,7 +19,7 @@ Venues that appeared closed or unreachable at time of review, worth checking aga
 **Website:** cactuscanyoncampground.com
 **Last checked:** 2026-04-21
 **Status:** Website unreachable (ECONNREFUSED) — may be permanently closed or just down
-**Note:** Also excluded from import on inclusivity grounds (men-only). If they reopen and broaden their stated welcome policy, revisit both this list and readme-import-exclusions.md.
+**Note:** Also excluded from import on inclusivity grounds (men-only). If they reopen and broaden their stated welcome policy, revisit both this list and readme-import-exclusions.md (in this directory).
 
 ---
 
