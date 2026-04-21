@@ -7,11 +7,8 @@
  *   Triangle Recreation Camp, El Morro RV Park, L.V. Campground,
  *   Sawmill Camping Resort, Starlite Lodge
  *
- * Coordinate notes:
- *   - Entries marked [EXACT] were geocoded from a verified street address.
- *   - Entries marked [CITY] fell back to city centroid — exact address unknown.
- *   - Entries marked [CLOSED?] had no working website at time of import.
- *
+ * All coordinates are from verified sources (KOA GPS data, Campendium, Yelp,
+ * CampingRoadTrip.com). No city centroids.
  * All entries set is_verified=false — review in admin before publishing.
  *
  * Usage:
@@ -60,8 +57,7 @@ const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KE
 });
 
 // ---------------------------------------------------------------------------
-// Campground data
-// Coords marked [EXACT] geocoded from street address; [CITY] = city centroid.
+// Campground data — all coordinates from verified sources (not city centroids)
 // ---------------------------------------------------------------------------
 
 const CAMPGROUNDS = [
@@ -72,9 +68,9 @@ const CAMPGROUNDS = [
     title:          'Ventura Ranch KOA Holiday',
     city:           'Santa Paula',
     state_abbr:     'CA',
-    lat:            34.4195,   // [CITY] - campground is in Wheeler Canyon above Santa Paula
-    lng:            -118.9901,
-    address:        '10950 Wheeler Canyon Rd, Santa Paula, CA 93060',
+    lat:            34.406,    // CampingRoadTrip.com GPS
+    lng:            -119.0792,
+    address:        '7400 Pine Grove Rd, Santa Paula, CA 93060',
     website_url:    'https://koa.com/campgrounds/ventura-ranch/',
     description:    'KOA Holiday campground in the Topatopa Mountains, LGBTQ+-welcoming. Zip line, ropes course, pool, rock climbing, gem mining, glamping tents, cabins, and RV sites.',
     long_description: `Ventura Ranch KOA Holiday is a full-amenity KOA campground set in the Topatopa Mountains above Ventura County, listed as LGBTQ+-friendly on the Rainbow RV Camping Club website.
@@ -184,23 +180,25 @@ Listed in RVshare's guide to top LGBTQ+ campgrounds (Feb 2024). Verify current r
     title:          'Etowah River Campground',
     city:           'Dahlonega',
     state_abbr:     'GA',
-    lat:            34.5328,   // [CITY]
-    lng:            -83.9846,
-    address:        null,
-    website_url:    'https://gastateparks.org',
+    lat:            34.547322, // CampingRoadTrip.com / AdventureGenie GPS
+    lng:            -84.065366,
+    address:        '437 Rider Mill Rd, Dahlonega, GA 30533',
+    website_url:    'https://etowahrivercampgro0.wixsite.com/mysite-1',
     description:    'LGBTQ+-friendly campground in the Blue Ridge Mountain foothills near Dahlonega, Georgia. Full hookup RV sites, tent sites, and river float tube access.',
-    long_description: `Etowah River Campground is an LGBTQ+-friendly campground in the Blue Ridge Mountain foothills near Dahlonega, Georgia, the historic Gold Rush town.
+    long_description: `Etowah River Campground is an LGBTQ+-friendly campground on 28 acres along the Etowah River in the Blue Ridge Mountain foothills near Dahlonega, Georgia, the historic Gold Rush town.
 
-**Location:** Dahlonega, GA area (Lumpkin County)
-**Note:** Exact address not confirmed — verify current contact info and directions on the campground or Lumpkin County tourism website.
+**Address:** 437 Rider Mill Rd, Dahlonega, GA 30533
+**Phone:** (706) 864-9035
 
-**Accommodations:** RV sites (full hookups) and tent sites.
+**Season:** Year-round
+
+**Accommodations:** RV sites (full hookups) and tent sites, set along 1,800 feet of Etowah River frontage.
 
 **Amenities:** River access with float tubes available ($5/person), mountain setting, nearby hiking and outdoor recreation.
 
 **Nearby:** Dahlonega's historic Gold Rush town center, wineries, hiking in the Chattahoochee National Forest, Amicalola Falls State Park.
 
-Listed in RVshare's guide to top LGBTQ+ campgrounds (Feb 2024) as family-friendly and LGBTQ+-friendly. Verify current operating status and contact information before visiting.`,
+Listed in RVshare's guide to top LGBTQ+ campgrounds (Feb 2024) as family-friendly and LGBTQ+-friendly. Verify current operating status and rates before visiting.`,
   },
 
   // ── EAST ─────────────────────────────────────────────────────────────────
@@ -240,21 +238,21 @@ Listed in RVshare's guide to top LGBTQ+ campgrounds (Feb 2024). Verify current r
     title:          'Oneida Campground & Lodge',
     city:           'New Milford',
     state_abbr:     'PA',
-    lat:            41.8761,   // [CITY]
-    lng:            -75.7266,
-    address:        null,
-    website_url:    'https://oneidaresort.com',
+    lat:            41.8869008, // Nominatim geocoded from 2580 E Lake Rd
+    lng:            -75.6661194,
+    address:        '2580 E Lake Rd, New Milford, PA 18834',
+    website_url:    'https://oneidacampground.com',
     description:    'Oldest continuously-operated LGBTQ+ campground in the US, open since 1980. Adults 21+, clothing optional. 2 ponds, pool, hot tub, nightclub, and evening campfires in the Pennsylvania wilderness.',
     long_description: `Oneida Campground & Lodge is widely recognized as the oldest continuously-operated LGBTQ+ campground in the United States, welcoming people of all sexualities since 1980.
 
-**Location:** New Milford, PA (Susquehanna County, Pennsylvania wilderness)
-**Website:** oneidaresort.com
-**Note:** The oneidaresort.com domain showed "website coming soon" as of April 2026. Contact via Gay Camping Friends (gaycampingfriends.com) or social media for current info.
+**Address:** 2580 E Lake Rd, New Milford, PA 18834
+**Phone:** (570) 465-7011
+**Website:** oneidacampground.com
 
 **Age restriction:** Adults 21+ only
 **Clothing:** Clothing optional throughout the campground.
 
-**Accommodations:** Tent sites and RV sites.
+**Accommodations:** Tent sites and RV sites on 100 heavily wooded acres in Pennsylvania's Endless Mountains.
 
 **Amenities:** 2 ponds, swimming pool, hot tub, on-site nightclub, evening campfires, deep Pennsylvania woodland setting.
 
@@ -357,7 +355,6 @@ async function main() {
       attributes: {
         source_url:  SOURCE_URL,
         source_note: 'Listed in RVshare LGBTQ+ campgrounds article (Feb 2024). Review before marking as verified.',
-        ...(camp.address ? { address: camp.address } : { coord_note: 'City centroid — exact address unknown. Verify before publishing.' }),
       },
     };
 
@@ -377,9 +374,7 @@ async function main() {
   if (inserted + updated > 0) {
     console.log('All entries set is_verified=false — review in admin panel before publishing.');
     console.log('\nNotes for review:');
-    console.log('  - Etowah River (GA), Oneida (PA): city centroid coords only — find exact address');
-    console.log('  - Ventura Ranch KOA, Woodland RV Park, Jamaica Beach: general-public, LGBTQ+-welcoming only');
-    console.log('  - Oneida Campground (PA): website coming soon — verify contact info');
+    console.log('  - Ventura Ranch KOA, Woodland RV Park, Jamaica Beach: general-public LGBTQ+-welcoming only (not LGBTQ+-owned)');
   }
 }
 
