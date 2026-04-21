@@ -4,6 +4,29 @@ Organizations whose data would be valuable to import but where we want to establ
 
 ---
 
+## HRC — Municipal Equality Index (MEI)
+
+**URL:** https://reports.hrc.org/municipal-equality-index-2025
+**City scores:** https://www.hrc.org/resources/mei-see-your-cities-scores
+**Contact:** mei@hrc.org
+**What we want:** Full scored city list (city, state, total score, sub-scores by category) for all 506 rated municipalities from the current MEI year
+**Why it's valuable:** City-level LGBTQ+ policy ratings covering non-discrimination laws, employer policies, services and programs, law enforcement, and leadership — complements CATPALM's state-level data with city-level granularity for travelers. 132 cities scored perfect 100 in 2025; national average 70.
+**Proposed use:** Import as a new `policy-rating-mei` category, city-scoped POIs. Severity mapped from score: 90–100 → +3, 70–89 → +2, 50–69 → +1, 30–49 → 0, <30 → −1. Store raw score in `attributes`.
+**Notes:** No public CSV or API. State pages link only to individual PDF scorecards. The `/resources/municipalities` search is JavaScript-rendered and likely hits a backend API (could be reverse-engineered with dev tools, but prefer a data agreement). Annual dataset — one CSV export per year would be sufficient. MEI team has a dedicated contact separate from general HRC inquiries.
+
+---
+
+## HRC — State Equality Index (SEI)
+
+**URL:** https://www.hrc.org/resources/state-scorecards
+**Contact:** https://www.hrc.org/about/contact-us (no dedicated SEI email found — try general contact or mei@hrc.org as a starting point)
+**What we want:** Full state-by-state ratings across all 13 scored criteria for all 50 states + DC
+**Why it's valuable:** State-level LGBTQ+ policy assessment covering employment, housing, public accommodations, education, hate crimes, adoption, gender ID updates, gender-affirming care bans, and more. Broad category overlap with CATPALM but independently scored — useful as a cross-reference and for categories CATPALM doesn't cover (adoption, hate crimes, HIV criminalization).
+**Proposed use:** Cross-reference against existing CATPALM state POIs; could supplement or replace for categories not yet covered. Overall classification (e.g., "High Priority to Achieve Basic Equality" vs. "Working Toward Innovative Equality") maps naturally to severity.
+**Notes:** No downloadable data found. States are rated with "Supports / Partially supports / Does not support" per criterion rather than a numeric score. May be worth requesting as part of the same outreach as the MEI — both come from HRC and a single data share agreement could cover both.
+
+---
+
 ## HRC — Healthcare Equality Index (HEI)
 
 **URL:** https://www.hrc.org/resources/healthcare-equality-index
