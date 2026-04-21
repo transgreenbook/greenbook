@@ -37,3 +37,10 @@ We only import campgrounds and lodging that are welcoming to all LGBTQ+ traveler
 **Reason:** Explicitly women-only, adults-only resort. Does not serve all LGBTQ+ identities.
 
 ---
+
+### Camp Boomerang RV Park and Campground
+**Location:** Orleans, MI (approx. 50 miles northwest of Lansing)
+**Source:** https://pridesource.com/article/owners-of-gay-michigan-camp-boomerang-ban-trans-men-in-social-media-post
+**Reason:** Explicitly bans trans men. Owner publicly stated admission requires "a penis" and male-presenting ID. Hostile to trans guests — not merely men-only but actively anti-trans in stated policy.
+
+---
