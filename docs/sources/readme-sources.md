@@ -371,6 +371,8 @@ These have not been used yet but may be useful:
 
 - **OpenStates** — see full entry in Legislation Sync Sources above
 - **HRC (Human Rights Campaign)** — state scorecards for employer/public accommodation protections
+- **Orbitz LGBTQ Travel** — https://www.orbitz.com/lp/lgbtq-gay-travel-hotels  
+  Search engine for LGBTQ+-friendly hotels, events, and travel experiences. Useful in two ways: (1) generating POIs for affirming hotels and destinations by searching a city or region, and (2) cross-verifying that a business we've already added is still operating and self-identifies as LGBTQ+-friendly. No API — manual search only.
 
 ---
 
