@@ -4,7 +4,7 @@
 
 const SHELL_CACHE  = "greenbook-shell-v2";
 const STATIC_CACHE = "greenbook-static-v2"; // Next.js bundles + public assets
-const GEOJSON_CACHE = "greenbook-geojson-v2";
+const GEOJSON_CACHE = "greenbook-geojson-v3";
 const TILE_CACHE   = "greenbook-tiles-v2";
 const MAX_TILE_ENTRIES = 2000;
 
