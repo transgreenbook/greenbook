@@ -30,7 +30,7 @@ self.addEventListener("install", (event) => {
 // ── Activate: clean up old caches ─────────────────────────────────────────────
 
 self.addEventListener("activate", (event) => {
-  const validCaches = [SHELL_CACHE, STATIC_CACHE, GEOJSON_CACHE, TILE_CACHE];
+  const validCaches = [SHELL_CACHE, STATIC_CACHE, TILE_CACHE];
   event.waitUntil(
     caches
       .keys()
@@ -64,11 +64,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // GeoJSON centroids — StaleWhileRevalidate: serve cached copy instantly,
-  // always fetch a fresh copy in the background so updates land next load.
+  // GeoJSON centroids — always fetch from network (no SW caching).
+  // These files are small and updated during deployments; caching them in the
+  // SW causes stale-data bugs that are very hard to recover from without
+  // explicit DevTools intervention.
   if (url.pathname.match(/\/(state|county|city|major-city)-centroids\.geojson$/)) {
-    event.respondWith(staleWhileRevalidate(request, GEOJSON_CACHE));
-    return;
+    return; // fall through to browser's normal HTTP cache
   }
 
   // Stadia map style JSON — StaleWhileRevalidate
