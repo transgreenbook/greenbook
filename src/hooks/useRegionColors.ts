@@ -104,7 +104,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       // ── States ────────────────────────────────────────────────────────
       if (statePOIs.length || statePositivePOIs.length) {
-        const geo = await fetch("/state-centroids.geojson").then((r) => r.json());
+        const geo = await fetch("/state-centroids.geojson", { cache: "no-cache" }).then((r) => r.json());
         const centroids = (geo.features as { properties: { STUSPS: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
             abbr: f.properties.STUSPS,
@@ -134,7 +134,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       // ── Cities ────────────────────────────────────────────────────────
       if (cityPOIs.length || cityPositivePOIs.length) {
-        const geo = await fetch("/city-centroids.geojson").then((r) => r.json());
+        const geo = await fetch("/city-centroids.geojson", { cache: "no-cache" }).then((r) => r.json());
         const centroids = (geo.features as { properties: { NAME: string; STATEFP: string; PLACEFP: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
             placefp: f.properties.PLACEFP,
@@ -154,7 +154,6 @@ export function useRegionColors(map: maplibregl.Map | null) {
         for (const poi of cityPositivePOIs) {
           const c = nearest(centroids, poi.lat, poi.lng);
           if (!c) continue;
-          console.debug("[regionColors] city+", poi.title, "→ placefp:", c.placefp, "color:", severityColor(poi.severity, poi.color, poi.severity_weight));
           const color = severityColor(poi.severity, poi.color, poi.severity_weight);
           if (color) mapRef.setFeatureState(
             { source: "places", sourceLayer: "places", id: c.placefp },
@@ -165,7 +164,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       // ── Counties ──────────────────────────────────────────────────────
       if (countyPOIs.length || countyPositivePOIs.length) {
-        const geo = await fetch("/county-centroids.geojson").then((r) => r.json());
+        const geo = await fetch("/county-centroids.geojson", { cache: "no-cache" }).then((r) => r.json());
         const centroids = (geo.features as { properties: { STATEFP: string; COUNTYFP: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
             geoid: f.properties.STATEFP + f.properties.COUNTYFP,
