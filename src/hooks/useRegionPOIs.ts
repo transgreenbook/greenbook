@@ -39,14 +39,14 @@ function mergeAndSort(primary: RegionPOI[], ...parents: (RegionPOI[] | null)[]):
   for (const p of [...primary, ...parents.flat().filter(Boolean) as RegionPOI[]]) {
     if (!seen.has(p.id)) { seen.add(p.id); result.push(p); }
   }
-  return result.sort((a, b) => (a.severity ?? 0) - (b.severity ?? 0));
+  return result.sort((a, b) => Math.abs(b.severity ?? 0) - Math.abs(a.severity ?? 0));
 }
 
 async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
   if (region.type === "state") {
     const { data, error } = await supabase.rpc("pois_in_state", { p_abbr: region.stateAbbr });
     if (error) throw new Error(error.message);
-    return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => (a.severity ?? 0) - (b.severity ?? 0));
+    return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => Math.abs(b.severity ?? 0) - Math.abs(a.severity ?? 0));
   }
 
   if (region.type === "county") {
@@ -64,7 +64,7 @@ async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
   if (region.type === "reservation") {
     const { data, error } = await supabase.rpc("pois_in_reservation", { p_geoid: region.geoid });
     if (error) throw new Error(error.message);
-    return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => (a.severity ?? 0) - (b.severity ?? 0));
+    return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => Math.abs(b.severity ?? 0) - Math.abs(a.severity ?? 0));
   }
 
   // city
