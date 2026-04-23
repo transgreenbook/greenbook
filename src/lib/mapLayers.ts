@@ -13,7 +13,10 @@ import type { Map, LayerSpecification, SourceSpecification } from "maplibre-gl";
 
 const pmtilesUrl = process.env.NEXT_PUBLIC_PMTILES_URL;
 
-function boundarySource(promoteId?: Record<string, string>): SourceSpecification {
+function boundarySource(
+  promoteId?: Record<string, string>,
+  maxzoom?: number,
+): SourceSpecification {
   if (pmtilesUrl) {
     const absolute = pmtilesUrl.startsWith("/")
       ? `${typeof window !== "undefined" ? window.location.origin : ""}${pmtilesUrl}`
@@ -22,6 +25,7 @@ function boundarySource(promoteId?: Record<string, string>): SourceSpecification
       type: "vector",
       url: `pmtiles://${absolute}`,
       ...(promoteId ? { promoteId } : {}),
+      ...(maxzoom != null ? { maxzoom } : {}),
     };
   }
   // Fallback: empty GeoJSON until PMTiles URL is configured
@@ -29,6 +33,7 @@ function boundarySource(promoteId?: Record<string, string>): SourceSpecification
 }
 
 export const SOURCES: Record<string, SourceSpecification> = {
+  // States tiles go to zoom 14 — no maxzoom cap needed.
   states:           boundarySource({ states: "STUSPS" }),
   "states-centroids": {
     type: "geojson",
@@ -50,8 +55,12 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: "/county-centroids.geojson",
   },
-  counties: boundarySource({ counties: "GEOID" }),
-  places:   boundarySource({ places: "PLACEFP" }),
+  // Counties and places tiles only go to zoom 12 (built with --maximum-zoom=12).
+  // The merged boundaries.pmtiles reports maxzoom 14 (from states), so without
+  // an explicit cap MapLibre requests zoom 13/14 tiles for these layers and gets
+  // empty results. Setting maxzoom: 12 tells MapLibre to overzoom from zoom 12.
+  counties: boundarySource({ counties: "GEOID" }, 12),
+  places:   boundarySource({ places: "PLACEFP" }, 12),
   "cities-centroids": {
     type: "geojson",
     data: "/city-centroids.geojson",
