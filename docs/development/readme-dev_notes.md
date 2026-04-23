@@ -66,3 +66,32 @@ GENZ 500k file with a relaxed LSAD filter.
 
 Provincetown, MA (PLACEFP=55535, LSAD=57) was patched this way in April 2026.
 Its centroid was added manually; PMTiles were rebuilt including its polygon.
+
+---
+
+## City-scoped POIs require `attributes.city_name` and `attributes.statefp`
+
+The `pois_in_city` SQL function (called when a user clicks a city polygon)
+matches POIs using `attributes->>'city_name'` and `attributes->>'statefp'`.
+A city-scoped POI without these fields will never appear in the city's POI
+panel, even if its geometry is correct.
+
+When inserting a city-scoped POI (`effect_scope = 'city'`), always set:
+
+```json
+{
+  "city_name": "Provincetown",
+  "statefp": "25"
+}
+```
+
+- `city_name` must match the Census `NAME` property exactly as it appears in
+  the map tiles (check the city centroid GeoJSON or click the polygon and
+  inspect the `name` in `selectedRegion`).
+- `statefp` is the 2-digit Census FIPS state code (e.g. `"25"` for
+  Massachusetts). See `STATEFP_TO_ABBR` in `src/hooks/useRegionPOIs.ts` for
+  the full list.
+
+This also applies to the `pois_in_city` call — if a city POI is visible on the
+map as a dot but absent from the region panel, missing/wrong `attributes` is
+the first thing to check.
