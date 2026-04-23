@@ -75,6 +75,15 @@ export function useRegionColors(map: maplibregl.Map | null) {
     const mapRef = map;
 
     async function apply() {
+      // Wait until our custom sources (added by registerLayers) are actually
+      // registered. isStyleLoaded() only confirms the base Stadia style is ready;
+      // our programmatic sources may not exist yet (e.g. React Query cache is warm
+      // but the map hasn't finished initialising). Defer to "idle" and retry once.
+      if (!mapRef.getSource("states") || !mapRef.getSource("counties") || !mapRef.getSource("places")) {
+        mapRef.once("idle", apply);
+        return;
+      }
+
       // Sort ascending by dominance (|severity| × weight) so the most dominant
       // POI is processed last and wins when multiple POIs share the same region.
       const byDominance = (a: RegionPOI, b: RegionPOI) =>
@@ -145,6 +154,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
         for (const poi of cityPositivePOIs) {
           const c = nearest(centroids, poi.lat, poi.lng);
           if (!c) continue;
+          console.debug("[regionColors] city+", poi.title, "→ placefp:", c.placefp, "color:", severityColor(poi.severity, poi.color, poi.severity_weight));
           const color = severityColor(poi.severity, poi.color, poi.severity_weight);
           if (color) mapRef.setFeatureState(
             { source: "places", sourceLayer: "places", id: c.placefp },
