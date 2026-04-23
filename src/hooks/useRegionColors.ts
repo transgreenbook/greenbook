@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type maplibregl from "maplibre-gl";
 import { supabase } from "@/lib/supabase";
 
@@ -54,36 +55,45 @@ function severityColor(severity: number | null, poiColor: string | null, weight 
 // ---------------------------------------------------------------------------
 
 export function useRegionColors(map: maplibregl.Map | null) {
+  // Region-scoped POIs are fetched once and cached for 4 hours. This dataset
+  // covers all state/county/city coloring and changes at most once or twice a
+  // day, so there is no value in re-fetching it on every page load.
+  const { data: regionPOIs } = useQuery({
+    queryKey: ["region-scoped-pois"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_region_scoped_pois");
+      if (error) throw new Error(error.message);
+      return (data ?? []) as RegionPOI[];
+    },
+    staleTime: 4 * 60 * 60 * 1000, // 4 hours
+    gcTime:    8 * 60 * 60 * 1000, // keep in memory 8 hours
+  });
+
   useEffect(() => {
-    if (!map) return;
+    if (!map || !regionPOIs?.length) return;
 
     const mapRef = map;
 
     async function apply() {
-      const { data: pois, error } = await supabase.rpc("get_region_scoped_pois");
-      if (error || !pois?.length) return;
-
       // Sort ascending by dominance (|severity| × weight) so the most dominant
       // POI is processed last and wins when multiple POIs share the same region.
       const byDominance = (a: RegionPOI, b: RegionPOI) =>
         Math.abs(a.severity ?? 0) * a.severity_weight - Math.abs(b.severity ?? 0) * b.severity_weight;
 
-      const allState  = (pois as RegionPOI[]).filter((p) => p.effect_scope === "state");
-      const allCounty = (pois as RegionPOI[]).filter((p) => p.effect_scope === "county");
-      const allCity   = (pois as RegionPOI[]).filter((p) => p.effect_scope === "city");
+      const allState  = regionPOIs.filter((p) => p.effect_scope === "state");
+      const allCounty = regionPOIs.filter((p) => p.effect_scope === "county");
+      const allCity   = regionPOIs.filter((p) => p.effect_scope === "city");
 
       // Split into negative (danger) and positive (affirming) — each renders
       // its own fill layer so both signals can be visible simultaneously.
-      const statePOIs         = allState.filter((p)  => (p.severity ?? 0) < 0).sort(byDominance);
-      const statePositivePOIs = allState.filter((p)  => (p.severity ?? 0) > 0).sort(byDominance);
-      const countyPOIs        = allCounty.filter((p) => (p.severity ?? 0) < 0).sort(byDominance);
+      const statePOIs          = allState.filter((p)  => (p.severity ?? 0) < 0).sort(byDominance);
+      const statePositivePOIs  = allState.filter((p)  => (p.severity ?? 0) > 0).sort(byDominance);
+      const countyPOIs         = allCounty.filter((p) => (p.severity ?? 0) < 0).sort(byDominance);
       const countyPositivePOIs = allCounty.filter((p) => (p.severity ?? 0) > 0).sort(byDominance);
-      const cityPOIs          = allCity.filter((p)   => (p.severity ?? 0) < 0).sort(byDominance);
-      const cityPositivePOIs  = allCity.filter((p)   => (p.severity ?? 0) > 0).sort(byDominance);
+      const cityPOIs           = allCity.filter((p)   => (p.severity ?? 0) < 0).sort(byDominance);
+      const cityPositivePOIs   = allCity.filter((p)   => (p.severity ?? 0) > 0).sort(byDominance);
 
       // ── States ────────────────────────────────────────────────────────
-      // severity_color (negative) and positive_color are set on state features.
-      // Each has its own fill layer so both can render simultaneously.
       if (statePOIs.length || statePositivePOIs.length) {
         const geo = await fetch("/state-centroids.geojson").then((r) => r.json());
         const centroids = (geo.features as { properties: { STUSPS: string }; geometry: { coordinates: [number, number] } }[])
@@ -179,5 +189,5 @@ export function useRegionColors(map: maplibregl.Map | null) {
     } else {
       mapRef.once("load", apply);
     }
-  }, [map]);
+  }, [map, regionPOIs]);
 }

@@ -75,6 +75,7 @@ export function usePOIs(bounds: Bounds | null) {
     queryKey: ["pois", bounds ? roundBounds(bounds) : null],
     queryFn: () => fetchPOIs(bounds!),
     enabled: bounds !== null,
-    staleTime: 30 * 1000, // 30 seconds — POIs change infrequently
+    staleTime: 4 * 60 * 60 * 1000, // 4 hours — POI data changes at most once or twice a day
+    gcTime:   8 * 60 * 60 * 1000, // keep in memory cache for 8 hours
   });
 }

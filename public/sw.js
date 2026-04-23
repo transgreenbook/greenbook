@@ -1,10 +1,12 @@
 // Greenbook Service Worker
-// Caches the app shell, static centroid GeoJSONs, and Stadia map tiles/style.
+// Caches the app shell, static centroid GeoJSONs, Stadia map tiles/style,
+// Next.js static bundles, and public assets (icons, images).
 
-const SHELL_CACHE = "greenbook-shell-v1";
-const GEOJSON_CACHE = "greenbook-geojson-v1";
-const TILE_CACHE = "greenbook-tiles-v1";
-const MAX_TILE_ENTRIES = 1000;
+const SHELL_CACHE  = "greenbook-shell-v2";
+const STATIC_CACHE = "greenbook-static-v2"; // Next.js bundles + public assets
+const GEOJSON_CACHE = "greenbook-geojson-v2";
+const TILE_CACHE   = "greenbook-tiles-v2";
+const MAX_TILE_ENTRIES = 2000;
 
 // App shell assets to precache on install
 const SHELL_ASSETS = [
@@ -36,7 +38,7 @@ self.addEventListener("install", (event) => {
 // ── Activate: clean up old caches ─────────────────────────────────────────────
 
 self.addEventListener("activate", (event) => {
-  const validCaches = [SHELL_CACHE, GEOJSON_CACHE, TILE_CACHE];
+  const validCaches = [SHELL_CACHE, STATIC_CACHE, GEOJSON_CACHE, TILE_CACHE];
   event.waitUntil(
     caches
       .keys()
@@ -57,7 +59,20 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // GeoJSON centroids — CacheFirst (they only change on deploy)
+  // Next.js static bundles — CacheFirst (filenames are content-hashed; new
+  // deploys produce new URLs automatically, so stale entries are never served)
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    return;
+  }
+
+  // Public icons and images — CacheFirst (change only on redeploy)
+  if (url.pathname.startsWith("/icons/") || url.pathname.match(/\.(png|svg|webp|ico)$/)) {
+    event.respondWith(cacheFirst(request, STATIC_CACHE));
+    return;
+  }
+
+  // GeoJSON centroids — CacheFirst (change only on redeploy)
   if (url.pathname.match(/\/(state|county|city|major-city)-centroids\.geojson$/)) {
     event.respondWith(cacheFirst(request, GEOJSON_CACHE));
     return;
