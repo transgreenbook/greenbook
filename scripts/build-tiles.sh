@@ -68,11 +68,13 @@ ogr2ogr \
   "$TMP/county/tl_${YEAR}_us_county.shp"
 
 # Places — incorporated cities/towns only (exclude CDPs, LSAD=57)
+# LSAD codes: 25=City, 43=New England Town (MA/CT/RI/VT/NH/ME), 47=Town (other),
+#             21=Borough, 37=Independent city, 53=Village
 ogr2ogr \
   -f GeoJSON \
   -t_srs EPSG:4326 \
   -select "NAME,STATEFP,PLACEFP,LSAD" \
-  -where "LSAD IN ('25','47','21','37','53')" \
+  -where "LSAD IN ('25','43','47','21','37','53')" \
   "$TMP/places.geojson" \
   "$TMP/place/cb_${YEAR}_us_place_500k.shp"
 
@@ -131,7 +133,7 @@ ogr2ogr \
   -dialect SQLite \
   -sql "SELECT ST_Centroid(geometry) AS geometry, NAME, STATEFP, PLACEFP, LSAD
         FROM \"cb_${YEAR}_us_place_500k\"
-        WHERE LSAD IN ('25','47','21','37','53')" \
+        WHERE LSAD IN ('25','43','47','21','37','53')" \
   "$ROOT/public/city-centroids.geojson" \
   "$TMP/place/cb_${YEAR}_us_place_500k.shp"
 
