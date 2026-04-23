@@ -16,22 +16,14 @@ const SHELL_ASSETS = [
   "/icons/icon-512.png",
 ];
 
-// Static GeoJSON files served from /public
-const GEOJSON_ASSETS = [
-  "/state-centroids.geojson",
-  "/county-centroids.geojson",
-  "/city-centroids.geojson",
-  "/major-city-centroids.geojson",
-];
-
-// ── Install: precache shell + GeoJSONs ────────────────────────────────────────
+// ── Install: precache shell only ──────────────────────────────────────────────
+// GeoJSON centroids are NOT precached — they use StaleWhileRevalidate so the
+// browser always picks up updates on the next load without needing a cache bump.
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    Promise.all([
-      caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL_ASSETS)),
-      caches.open(GEOJSON_CACHE).then((c) => c.addAll(GEOJSON_ASSETS)),
-    ]).then(() => self.skipWaiting())
+    caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL_ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -72,9 +64,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // GeoJSON centroids — CacheFirst (change only on redeploy)
+  // GeoJSON centroids — StaleWhileRevalidate: serve cached copy instantly,
+  // always fetch a fresh copy in the background so updates land next load.
   if (url.pathname.match(/\/(state|county|city|major-city)-centroids\.geojson$/)) {
-    event.respondWith(cacheFirst(request, GEOJSON_CACHE));
+    event.respondWith(staleWhileRevalidate(request, GEOJSON_CACHE));
     return;
   }
 
