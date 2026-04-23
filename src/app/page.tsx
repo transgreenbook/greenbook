@@ -25,12 +25,9 @@ export default function Home() {
       <div className="flex-1 relative min-h-0">
         <MapLoader />
 
-        {mode === "map" && (
-          <>
-            <SearchBar />
-            <RegionPOIPanel />
-          </>
-        )}
+        {mode !== "route" && <SearchBar />}
+
+        {mode === "map" && <RegionPOIPanel />}
 
         {mode === "route" && (
           <>

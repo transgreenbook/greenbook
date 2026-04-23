@@ -20,7 +20,7 @@ export async function geocode(
     }) => {
       const p = f.properties;
       const name = p.name ?? p.city ?? "";
-      const parts = [p.name, p.city, p.state].filter(Boolean);
+      const parts = [p.name, p.city !== p.name ? p.city : null, p.state].filter(Boolean);
       return {
         label: parts.join(", ") || p.country || "Unknown place",
         name,
