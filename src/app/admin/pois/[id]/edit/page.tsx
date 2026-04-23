@@ -44,6 +44,8 @@ export default async function EditPOIPage({
           source_date:      poi.source_date ?? "",
           source:           poi.source ?? "",
           source_id:        poi.source_id ?? "",
+          review_after:     poi.review_after ?? "",
+          review_note:      poi.review_note ?? "",
         }}
       />
     </div>

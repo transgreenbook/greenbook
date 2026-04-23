@@ -48,6 +48,8 @@ type POIFormData = {
   source_date: string;
   source: string;
   source_id: string;
+  review_after: string;
+  review_note: string;
 };
 
 type Props = {
@@ -80,6 +82,8 @@ const EMPTY: POIFormData = {
   source_date: "",
   source: "",
   source_id: "",
+  review_after: "",
+  review_note: "",
 };
 
 // Find the array entry whose lat/lng is closest to the given coordinates.
@@ -320,6 +324,8 @@ export default function POIForm({ initialData }: Props) {
       source_date:   form.source_date || null,
       source:        form.source.trim() || null,
       source_id:     form.source_id.trim() || null,
+      review_after:  form.review_after || null,
+      review_note:   form.review_note.trim() || null,
     };
 
     let err;
@@ -702,6 +708,35 @@ export default function POIForm({ initialData }: Props) {
             type="date"
             value={form.visible_end}
             onChange={(e) => set("visible_end", e.target.value)}
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      {/* ── Review reminder ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className={labelCls}>
+            Review after{" "}
+            <span className="text-gray-400 font-normal">(check back date)</span>
+          </label>
+          <input
+            type="date"
+            value={form.review_after}
+            onChange={(e) => set("review_after", e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className={labelCls}>
+            Review note{" "}
+            <span className="text-gray-400 font-normal">(why it needs review)</span>
+          </label>
+          <input
+            type="text"
+            value={form.review_note}
+            onChange={(e) => set("review_note", e.target.value)}
+            placeholder="e.g. Operator changing in June 2026 — verify contact info"
             className={inputCls}
           />
         </div>
