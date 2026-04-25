@@ -33,6 +33,7 @@ type POIFormData = {
   sub_coords: string;   // JSON {lat,lng,name} of selected county/city
   category_id: string;
   is_verified: boolean;
+  is_visible: boolean;
   tags: string;
   street_address: string;
   website_url: string;
@@ -67,6 +68,7 @@ const EMPTY: POIFormData = {
   sub_coords: "",
   category_id: "",
   is_verified: false,
+  is_visible: true,
   tags: "",
   street_address: "",
   website_url: "",
@@ -307,6 +309,7 @@ export default function POIForm({ initialData }: Props) {
       geom:             `POINT(${lng} ${lat})`,
       category_id:      form.category_id ? parseInt(form.category_id) : null,
       is_verified:      form.is_verified,
+      is_visible:       form.is_visible,
       tags:             form.tags
         ? form.tags.split(",").map((t) => t.trim()).filter(Boolean)
         : null,
@@ -743,17 +746,31 @@ export default function POIForm({ initialData }: Props) {
       </div>
 
       {/* ── Status ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="is_verified"
-          checked={form.is_verified}
-          onChange={(e) => set("is_verified", e.target.checked)}
-          className="rounded border-gray-300"
-        />
-        <label htmlFor="is_verified" className="text-sm font-medium text-gray-700">
-          Verified <span className="text-gray-400 font-normal">(visible on map)</span>
-        </label>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="is_verified"
+            checked={form.is_verified}
+            onChange={(e) => set("is_verified", e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          <label htmlFor="is_verified" className="text-sm font-medium text-gray-700">
+            Verified <span className="text-gray-400 font-normal">(data confirmed accurate)</span>
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="is_visible"
+            checked={form.is_visible}
+            onChange={(e) => set("is_visible", e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          <label htmlFor="is_visible" className="text-sm font-medium text-gray-700">
+            Visible <span className="text-gray-400 font-normal">(show on map)</span>
+          </label>
+        </div>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
