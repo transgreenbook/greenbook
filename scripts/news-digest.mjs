@@ -666,7 +666,9 @@ async function main() {
       finding_type:     f._draft_poi_id ? 'suggested_poi' : 'news',
     }));
 
-    const { error: findingsErr } = await supabase.from('digest_findings').insert(rows);
+    const { error: findingsErr } = await supabase
+      .from('digest_findings')
+      .upsert(rows, { onConflict: 'digest_run_id,article_url', ignoreDuplicates: true });
     if (findingsErr) console.warn('Failed to store findings:', findingsErr.message);
   }
 
