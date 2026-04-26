@@ -44,3 +44,7 @@ next-env.d.ts
 /tiles/
 /tmp/
 /public/tiles/
+
+# internal docs — operational plans, costs, domain info, dev notes
+# keep locally and in nightly backup; not for public repo
+docs/internal/
