@@ -67,7 +67,8 @@ export default function AdminPOIsPage() {
   const [pois, setPois] = useState<POI[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [hiddenCatIds, setHiddenCatIds] = useState<Set<number>>(new Set());
-  const [hideUnverified, setHideUnverified] = useState(false);
+  const [verifiedFilter, setVerifiedFilter] = useState<"both" | "verified" | "unverified">("both");
+  const [visibilityFilter, setVisibilityFilter] = useState<"both" | "visible" | "hidden">("both");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,12 +94,13 @@ export default function AdminPOIsPage() {
     if (loading) return;
     sessionStorage.setItem(FILTER_KEY, JSON.stringify({
       hiddenCatIds:  Array.from(hiddenCatIds),
-      hideUnverified,
+      verifiedFilter,
+      visibilityFilter,
       reviewOnly,
       selectedState,
       loadedCatIds:  categories.filter((c) => c.loaded).map((c) => c.id),
     }));
-  }, [hiddenCatIds, hideUnverified, reviewOnly, selectedState, loading, categories]);
+  }, [hiddenCatIds, verifiedFilter, visibilityFilter, reviewOnly, selectedState, loading, categories]);
 
   // ── Initial load ────────────────────────────────────────────────────────────
 
@@ -143,9 +145,10 @@ export default function AdminPOIsPage() {
     const saved = sessionStorage.getItem(FILTER_KEY);
     let savedLoadedCatIds: number[] = [];
     if (saved) {
-      const { hiddenCatIds: savedHidden, hideUnverified: savedHide, reviewOnly: savedReview, selectedState: savedState, loadedCatIds: savedLoaded } = JSON.parse(saved);
+      const { hiddenCatIds: savedHidden, verifiedFilter: savedVerified, visibilityFilter: savedVisibility, reviewOnly: savedReview, selectedState: savedState, loadedCatIds: savedLoaded } = JSON.parse(saved);
       setHiddenCatIds(new Set(savedHidden as number[]));
-      setHideUnverified(savedHide);
+      if (savedVerified) setVerifiedFilter(savedVerified as "both" | "verified" | "unverified");
+      if (savedVisibility) setVisibilityFilter(savedVisibility as "both" | "visible" | "hidden");
       setReviewOnly(savedReview);
       setSelectedState(savedState ?? null);
       savedLoadedCatIds = (savedLoaded as number[] | undefined) ?? [];
@@ -258,7 +261,8 @@ export default function AdminPOIsPage() {
 
   const visiblePois = pois
     .filter((p) => !hiddenCatIds.has(p.category_id ?? -1))
-    .filter((p) => !hideUnverified || p.is_verified)
+    .filter((p) => verifiedFilter === "both" || (verifiedFilter === "verified" ? p.is_verified : !p.is_verified))
+    .filter((p) => visibilityFilter === "both" || (visibilityFilter === "visible" ? p.is_visible : !p.is_visible))
     .filter((p) => !selectedState || p.state_abbr === selectedState)
     .filter((p) => !reviewOnly || (p.review_after && p.review_after <= today));
 
@@ -620,33 +624,40 @@ export default function AdminPOIsPage() {
       )}
 
       {/* ── Category filter ── */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-xs font-medium text-gray-500">Categories</span>
+      {(() => {
+        const lawCats    = categories.filter((c) => c.name.startsWith("Law —"));
+        const policyCats = categories.filter((c) => c.name.startsWith("Policy Rating —"));
+        const otherCats  = categories.filter((c) => !c.name.startsWith("Law —") && !c.name.startsWith("Policy Rating —"));
 
-        {/* State filter */}
-        <select
-          value={selectedState ?? ""}
-          onChange={(e) => setSelectedState(e.target.value || null)}
-          className="text-xs border border-gray-200 rounded px-2 py-0.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
-        >
-          <option value="">All states</option>
-          {availableStates.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+        function toggleGroup(group: Category[]) {
+          const anyVisible = group.some((c) => !hiddenCatIds.has(c.id));
+          setHiddenCatIds((prev) => {
+            const next = new Set(prev);
+            for (const c of group) anyVisible ? next.add(c.id) : next.delete(c.id);
+            return next;
+          });
+        }
 
-        <button
-          type="button"
-          onClick={() => setHideUnverified((v) => !v)}
-          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
-            hideUnverified
-              ? "bg-gray-800 border-gray-800 text-white"
-              : "bg-white border-gray-300 text-gray-600 hover:border-gray-400"
-          }`}
-        >
-          {hideUnverified ? "Unverified hidden" : "Hide unverified"}
-        </button>
-        {categories.map((cat) => {
+        function GroupToggle({ label, group, color }: { label: string; group: Category[]; color: string }) {
+          const anyVisible = group.some((c) => !hiddenCatIds.has(c.id));
+          return (
+            <button
+              type="button"
+              onClick={() => toggleGroup(group)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border transition-colors shrink-0 ${
+                anyVisible
+                  ? "text-white border-transparent"
+                  : "bg-white border-gray-200 text-gray-400 hover:border-gray-300"
+              }`}
+              style={anyVisible ? { backgroundColor: color, borderColor: color } : undefined}
+              title={anyVisible ? `Hide all ${label}` : `Show all ${label}`}
+            >
+              {label}
+            </button>
+          );
+        }
+
+        function CatChip({ cat }: { cat: Category }) {
           const hidden = hiddenCatIds.has(cat.id);
           const loaded = cat.loaded;
           return (
@@ -675,28 +686,108 @@ export default function AdminPOIsPage() {
             >
               <span
                 className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{
-                  backgroundColor: !loaded || hidden ? "#e5e7eb" : (cat.color ?? "#3b82f6"),
-                }}
+                style={{ backgroundColor: !loaded || hidden ? "#e5e7eb" : (cat.color ?? "#3b82f6") }}
               />
-              {cat.name}
+              {cat.name.replace(/^Law — /, "").replace(/^Policy Rating — /, "")}
               {!loaded && cat.count != null && (
                 <span className="ml-0.5 text-gray-300">+{cat.count.toLocaleString()}</span>
               )}
             </button>
           );
-        })}
-        <button
-          type="button"
-          onClick={() => setHiddenCatIds(new Set())}
-          className="text-xs text-blue-600 hover:underline"
-        >
-          Show loaded
-        </button>
-        <span className="text-xs text-gray-400 ml-1">
-          {visiblePois.length} of {pois.length} loaded
-        </span>
-      </div>
+        }
+
+        return (
+          <div className="space-y-1.5 mb-4">
+
+            {/* Controls row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={selectedState ?? ""}
+                onChange={(e) => setSelectedState(e.target.value || null)}
+                className="text-xs border border-gray-200 rounded px-2 py-0.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+              >
+                <option value="">All states</option>
+                {availableStates.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() =>
+                  setVerifiedFilter((v) =>
+                    v === "both" ? "verified" : v === "verified" ? "unverified" : "both"
+                  )
+                }
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                  verifiedFilter === "verified"
+                    ? "bg-green-600 border-green-600 text-white"
+                    : verifiedFilter === "unverified"
+                    ? "bg-gray-700 border-gray-700 text-white"
+                    : "bg-white border-gray-300 text-gray-600 hover:border-gray-400"
+                }`}
+              >
+                {verifiedFilter === "verified"
+                  ? "Verified only"
+                  : verifiedFilter === "unverified"
+                  ? "Unverified only"
+                  : "All verified"}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibilityFilter((v) =>
+                    v === "both" ? "visible" : v === "visible" ? "hidden" : "both"
+                  )
+                }
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                  visibilityFilter === "visible"
+                    ? "bg-blue-600 border-blue-600 text-white"
+                    : visibilityFilter === "hidden"
+                    ? "bg-gray-700 border-gray-700 text-white"
+                    : "bg-white border-gray-300 text-gray-600 hover:border-gray-400"
+                }`}
+              >
+                {visibilityFilter === "visible"
+                  ? "Visible only"
+                  : visibilityFilter === "hidden"
+                  ? "Hidden only"
+                  : "All visibility"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setHiddenCatIds(new Set())}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Show all
+              </button>
+              <span className="text-xs text-gray-400">
+                {visiblePois.length} of {pois.length} loaded
+              </span>
+            </div>
+
+            {/* Law row */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <GroupToggle label="All Laws" group={lawCats} color="#4f46e5" />
+              {lawCats.map((cat) => <CatChip key={cat.id} cat={cat} />)}
+            </div>
+
+            {/* Policy Rating row */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <GroupToggle label="All Policy" group={policyCats} color="#0891b2" />
+              {policyCats.map((cat) => <CatChip key={cat.id} cat={cat} />)}
+            </div>
+
+            {/* Other categories */}
+            {otherCats.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-medium text-gray-400 shrink-0">Other</span>
+                {otherCats.map((cat) => <CatChip key={cat.id} cat={cat} />)}
+              </div>
+            )}
+
+          </div>
+        );
+      })()}
 
       {/* ── Batch action bar ── */}
       {someSelected && (
@@ -728,6 +819,7 @@ export default function AdminPOIsPage() {
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Title</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Category</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Status</th>
+              <th className="text-left px-4 py-3 text-gray-500 font-medium">Visible</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Created</th>
               <th className="px-4 py-3" />
             </tr>
@@ -782,16 +874,6 @@ export default function AdminPOIsPage() {
                     >
                       {poi.is_verified ? "Verified" : "Unverified"}
                     </button>
-                    <button
-                      onClick={() => toggleVisible(poi.id, poi.is_visible)}
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        poi.is_visible
-                          ? "bg-blue-50 text-blue-600"
-                          : "bg-gray-100 text-gray-400"
-                      }`}
-                    >
-                      {poi.is_visible ? "Visible" : "Hidden"}
-                    </button>
                     {poi.review_after && poi.review_after <= today && (
                       <span
                         title={poi.review_note ?? "Review due"}
@@ -809,6 +891,18 @@ export default function AdminPOIsPage() {
                       </span>
                     )}
                   </div>
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    onClick={() => toggleVisible(poi.id, poi.is_visible)}
+                    className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      poi.is_visible
+                        ? "bg-blue-50 text-blue-600"
+                        : "bg-gray-100 text-gray-400"
+                    }`}
+                  >
+                    {poi.is_visible ? "Visible" : "Hidden"}
+                  </button>
                 </td>
                 <td className="px-4 py-3 text-gray-400">
                   {new Date(poi.created_at).toLocaleDateString()}
@@ -834,7 +928,7 @@ export default function AdminPOIsPage() {
             {visiblePois.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-4 py-10 text-center text-gray-400"
                 >
                   {pois.length === 0

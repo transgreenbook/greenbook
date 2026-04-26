@@ -336,7 +336,7 @@ Respond with this JSON structure:
         "description": "<what this law/ruling does and its current status, 2-3 sentences>",
         "severity": <integer -10 to +10>,
         "state_abbr": "<2-letter state, or null for federal>",
-        "category_hint": "<one of: Law — Anti-Trans | Law — Bathroom | Law — Birth Certificate | Law — Discrimination | Law — Healthcare | Policy Rating — Driver's License | Safety Incident | null>",
+        "category_hint": "<one of: Law — Anti-Trans | Law — Bathroom Access | Law — Birth Certificate | Law — Driver's License | Law — Healthcare | Policy Rating — Anti-Trans | Policy Rating — Bathroom Access | Policy Rating — Birth Certificate | Policy Rating — Driver's License | Policy Rating — Healthcare | Policy Rating — Non-Binary Recognition | Safety Incident | null>\nUse Law — * for a specific individual law, bill, or court ruling. Use Policy Rating — * for executive orders, agency policies, or general state/regional policy summaries.",
         "source_url": "<direct URL to primary source — bill text, court ruling, or authoritative press release>"
       }
     }
