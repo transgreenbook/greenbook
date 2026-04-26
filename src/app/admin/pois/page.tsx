@@ -66,6 +66,7 @@ export default function AdminPOIsPage() {
   const [pois, setPois] = useState<POI[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [hiddenCatIds, setHiddenCatIds] = useState<Set<number>>(new Set());
+  const [hideUnverified, setHideUnverified] = useState(false);
   const [reviewOnly, setReviewOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -79,6 +80,20 @@ export default function AdminPOIsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // ── Persist filters across navigation ───────────────────────────────────────
+
+  const FILTER_KEY = "admin-poi-filters";
+
+  // Save filters to sessionStorage whenever they change (but not during initial load)
+  useEffect(() => {
+    if (loading) return;
+    sessionStorage.setItem(FILTER_KEY, JSON.stringify({
+      hiddenCatIds: Array.from(hiddenCatIds),
+      hideUnverified,
+      reviewOnly,
+    }));
+  }, [hiddenCatIds, hideUnverified, reviewOnly, loading]);
 
   // ── Initial load ────────────────────────────────────────────────────────────
 
@@ -127,14 +142,19 @@ export default function AdminPOIsPage() {
       .order("created_at", { ascending: false });
 
     setPois(mapPOIs(poiData ?? []));
-    setCategories((prev) =>
-      prev.map((c) =>
-        nonBulkCatIds.includes(c.id) ? { ...c, loaded: true } : c
-      )
-    );
+    // Categories are NOT marked loaded here — the initial fetch only loads
+    // unverified POIs. Clicking a category button loads all its POIs.
 
-    // Default: hide bulk categories in the filter
-    setHiddenCatIds(new Set(cats.filter((c) => c.bulk).map((c) => c.id)));
+    // Restore saved filters, or default to hiding bulk categories
+    const saved = sessionStorage.getItem(FILTER_KEY);
+    if (saved) {
+      const { hiddenCatIds: savedHidden, hideUnverified: savedHide, reviewOnly: savedReview } = JSON.parse(saved);
+      setHiddenCatIds(new Set(savedHidden as number[]));
+      setHideUnverified(savedHide);
+      setReviewOnly(savedReview);
+    } else {
+      setHiddenCatIds(new Set(cats.filter((c) => c.bulk).map((c) => c.id)));
+    }
     setLoading(false);
   }
 
@@ -193,6 +213,7 @@ export default function AdminPOIsPage() {
 
   const visiblePois = pois
     .filter((p) => !hiddenCatIds.has(p.category_id ?? -1))
+    .filter((p) => !hideUnverified || p.is_verified)
     .filter((p) => !reviewOnly || (p.review_after && p.review_after <= today));
 
   const reviewDueCount = pois.filter(
@@ -550,6 +571,17 @@ export default function AdminPOIsPage() {
       {/* ── Category filter ── */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <span className="text-xs font-medium text-gray-500">Categories</span>
+        <button
+          type="button"
+          onClick={() => setHideUnverified((v) => !v)}
+          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
+            hideUnverified
+              ? "bg-gray-800 border-gray-800 text-white"
+              : "bg-white border-gray-300 text-gray-600 hover:border-gray-400"
+          }`}
+        >
+          {hideUnverified ? "Unverified hidden" : "Hide unverified"}
+        </button>
         {categories.map((cat) => {
           const hidden = hiddenCatIds.has(cat.id);
           const loaded = cat.loaded;
