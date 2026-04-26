@@ -206,12 +206,14 @@ async function getDBContext() {
       .eq('status', 'monitoring')
       .order('created_at', { ascending: false })
       .limit(50),
-    // Existing law/policy POIs for gap detection — so Claude can tell whether
-    // a referenced law already has a POI before suggesting a new draft
+    // Existing curated law/policy POIs — so Claude avoids suggesting duplicates
+    // of our own hand-curated data. CATPALM and other 3rd-party imports are
+    // intentionally excluded: we want to build our own curated POI for every
+    // significant law regardless of whether a 3rd-party summary already covers it.
     supabase
       .from('points_of_interest')
       .select('id, title, state_abbr, source, severity')
-      .in('source', ['catpalm', 'curated', 'digest-draft'])
+      .in('source', ['curated', 'digest-draft'])
       .order('state_abbr')
       .limit(500),
     supabase
@@ -299,7 +301,9 @@ ${highSeverityPois || '(none yet)'}
 ## Active watch items
 ${watchItemsText}
 
-## Existing law/policy POIs (for gap detection — do NOT suggest a new POI if one already exists here)
+## Existing curated law/policy POIs (do NOT suggest a new POI if one already exists here)
+Note: third-party summary data (e.g. CATPALM) is intentionally excluded — we want our own
+curated POI for every significant law regardless of whether a 3rd-party entry already covers it.
 ${lawPoisText}
 
 ## New articles to analyze (${articles.length} total)
@@ -345,7 +349,8 @@ Only populate "suggested_poi" when ALL of these are true:
   2. It is NOT already covered by an entry in the "Existing law/policy POIs" list above
   3. It directly affects trans safety or travel in a specific US state or federally
   4. You have enough information to write a useful title and description
-Do NOT suggest a POI for general news stories, advocacy pieces, or articles without a specific legal action.`;
+Do NOT suggest a POI for general news stories, advocacy pieces, or articles without a specific legal action.
+A third-party policy summary covering the same state/topic is NOT a reason to skip — suggest a curated POI anyway.`;
 
   const message = await anthropic.messages.create({
     model:      'claude-haiku-4-5-20251001',
