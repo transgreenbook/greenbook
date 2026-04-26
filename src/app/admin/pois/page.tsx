@@ -25,6 +25,7 @@ type POI = {
   updated_at: string;
   category_id: number | null;
   category_name: string | null;
+  state_abbr: string | null;
   source: string | null;
   review_after: string | null;
   review_note: string | null;
@@ -68,6 +69,7 @@ export default function AdminPOIsPage() {
   const [hiddenCatIds, setHiddenCatIds] = useState<Set<number>>(new Set());
   const [hideUnverified, setHideUnverified] = useState(false);
   const [reviewOnly, setReviewOnly] = useState(false);
+  const [selectedState, setSelectedState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
@@ -92,8 +94,9 @@ export default function AdminPOIsPage() {
       hiddenCatIds: Array.from(hiddenCatIds),
       hideUnverified,
       reviewOnly,
+      selectedState,
     }));
-  }, [hiddenCatIds, hideUnverified, reviewOnly, loading]);
+  }, [hiddenCatIds, hideUnverified, reviewOnly, selectedState, loading]);
 
   // ── Initial load ────────────────────────────────────────────────────────────
 
@@ -136,7 +139,7 @@ export default function AdminPOIsPage() {
     const nonBulkCatIds = cats.filter((c) => !c.bulk).map((c) => c.id);
     const { data: poiData } = await supabase
       .from("points_of_interest")
-      .select("id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), source, review_after, review_note")
+      .select("id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, source, review_after, review_note")
       .eq("is_verified", false)
       .in("category_id", nonBulkCatIds)
       .order("created_at", { ascending: false });
@@ -148,10 +151,11 @@ export default function AdminPOIsPage() {
     // Restore saved filters, or default to hiding bulk categories
     const saved = sessionStorage.getItem(FILTER_KEY);
     if (saved) {
-      const { hiddenCatIds: savedHidden, hideUnverified: savedHide, reviewOnly: savedReview } = JSON.parse(saved);
+      const { hiddenCatIds: savedHidden, hideUnverified: savedHide, reviewOnly: savedReview, selectedState: savedState } = JSON.parse(saved);
       setHiddenCatIds(new Set(savedHidden as number[]));
       setHideUnverified(savedHide);
       setReviewOnly(savedReview);
+      setSelectedState(savedState ?? null);
     } else {
       setHiddenCatIds(new Set(cats.filter((c) => c.bulk).map((c) => c.id)));
     }
@@ -168,6 +172,7 @@ export default function AdminPOIsPage() {
       updated_at:    p.updated_at as string,
       category_id:   p.category_id as number | null,
       category_name: (p.categories as { name: string } | null)?.name ?? null,
+      state_abbr:    p.state_abbr as string | null,
       source:        p.source as string | null,
       review_after:  p.review_after as string | null,
       review_note:   p.review_note as string | null,
@@ -187,11 +192,13 @@ export default function AdminPOIsPage() {
       return;
     }
 
-    const { data } = await supabase
+    let q = supabase
       .from("points_of_interest")
-      .select("id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), source, review_after, review_note")
+      .select("id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, source, review_after, review_note")
       .eq("category_id", cat.id)
       .order("created_at", { ascending: false });
+    if (selectedState) q = q.eq("state_abbr", selectedState);
+    const { data } = await q;
 
     setPois((prev) => {
       const existingIds = new Set(prev.map((p) => p.id));
@@ -214,7 +221,13 @@ export default function AdminPOIsPage() {
   const visiblePois = pois
     .filter((p) => !hiddenCatIds.has(p.category_id ?? -1))
     .filter((p) => !hideUnverified || p.is_verified)
+    .filter((p) => !selectedState || p.state_abbr === selectedState)
     .filter((p) => !reviewOnly || (p.review_after && p.review_after <= today));
+
+  // Distinct states from loaded POIs for the dropdown
+  const availableStates = Array.from(
+    new Set(pois.map((p) => p.state_abbr).filter(Boolean))
+  ).sort() as string[];
 
   const reviewDueCount = pois.filter(
     (p) => p.review_after && p.review_after <= today
@@ -571,6 +584,19 @@ export default function AdminPOIsPage() {
       {/* ── Category filter ── */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <span className="text-xs font-medium text-gray-500">Categories</span>
+
+        {/* State filter */}
+        <select
+          value={selectedState ?? ""}
+          onChange={(e) => setSelectedState(e.target.value || null)}
+          className="text-xs border border-gray-200 rounded px-2 py-0.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+        >
+          <option value="">All states</option>
+          {availableStates.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+
         <button
           type="button"
           onClick={() => setHideUnverified((v) => !v)}
@@ -700,7 +726,12 @@ export default function AdminPOIsPage() {
                     <span className="ml-2 text-xs text-gray-400">{poi.source}</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-gray-500">{poi.category_name ?? "—"}</td>
+                <td className="px-4 py-3 text-gray-500">
+                  {poi.category_name ?? "—"}
+                  {poi.state_abbr && (
+                    <span className="ml-2 text-xs text-gray-400">{poi.state_abbr}</span>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <button
