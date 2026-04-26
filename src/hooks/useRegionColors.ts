@@ -134,7 +134,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       // ── Cities ────────────────────────────────────────────────────────
       if (cityPOIs.length || cityPositivePOIs.length) {
-        const geo = await fetch("/city-centroids.geojson", { cache: "no-cache" }).then((r) => r.json());
+        const geo = await fetch("/city-centroids.geojson").then((r) => r.json());
         const centroids = (geo.features as { properties: { NAME: string; STATEFP: string; PLACEFP: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
             placefp: f.properties.PLACEFP,
@@ -164,7 +164,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       // ── Counties ──────────────────────────────────────────────────────
       if (countyPOIs.length || countyPositivePOIs.length) {
-        const geo = await fetch("/county-centroids.geojson", { cache: "no-cache" }).then((r) => r.json());
+        const geo = await fetch("/county-centroids.geojson").then((r) => r.json());
         const centroids = (geo.features as { properties: { STATEFP: string; COUNTYFP: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
             geoid: f.properties.STATEFP + f.properties.COUNTYFP,
