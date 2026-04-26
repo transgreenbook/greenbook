@@ -131,6 +131,39 @@ function stripHtml(str) {
 }
 
 // ---------------------------------------------------------------------------
+// State centroids (for placing draft law POIs at state level)
+// ---------------------------------------------------------------------------
+
+const STATE_CENTROIDS = {
+  AK: { lat: 61.310, lng: -154.560 }, AL: { lat: 32.615, lng:  -86.680 },
+  AR: { lat: 34.750, lng:  -92.130 }, AZ: { lat: 34.165, lng: -111.935 },
+  CA: { lat: 37.270, lng: -119.270 }, CO: { lat: 38.995, lng: -105.550 },
+  CT: { lat: 41.520, lng:  -72.760 }, DC: { lat: 38.890, lng:  -77.015 },
+  DE: { lat: 39.145, lng:  -75.385 }, FL: { lat: 27.760, lng:  -83.830 },
+  GA: { lat: 32.680, lng:  -83.225 }, HI: { lat: 20.580, lng: -157.530 },
+  IA: { lat: 41.935, lng:  -93.390 }, ID: { lat: 45.495, lng: -114.140 },
+  IL: { lat: 39.740, lng:  -89.505 }, IN: { lat: 39.765, lng:  -86.440 },
+  KS: { lat: 38.495, lng:  -98.320 }, KY: { lat: 37.825, lng:  -85.765 },
+  LA: { lat: 30.975, lng:  -91.430 }, MA: { lat: 42.065, lng:  -71.720 },
+  MD: { lat: 38.805, lng:  -77.270 }, ME: { lat: 45.260, lng:  -69.015 },
+  MI: { lat: 45.000, lng:  -86.415 }, MN: { lat: 46.440, lng:  -93.365 },
+  MO: { lat: 38.300, lng:  -92.435 }, MS: { lat: 32.590, lng:  -89.875 },
+  MT: { lat: 46.680, lng: -110.045 }, NC: { lat: 35.215, lng:  -79.890 },
+  ND: { lat: 47.470, lng: -100.300 }, NE: { lat: 41.500, lng:  -99.680 },
+  NH: { lat: 44.005, lng:  -71.585 }, NJ: { lat: 40.145, lng:  -74.725 },
+  NM: { lat: 34.165, lng: -106.025 }, NV: { lat: 38.500, lng: -117.025 },
+  NY: { lat: 42.755, lng:  -75.810 }, OH: { lat: 40.365, lng:  -82.670 },
+  OK: { lat: 35.310, lng:  -98.715 }, OR: { lat: 44.130, lng: -120.515 },
+  PA: { lat: 40.995, lng:  -77.605 }, RI: { lat: 41.585, lng:  -71.490 },
+  SC: { lat: 33.635, lng:  -80.945 }, SD: { lat: 44.215, lng: -100.250 },
+  TN: { lat: 35.830, lng:  -85.980 }, TX: { lat: 31.170, lng: -100.080 },
+  UT: { lat: 39.495, lng: -111.545 }, VA: { lat: 38.000, lng:  -79.460 },
+  VT: { lat: 43.875, lng:  -72.470 }, WA: { lat: 47.270, lng: -120.830 },
+  WI: { lat: 44.900, lng:  -89.570 }, WV: { lat: 38.920, lng:  -80.180 },
+  WY: { lat: 43.000, lng: -107.555 },
+};
+
+// ---------------------------------------------------------------------------
 // DB context helpers
 // ---------------------------------------------------------------------------
 
@@ -160,10 +193,10 @@ async function markArticlesSeen(articles) {
 }
 
 async function getDBContext() {
-  const [poisRes, watchRes] = await Promise.all([
+  const [poisRes, watchRes, lawPoisRes, categoriesRes] = await Promise.all([
     supabase
       .from('points_of_interest')
-      .select('id, title, severity, scope, state_abbr, county_name, city_name, description')
+      .select('id, title, severity, effect_scope, state_abbr, county_name, city_name, description')
       .not('severity', 'is', null)
       .order('severity', { ascending: true })
       .limit(100),
@@ -173,11 +206,29 @@ async function getDBContext() {
       .eq('status', 'monitoring')
       .order('created_at', { ascending: false })
       .limit(50),
+    // Existing law/policy POIs for gap detection — so Claude can tell whether
+    // a referenced law already has a POI before suggesting a new draft
+    supabase
+      .from('points_of_interest')
+      .select('id, title, state_abbr, source, severity')
+      .in('source', ['catpalm', 'curated', 'digest-draft'])
+      .order('state_abbr')
+      .limit(500),
+    supabase
+      .from('categories')
+      .select('id, name'),
   ]);
 
+  // Build category name → id map (lowercase keys for case-insensitive lookup)
+  const categoryMap = new Map(
+    (categoriesRes.data ?? []).map((c) => [c.name.toLowerCase(), c.id])
+  );
+
   return {
-    pois:       poisRes.data  ?? [],
-    watchItems: watchRes.data ?? [],
+    pois:        poisRes.data   ?? [],
+    watchItems:  watchRes.data  ?? [],
+    lawPois:     lawPoisRes.data ?? [],
+    categoryMap,
   };
 }
 
@@ -207,7 +258,7 @@ const GUIDELINES = (() => {
   }
 })();
 
-async function analyzeWithClaude(articles, context) {
+async function analyzeWithClaude(articles, context, batchOffset = 0) {
   const articlesText = articles.map((a, i) =>
     `[${i}] SOURCE: ${a.source_name}\nTITLE: ${a.title}\nURL: ${a.url}\nSNIPPET: ${a.description}\nDATE: ${a.published ?? 'unknown'}`
   ).join('\n\n');
@@ -223,6 +274,17 @@ async function analyzeWithClaude(articles, context) {
       ).join('\n')
     : '(none)';
 
+  // Group existing law/policy POIs by state for gap detection
+  const lawPoisByState = {};
+  for (const p of (context.lawPois ?? [])) {
+    const st = p.state_abbr ?? 'US';
+    if (!lawPoisByState[st]) lawPoisByState[st] = [];
+    lawPoisByState[st].push(`"${p.title}" (severity ${p.severity}, source: ${p.source})`);
+  }
+  const lawPoisText = Object.entries(lawPoisByState)
+    .map(([st, titles]) => `${st}: ${titles.join('; ')}`)
+    .join('\n') || '(none yet)';
+
   const systemPrompt = `You are a monitoring assistant for TransSafeTravels, a safety resource for transgender travelers in the US and for international travel involving the US.
 
 ${SEVERITY_SCALE}
@@ -236,6 +298,9 @@ ${highSeverityPois || '(none yet)'}
 
 ## Active watch items
 ${watchItemsText}
+
+## Existing law/policy POIs (for gap detection — do NOT suggest a new POI if one already exists here)
+${lawPoisText}
 
 ## New articles to analyze (${articles.length} total)
 ${articlesText}
@@ -261,16 +326,30 @@ Respond with this JSON structure:
         "title": "<short title>",
         "description": "<what it is and why we're watching it>",
         "next_check_date": "<YYYY-MM-DD or null>"
+      },
+      "suggested_poi": null | {
+        "title": "<specific law, ruling, or policy name — be precise>",
+        "description": "<what this law/ruling does and its current status, 2-3 sentences>",
+        "severity": <integer -10 to +10>,
+        "state_abbr": "<2-letter state, or null for federal>",
+        "category_hint": "<one of: Law — Anti-Trans | Law — Bathroom | Law — Birth Certificate | Law — Discrimination | Law — Healthcare | Policy Rating — Driver's License | Safety Incident | null>",
+        "source_url": "<direct URL to primary source — bill text, court ruling, or authoritative press release>"
       }
     }
   ]
 }
 
-Only include findings with relevance "high", "medium", or "low" — omit "skip" entries entirely.`;
+Only include findings with relevance "high", "medium", or "low" — omit "skip" entries entirely.
+Only populate "suggested_poi" when ALL of these are true:
+  1. The article discusses a specific law, court ruling, executive order, or policy
+  2. It is NOT already covered by an entry in the "Existing law/policy POIs" list above
+  3. It directly affects trans safety or travel in a specific US state or federally
+  4. You have enough information to write a useful title and description
+Do NOT suggest a POI for general news stories, advocacy pieces, or articles without a specific legal action.`;
 
   const message = await anthropic.messages.create({
     model:      'claude-haiku-4-5-20251001',
-    max_tokens: 2048,
+    max_tokens: 8192,
     system:     systemPrompt,
     messages:   [{ role: 'user', content: userPrompt }],
   });
@@ -279,11 +358,11 @@ Only include findings with relevance "high", "medium", or "low" — omit "skip" 
   if (DEBUG) console.log('\n[DEBUG] Claude raw response:\n', raw.slice(0, 2000));
 
   // Try progressively looser extractions
+  const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
   const candidates = [
     raw.trim(),
-    // Strip markdown fences
-    raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim(),
-    // Extract first { ... } block (handles preamble text)
+    stripped,
+    // Extract first { ... } block (handles any preamble/postamble)
     (() => { const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); return s !== -1 && e > s ? raw.slice(s, e + 1) : ''; })(),
   ];
 
@@ -294,6 +373,48 @@ Only include findings with relevance "high", "medium", or "low" — omit "skip" 
 
   console.error('Claude returned non-JSON:', raw.slice(0, 300));
   return { digest_summary: null, findings: [] };
+}
+
+// ---------------------------------------------------------------------------
+// Draft POI creation
+// ---------------------------------------------------------------------------
+
+async function createDraftPoi(suggestedPoi, categoryMap) {
+  const { title, description, severity, state_abbr, category_hint, source_url } = suggestedPoi;
+  if (!title) return null;
+
+  const centroid = state_abbr ? STATE_CENTROIDS[state_abbr.toUpperCase()] : null;
+  const categoryId = category_hint
+    ? (categoryMap.get(category_hint.toLowerCase()) ?? null)
+    : null;
+
+  const { data, error } = await supabase
+    .from('points_of_interest')
+    .insert({
+      title,
+      description:      description ?? null,
+      severity:         Math.max(-10, Math.min(10, severity ?? 0)),
+      state_abbr:       state_abbr ?? null,
+      effect_scope:     state_abbr ? 'state' : 'point',
+      category_id:      categoryId,
+      source:           'digest-draft',
+      source_date:      new Date().toISOString().slice(0, 10),
+      legislation_url:  source_url ?? null,
+      is_verified:      false,
+      is_visible:       false,
+      geom: centroid
+        ? `SRID=4326;POINT(${centroid.lng} ${centroid.lat})`
+        : null,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.warn(`  WARN: Failed to create draft POI "${title}":`, error.message);
+    return null;
+  }
+  console.log(`  Created draft POI id=${data.id}: "${title}"`);
+  return data.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -488,7 +609,7 @@ async function main() {
   console.log(`  ${context.pois.length} POIs, ${context.watchItems.length} active watch items`);
 
   // 5. Analyze with Claude (batch to keep prompts manageable)
-  const BATCH_SIZE = 25;
+  const BATCH_SIZE = 15;
   const allFindings = [];
   let digestSummary = '';
 
@@ -498,7 +619,7 @@ async function main() {
     const totalBatches = Math.ceil(allArticles.length / BATCH_SIZE);
     console.log(`\nAnalyzing batch ${batchNum}/${totalBatches} (${batch.length} articles)…`);
 
-    const analysis = await analyzeWithClaude(batch, context);
+    const analysis = await analyzeWithClaude(batch, context, i);
 
     // Re-map article_index to global index
     for (const f of (analysis.findings ?? [])) {
@@ -511,8 +632,17 @@ async function main() {
 
   console.log(`\n${allFindings.length} findings flagged`);
 
-  // 6. Store findings in DB
+  // 6. Store findings in DB (create draft POIs first so we can link them)
   if (!DRY_RUN && runId && allFindings.length > 0) {
+    // Create draft POIs for findings that suggest one
+    const suggestedPoiFindings = allFindings.filter((f) => f.suggested_poi);
+    if (suggestedPoiFindings.length > 0) {
+      console.log(`\nCreating ${suggestedPoiFindings.length} draft POI(s)…`);
+      for (const f of suggestedPoiFindings) {
+        f._draft_poi_id = await createDraftPoi(f.suggested_poi, context.categoryMap);
+      }
+    }
+
     const rows = allFindings.map((f) => ({
       digest_run_id:    runId,
       watch_item_id:    f.updates_watch_item_id ?? null,
@@ -527,6 +657,8 @@ async function main() {
       legislation_url:  f.legislation_url ?? null,
       jurisdiction_type: f.jurisdiction_type ?? null,
       severity_delta:   f.severity_delta ?? null,
+      linked_poi_id:    f._draft_poi_id ?? null,
+      finding_type:     f._draft_poi_id ? 'suggested_poi' : 'news',
     }));
 
     const { error: findingsErr } = await supabase.from('digest_findings').insert(rows);

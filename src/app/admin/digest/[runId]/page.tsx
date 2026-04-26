@@ -20,6 +20,7 @@ type Finding = {
   legislation_url: string | null;
   watch_item_id: number | null;
   relevance: string | null;
+  finding_type: string | null;
   applied_at: string | null;
   dismissed_at: string | null;
   reviewer_notes: string | null;
@@ -27,6 +28,8 @@ type Finding = {
   source_name: string | null;
   poi_title: string | null;
   poi_severity: number | null;
+  poi_source: string | null;
+  poi_description: string | null;
   watch_item_title: string | null;
   // parsed from article_url for legislation findings
   _state_abbr: string | null;
@@ -95,12 +98,12 @@ export default function DigestRunPage() {
         .from("digest_findings")
         .select(`
           id, article_title, article_url, article_date,
-          summary, suggested_action, confidence, relevance,
+          summary, suggested_action, confidence, relevance, finding_type,
           jurisdiction_type, severity_delta, linked_poi_id,
           legislation_url, watch_item_id,
           applied_at, dismissed_at, reviewer_notes,
           news_sources ( name ),
-          points_of_interest ( title, severity ),
+          points_of_interest ( title, severity, source, description ),
           watch_items ( title )
         `)
         .eq("digest_run_id", runId)
@@ -158,9 +161,12 @@ export default function DigestRunPage() {
           applied_at:       f.applied_at as string | null,
           dismissed_at:     f.dismissed_at as string | null,
           reviewer_notes:   f.reviewer_notes as string | null,
+          finding_type:     f.finding_type as string | null,
           source_name:      (f.news_sources as { name: string } | null)?.name ?? null,
-          poi_title:        (f.points_of_interest as { title: string; severity: number } | null)?.title ?? null,
-          poi_severity:     (f.points_of_interest as { title: string; severity: number } | null)?.severity ?? null,
+          poi_title:        (f.points_of_interest as { title: string; severity: number; source: string; description: string } | null)?.title ?? null,
+          poi_severity:     (f.points_of_interest as { title: string; severity: number; source: string; description: string } | null)?.severity ?? null,
+          poi_source:       (f.points_of_interest as { title: string; severity: number; source: string; description: string } | null)?.source ?? null,
+          poi_description:  (f.points_of_interest as { title: string; severity: number; source: string; description: string } | null)?.description ?? null,
           watch_item_title: (f.watch_items as { title: string } | null)?.title ?? null,
           _state_abbr:      stateAbbr,
           _bill_number:     billNumber,
@@ -241,6 +247,30 @@ export default function DigestRunPage() {
     fetchData();
   }
 
+  async function handleAcceptDraftPoi(finding: Finding) {
+    if (!finding.linked_poi_id) return;
+    setBusy(finding.id);
+    // Promote draft to curated — keep is_verified=false so admin reviews before publishing
+    const { error: poiErr } = await supabase
+      .from("points_of_interest")
+      .update({ source: "curated" })
+      .eq("id", finding.linked_poi_id);
+    if (poiErr) { alert("Failed to accept POI: " + poiErr.message); setBusy(null); return; }
+    await supabase.from("digest_findings").update({ applied_at: new Date().toISOString() }).eq("id", finding.id);
+    setBusy(null);
+    setFindings((prev) => prev.map((f) => f.id === finding.id ? { ...f, applied_at: new Date().toISOString(), poi_source: "curated" } : f));
+  }
+
+  async function handleRejectDraftPoi(finding: Finding) {
+    if (!confirm("Reject this draft POI? It will be deleted.")) return;
+    if (!finding.linked_poi_id) return;
+    setBusy(finding.id);
+    await supabase.from("points_of_interest").delete().eq("id", finding.linked_poi_id);
+    await supabase.from("digest_findings").update({ dismissed_at: new Date().toISOString(), linked_poi_id: null }).eq("id", finding.id);
+    setBusy(null);
+    setFindings((prev) => prev.map((f) => f.id === finding.id ? { ...f, dismissed_at: new Date().toISOString(), linked_poi_id: null } : f));
+  }
+
   if (loading) return <div className="p-6 text-sm text-gray-400">Loading...</div>;
   if (!run)    return <div className="p-6 text-sm text-gray-500">Digest run not found.</div>;
 
@@ -316,15 +346,65 @@ export default function DigestRunPage() {
           )}
         </div>
 
+        {/* Draft POI section */}
+        {f.finding_type === "suggested_poi" && f.linked_poi_id && (
+          <div className={`mt-3 rounded-lg border p-3 ${
+            f.poi_source === "curated"
+              ? "bg-green-50 border-green-200"
+              : f.dismissed_at
+              ? "bg-gray-50 border-gray-200 opacity-60"
+              : "bg-amber-50 border-amber-200"
+          }`}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                {f.poi_source === "curated" ? "✓ POI Accepted" : "Draft POI Suggested"}
+              </span>
+              {f.poi_severity !== null && (
+                <span className={`text-xs font-semibold ${f.poi_severity < 0 ? "text-red-600" : f.poi_severity > 0 ? "text-green-600" : "text-gray-400"}`}>
+                  severity {f.poi_severity > 0 ? `+${f.poi_severity}` : f.poi_severity}
+                </span>
+              )}
+            </div>
+            {f.poi_title && <p className="text-sm font-medium text-gray-800 mb-0.5">{f.poi_title}</p>}
+            {f.poi_description && <p className="text-xs text-gray-500 mb-2 line-clamp-2">{f.poi_description}</p>}
+            {isPending && f.poi_source === "digest-draft" && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleAcceptDraftPoi(f)}
+                  disabled={isDismissing}
+                  className="px-2.5 py-1 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  Accept
+                </button>
+                <a
+                  href={`/admin/pois/${f.linked_poi_id}/edit`}
+                  className="px-2.5 py-1 text-xs font-medium rounded border border-gray-300 text-gray-600 hover:bg-white"
+                >
+                  Edit
+                </a>
+                <button
+                  onClick={() => handleRejectDraftPoi(f)}
+                  disabled={isDismissing}
+                  className="px-2.5 py-1 text-xs font-medium rounded border border-red-200 text-red-500 hover:bg-red-50 disabled:opacity-50"
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Actions */}
         {isPending && !isApproving && (
           <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-            <button
-              onClick={() => setApprovingId(f.id)}
-              className="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
-            >
-              Approve…
-            </button>
+            {f.finding_type !== "suggested_poi" && (
+              <button
+                onClick={() => setApprovingId(f.id)}
+                className="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Approve…
+              </button>
+            )}
             <button
               onClick={() => handleDismiss(f)}
               disabled={isDismissing}
