@@ -12,13 +12,26 @@ in other readme files.
 Hard cap at ~932 miles (1,500 km) per request. This is already blocking
 cross-country routes on the US travel map.
 
-**Recommended fix:** Switch to Stadia Maps routing (same Valhalla API, one URL
-change, no distance limit on paid plans). See **[readme-routing.md](readme-routing.md)**
-for the full options table and step-by-step Stadia switchover instructions.
+**Planned features that affect call volume:** Safety routing will add a lazy
+second Valhalla call when a route passes through high-severity regions (one
+extra call per session, only when triggered by the user). Manual waypoint
+support and future alternative-route comparison may add further calls. Budget
+accordingly.
 
-**Cost:** Stadia Maps is usage-based. Check current pricing at stadiamaps.com.
-Self-hosted Valhalla is an alternative with no per-request cost (~$20–40/mo VPS,
-~50 GB disk for the US routing graph).
+**Privacy note:** Safety routing sends user origin, destination, and avoidance
+preferences to the routing provider. Self-hosting keeps all route data on your
+own infrastructure — important for a privacy-sensitive user base.
+
+**Recommended path:**
+1. **Near-term:** Switch to Stadia Maps (same Valhalla API, one URL change in
+   `src/app/api/route/route.ts`, no distance limit, ~$8–16 per 1,000 requests).
+   This unblocks cross-country routing immediately.
+2. **Long-term:** Self-host Valhalla (~$20–40/mo VPS, ~10 GB compressed US OSM
+   extract, 2–4 GB RAM at runtime). No per-request cost, no third-party route
+   logging, full control over `exclude_polygons` for safety routing.
+
+See **[readme-routing.md](readme-routing.md)** for the full options table and
+step-by-step Stadia switchover instructions.
 
 ---
 
@@ -71,7 +84,7 @@ VPS) or Umami (simpler, near-zero cost). See the **Analytics** section of
 
 | Priority | Service | Blocker today? | Recommended action |
 |----------|---------|---------------|-------------------|
-| **1** | Routing (Valhalla) | Yes — 932-mile cap | Switch to Stadia Maps routing |
+| **1** | Routing (Valhalla) | Yes — 932-mile cap | Stadia Maps now; self-host long-term |
 | **2** | Geocoding | At scale | Switch to Stadia Maps geocoding |
 | **3** | Base tiles | At scale | Upgrade Stadia plan or self-host |
 | **4** | Image storage | Not yet | Stay on Cloudinary free tier |
