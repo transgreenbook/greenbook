@@ -302,11 +302,25 @@ export default function POIForm({ initialData }: Props) {
       }
     }
 
+    // For county/city scope, extract the selected sub-region name so it can
+    // be stored alongside the geom (the trigger doesn't auto-populate these
+    // for non-point scopes).
+    const subName = (scope === "county" || scope === "city") && form.sub_coords
+      ? (JSON.parse(form.sub_coords) as { name: string }).name
+      : null;
+
     const payload = {
       title:            form.title.trim(),
       description:      form.description.trim() || null,
       long_description: form.long_description.trim() || null,
-      geom:             `POINT(${lng} ${lat})`,
+      geom:             `SRID=4326;POINT(${lng} ${lat})`,
+      // state_abbr must be set explicitly for state/county/city scopes — the
+      // bidirectional geo trigger only auto-populates it for effect_scope='point'.
+      state_abbr:  scope === "state"  ? (form.state_abbr || null)
+                 : (scope === "county" || scope === "city") ? (form.sub_state || null)
+                 : null,
+      county_name: scope === "county" ? (subName ?? null) : null,
+      city_name:   scope === "city"   ? (subName ?? null) : null,
       category_id:      form.category_id ? parseInt(form.category_id) : null,
       is_verified:      form.is_verified,
       is_visible:       form.is_visible,
@@ -347,8 +361,7 @@ export default function POIForm({ initialData }: Props) {
       setError(err.message);
       setSaving(false);
     } else {
-      router.push("/admin/pois");
-      router.refresh();
+      router.back();
     }
   }
 
@@ -785,7 +798,7 @@ export default function POIForm({ initialData }: Props) {
         </button>
         <button
           type="button"
-          onClick={() => router.push("/admin/pois")}
+          onClick={() => router.back()}
           className="text-gray-600 px-4 py-2 rounded text-sm font-medium hover:bg-gray-100"
         >
           Cancel

@@ -381,6 +381,102 @@ A third-party policy summary covering the same state/topic is NOT a reason to sk
 }
 
 // ---------------------------------------------------------------------------
+// Draft POI research (best-effort article fetch + second Claude call)
+// ---------------------------------------------------------------------------
+
+async function fetchArticleText(url) {
+  try {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'TransSafeTravels-Digest/1.0' },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    const clean = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return clean.slice(0, 8000);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch the full article and run a targeted second Claude call to extract
+ * legal specifics (bill number, case name, enactment year, current status).
+ * Returns a merged suggestedPoi with improved title/description/source_url.
+ * On any failure, returns the original suggestedPoi unchanged.
+ */
+async function researchDraftPoi(articleUrl, suggestedPoi) {
+  const articleText = await fetchArticleText(articleUrl);
+  if (!articleText) {
+    console.log(`  Research: could not fetch article text — using initial draft`);
+    return suggestedPoi;
+  }
+
+  const prompt = `You are extracting specific legal metadata from a news article about a law, bill, or court ruling.
+
+Article URL: ${articleUrl}
+Article text:
+${articleText}
+
+The article appears to reference: "${suggestedPoi.title}" in ${suggestedPoi.state_abbr ?? 'an unknown state'}.
+
+Extract the following fields. Return ONLY a raw JSON object — no commentary, no markdown fences.
+
+{
+  "bill_number": "<e.g. SB 280, HB 100, or null if not a bill>",
+  "case_name": "<official case name if a court ruling, e.g. 'Kalarchik v. Montana', or null>",
+  "enactment_year": <year as integer, or null if not found>,
+  "current_status": "<one of: passed | blocked | enjoined | pending | repealed | enacted | null>",
+  "improved_title": "<concise title using bill/case identifiers — e.g. 'MT SB 280' or 'Kalarchik v. Montana'. Format: STATE BILL_NUMBER or case name. Fall back to the original title only if no specifics are found in the article>",
+  "improved_description": "<2-3 sentences covering what the law/ruling does, its current status, and any key identifiers such as bill number or case name>",
+  "authoritative_url": "<direct URL to official bill text, court docket, ACLU page, or Lambda Legal page found in this article — prefer over news article URLs. Null if none found>"
+}`;
+
+  try {
+    const message = await anthropic.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages:   [{ role: 'user', content: prompt }],
+    });
+
+    const raw = message.content[0]?.text ?? '{}';
+    const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const candidates = [
+      raw.trim(),
+      stripped,
+      (() => { const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); return s !== -1 && e > s ? raw.slice(s, e + 1) : ''; })(),
+    ];
+
+    let enriched = null;
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      try { enriched = JSON.parse(candidate); break; } catch {}
+    }
+
+    if (!enriched) {
+      console.warn(`  Research: failed to parse Claude response — using initial draft`);
+      return suggestedPoi;
+    }
+
+    const result = { ...suggestedPoi };
+    if (enriched.improved_title)       result.title       = enriched.improved_title;
+    if (enriched.improved_description) result.description = enriched.improved_description;
+    if (enriched.authoritative_url)    result.source_url  = enriched.authoritative_url;
+
+    console.log(`  Research: "${suggestedPoi.title}" → "${result.title}"`);
+    return result;
+  } catch (err) {
+    console.warn(`  Research: Claude call failed — using initial draft:`, err.message);
+    return suggestedPoi;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Draft POI creation
 // ---------------------------------------------------------------------------
 
@@ -644,7 +740,11 @@ async function main() {
     if (suggestedPoiFindings.length > 0) {
       console.log(`\nCreating ${suggestedPoiFindings.length} draft POI(s)…`);
       for (const f of suggestedPoiFindings) {
-        f._draft_poi_id = await createDraftPoi(f.suggested_poi, context.categoryMap);
+        const articleUrl = f._article?.url;
+        const enriched = articleUrl
+          ? await researchDraftPoi(articleUrl, f.suggested_poi)
+          : f.suggested_poi;
+        f._draft_poi_id = await createDraftPoi(enriched, context.categoryMap);
       }
     }
 

@@ -87,16 +87,18 @@ export default function AdminPOIsPage() {
 
   const FILTER_KEY = "admin-poi-filters";
 
-  // Save filters to sessionStorage whenever they change (but not during initial load)
+  // Save all filter state (including which category chips are loaded) so that
+  // initialLoad can fully restore the page after any navigation.
   useEffect(() => {
     if (loading) return;
     sessionStorage.setItem(FILTER_KEY, JSON.stringify({
-      hiddenCatIds: Array.from(hiddenCatIds),
+      hiddenCatIds:  Array.from(hiddenCatIds),
       hideUnverified,
       reviewOnly,
       selectedState,
+      loadedCatIds:  categories.filter((c) => c.loaded).map((c) => c.id),
     }));
-  }, [hiddenCatIds, hideUnverified, reviewOnly, selectedState, loading]);
+  }, [hiddenCatIds, hideUnverified, reviewOnly, selectedState, loading, categories]);
 
   // ── Initial load ────────────────────────────────────────────────────────────
 
@@ -135,30 +137,66 @@ export default function AdminPOIsPage() {
     }));
     setCategories(cats);
 
-    // 2. Load unverified POIs (across all non-bulk categories)
-    const nonBulkCatIds = cats.filter((c) => !c.bulk).map((c) => c.id);
-    const { data: poiData } = await supabase
-      .from("points_of_interest")
-      .select("id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, source, review_after, review_note")
-      .eq("is_verified", false)
-      .in("category_id", nonBulkCatIds)
-      .order("created_at", { ascending: false });
+    const POI_SELECT = "id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, source, review_after, review_note";
 
-    setPois(mapPOIs(poiData ?? []));
-    // Categories are NOT marked loaded here — the initial fetch only loads
-    // unverified POIs. Clicking a category button loads all its POIs.
-
-    // Restore saved filters, or default to hiding bulk categories
+    // 2. Restore saved filters (or apply defaults)
     const saved = sessionStorage.getItem(FILTER_KEY);
+    let savedLoadedCatIds: number[] = [];
     if (saved) {
-      const { hiddenCatIds: savedHidden, hideUnverified: savedHide, reviewOnly: savedReview, selectedState: savedState } = JSON.parse(saved);
+      const { hiddenCatIds: savedHidden, hideUnverified: savedHide, reviewOnly: savedReview, selectedState: savedState, loadedCatIds: savedLoaded } = JSON.parse(saved);
       setHiddenCatIds(new Set(savedHidden as number[]));
       setHideUnverified(savedHide);
       setReviewOnly(savedReview);
       setSelectedState(savedState ?? null);
+      savedLoadedCatIds = (savedLoaded as number[] | undefined) ?? [];
     } else {
       setHiddenCatIds(new Set(cats.filter((c) => c.bulk).map((c) => c.id)));
     }
+
+    // 3. Load unverified POIs (baseline) + any previously loaded categories in parallel
+    const nonBulkCatIds   = cats.filter((c) => !c.bulk).map((c) => c.id);
+    const toReloadCatIds  = savedLoadedCatIds.filter((id) => cats.some((c) => c.id === id && !c.bulk));
+
+    const fetches: Promise<POI[]>[] = [
+      supabase
+        .from("points_of_interest")
+        .select(POI_SELECT)
+        .eq("is_verified", false)
+        .in("category_id", nonBulkCatIds)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => mapPOIs(data ?? [])),
+    ];
+
+    if (toReloadCatIds.length > 0) {
+      fetches.push(
+        supabase
+          .from("points_of_interest")
+          .select(POI_SELECT)
+          .in("category_id", toReloadCatIds)
+          .order("created_at", { ascending: false })
+          .then(({ data }) => mapPOIs(data ?? []))
+      );
+    }
+
+    const results = await Promise.all(fetches);
+    const seen = new Set<number>();
+    const merged: POI[] = [];
+    for (const batch of results) {
+      for (const p of batch) {
+        if (!seen.has(p.id)) { seen.add(p.id); merged.push(p); }
+      }
+    }
+    setPois(merged);
+
+    // Mark reloaded categories as loaded
+    if (toReloadCatIds.length > 0) {
+      const reloadedSet = new Set(toReloadCatIds);
+      setCategories((prev) => prev.map((c) => reloadedSet.has(c.id) ? { ...c, loaded: true } : c));
+    }
+
+    // Clear any pending refresh flag (in case this is a post-save remount)
+    sessionStorage.removeItem("poi-list-needs-refresh");
+
     setLoading(false);
   }
 
