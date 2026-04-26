@@ -22,7 +22,10 @@ CREATE POLICY "read_pois"
 
 -- ── 3. pois view ──────────────────────────────────────────────────────────
 -- Expose is_visible so client queries (POIDetailPanel, etc.) can read it.
-CREATE OR REPLACE VIEW pois AS
+-- Must DROP and recreate because PostgreSQL forbids adding a column in the
+-- middle of an existing view via CREATE OR REPLACE.
+DROP VIEW IF EXISTS pois;
+CREATE VIEW pois AS
 SELECT
   id,
   title,
