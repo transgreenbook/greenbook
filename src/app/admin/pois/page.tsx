@@ -160,7 +160,7 @@ export default function AdminPOIsPage() {
     const nonBulkCatIds   = cats.filter((c) => !c.bulk).map((c) => c.id);
     const toReloadCatIds  = savedLoadedCatIds.filter((id) => cats.some((c) => c.id === id && !c.bulk));
 
-    const fetches: Promise<POI[]>[] = [
+    const fetches = [
       supabase
         .from("points_of_interest")
         .select(POI_SELECT)
