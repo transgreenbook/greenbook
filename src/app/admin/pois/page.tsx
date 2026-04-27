@@ -629,7 +629,19 @@ export default function AdminPOIsPage() {
         const policyCats = categories.filter((c) => c.name.startsWith("Policy Rating —"));
         const otherCats  = categories.filter((c) => !c.name.startsWith("Law —") && !c.name.startsWith("Policy Rating —"));
 
-        function toggleGroup(group: Category[]) {
+        async function toggleGroup(group: Category[]) {
+          const unloaded = group.filter((c) => !c.loaded && !c.bulk);
+          if (unloaded.length > 0) {
+            // Load all unloaded categories — loadCategory already makes them visible
+            const totalCount = unloaded.reduce((sum, c) => sum + (c.count ?? 0), 0);
+            if (
+              totalCount > LOAD_WARNING_THRESHOLD &&
+              !confirm(`Loading will add ${totalCount.toLocaleString()} records. Continue?`)
+            ) return;
+            await Promise.all(unloaded.map((c) => loadCategory(c)));
+            return;
+          }
+          // All already loaded — toggle visibility
           const anyVisible = group.some((c) => !hiddenCatIds.has(c.id));
           setHiddenCatIds((prev) => {
             const next = new Set(prev);
@@ -639,7 +651,7 @@ export default function AdminPOIsPage() {
         }
 
         function GroupToggle({ label, group, color }: { label: string; group: Category[]; color: string }) {
-          const anyVisible = group.some((c) => !hiddenCatIds.has(c.id));
+          const anyVisible = group.some((c) => !c.loaded || !hiddenCatIds.has(c.id));
           return (
             <button
               type="button"
