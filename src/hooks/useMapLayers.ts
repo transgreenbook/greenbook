@@ -35,8 +35,10 @@ async function svgToMapImage(url: string, fill: string, size: number): Promise<M
   });
 }
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 const POI_ICONS: Array<{ name: string; url: string; fill: string }> = [
-  { name: "poi-restroom", url: "/icons/transgender-symbol.svg", fill: "#1e40af" },
+  { name: "poi-restroom", url: `${basePath}/icons/transgender-symbol.svg`, fill: "#1e40af" },
 ];
 
 const ICON_SIZE = 48; // render at 2× for retina sharpness

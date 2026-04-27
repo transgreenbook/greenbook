@@ -15,10 +15,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export const metadata: Metadata = {
   title: "TransSafeTravels",
   description: "Interactive US travel map",
-  manifest: "/manifest.json",
+  manifest: `${basePath}/manifest.json`,
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -42,7 +44,7 @@ export default function RootLayout({
     >
       <head>
         <meta name="theme-color" content="#1e3a5f" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" href={`${basePath}/icons/icon-192.png`} />
       </head>
       <body className="h-full flex flex-col">
         <Providers>{children}</Providers>
