@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { POIProperties } from "@/hooks/usePOIs";
+import type { POIProperties, Bounds } from "@/hooks/usePOIs";
 
 interface SelectedPOI extends POIProperties {
   lng: number;
@@ -33,6 +33,8 @@ interface MapStore {
   setSelectedPOI: (poi: SelectedPOI | null) => void;
   selectedRegion: SelectedRegion | null;
   setSelectedRegion: (region: SelectedRegion | null) => void;
+  boxSelectionBounds: Bounds | null;
+  setBoxSelectionBounds: (bounds: Bounds | null) => void;
   pendingFlyTo: FlyToTarget | null;
   flyTo: (target: FlyToTarget) => void;
   clearFlyTo: () => void;
@@ -43,6 +45,8 @@ export const useMapStore = create<MapStore>((set) => ({
   setSelectedPOI: (poi) => set({ selectedPOI: poi }),
   selectedRegion: null,
   setSelectedRegion: (region) => set({ selectedRegion: region }),
+  boxSelectionBounds: null,
+  setBoxSelectionBounds: (bounds) => set({ boxSelectionBounds: bounds }),
   pendingFlyTo: null,
   flyTo: (target) => set({ pendingFlyTo: target }),
   clearFlyTo: () => set({ pendingFlyTo: null }),

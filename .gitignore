@@ -45,6 +45,9 @@ next-env.d.ts
 /tmp/
 /public/tiles/
 
+# generated digest preview (output of scripts/news-digest.mjs --dry-run)
+/public/digest-preview.html
+
 # internal docs — operational plans, costs, domain info, dev notes
 # keep locally and in nightly backup; not for public repo
 docs/internal/

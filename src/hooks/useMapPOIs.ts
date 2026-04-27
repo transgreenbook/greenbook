@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
 import type { FeatureCollection, Point } from "geojson";
 import { usePOIs, type Bounds, type POIProperties } from "./usePOIs";
+import { useMapStore } from "@/store/mapStore";
 
 function getBounds(map: maplibregl.Map): Bounds {
   const b = map.getBounds();
@@ -20,12 +21,30 @@ const EMPTY: FeatureCollection<Point, POIProperties> = { type: "FeatureCollectio
 export function useMapPOIs(map: maplibregl.Map | null) {
   const [bounds, setBounds] = useState<Bounds | null>(null);
   const { data: geojson } = usePOIs(bounds);
+  const setBoxSelectionBounds = useMapStore((s) => s.setBoxSelectionBounds);
+  const setSelectedRegion     = useMapStore((s) => s.setSelectedRegion);
+
+  // Flag: the next moveend was triggered by a box zoom gesture.
+  const pendingBoxZoom = useRef(false);
 
   useEffect(() => {
     if (!map) return;
 
     const onLoad = () => setBounds(getBounds(map));
-    const onMoveEnd = () => setBounds(getBounds(map));
+
+    const onBoxZoomEnd = () => {
+      pendingBoxZoom.current = true;
+    };
+
+    const onMoveEnd = () => {
+      const b = getBounds(map);
+      setBounds(b);
+      if (pendingBoxZoom.current) {
+        pendingBoxZoom.current = false;
+        setSelectedRegion(null); // dismiss any open region panel
+        setBoxSelectionBounds(b);
+      }
+    };
 
     if (map.isStyleLoaded()) {
       onLoad();
@@ -33,8 +52,10 @@ export function useMapPOIs(map: maplibregl.Map | null) {
       map.once("load", onLoad);
     }
 
+    map.on("boxzoomend", onBoxZoomEnd);
     map.on("moveend", onMoveEnd);
     return () => {
+      map.off("boxzoomend", onBoxZoomEnd);
       map.off("moveend", onMoveEnd);
     };
   }, [map]);

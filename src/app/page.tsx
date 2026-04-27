@@ -5,6 +5,7 @@ import MapLoader from "@/components/MapLoader";
 import ModeToggle from "@/components/ModeToggle";
 import SearchBar from "@/components/SearchBar";
 import RegionPOIPanel from "@/components/RegionPOIPanel";
+import BoxSelectionPanel from "@/components/BoxSelectionPanel";
 import RoutingPanel from "@/components/RoutingPanel";
 import RoutePOIPanel from "@/components/RoutePOIPanel";
 import RouteBufferSlider from "@/components/RouteBufferSlider";
@@ -28,6 +29,7 @@ export default function Home() {
         {mode !== "route" && <SearchBar />}
 
         {mode === "map" && <RegionPOIPanel />}
+        {mode === "map" && <BoxSelectionPanel />}
 
         {mode === "route" && (
           <>
