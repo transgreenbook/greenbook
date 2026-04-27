@@ -191,6 +191,7 @@ function mapPoiRow(row: RoutePOI & { lng: number; lat: number }): RoutePOI {
     lng:              row.lng,
     lat:              row.lat,
     state_abbr:       (row as unknown as Record<string, unknown>).state_abbr as string | null ?? null,
+    state_name:       (row as unknown as Record<string, unknown>).state_name as string | null ?? null,
     effect_scope:     (row as unknown as Record<string, unknown>).effect_scope as string | null ?? null,
     route_dist:       (row as unknown as Record<string, unknown>).route_dist as number | null ?? null,
   };

@@ -7,6 +7,7 @@ export interface RoutePOI extends POIProperties {
   lng: number;
   lat: number;
   state_abbr:   string | null;
+  state_name:   string | null;
   effect_scope: string | null;
   route_dist:   number | null;
 }

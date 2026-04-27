@@ -73,22 +73,23 @@ export default function RoutePOIPanel() {
 
   // Group by state in travel order (first appearance of each state along route).
   // Within each state, sort by severity ascending (most negative/dangerous first).
-  const stateGroups: { state: string | null; pois: typeof visiblePois }[] = [];
+  const stateGroups: { abbr: string | null; name: string | null; pois: typeof visiblePois }[] = [];
   const stateOrder: (string | null)[] = [];
-  const stateMap = new Map<string | null, typeof visiblePois>();
+  const stateMap = new Map<string | null, { name: string | null; pois: typeof visiblePois }>();
 
   const sorted = [...visiblePois].sort((a, b) => (a.route_dist ?? 0) - (b.route_dist ?? 0));
   for (const poi of sorted) {
     const key = poi.state_abbr ?? null;
     if (!stateMap.has(key)) {
       stateOrder.push(key);
-      stateMap.set(key, []);
+      stateMap.set(key, { name: poi.state_name ?? null, pois: [] });
     }
-    stateMap.get(key)!.push(poi);
+    stateMap.get(key)!.pois.push(poi);
   }
-  for (const state of stateOrder) {
-    const pois = (stateMap.get(state) ?? []).sort((a, b) => (a.severity ?? 0) - (b.severity ?? 0));
-    stateGroups.push({ state, pois });
+  for (const abbr of stateOrder) {
+    const entry = stateMap.get(abbr)!;
+    const pois = entry.pois.sort((a, b) => (a.severity ?? 0) - (b.severity ?? 0));
+    stateGroups.push({ abbr, name: entry.name, pois });
   }
 
   const header = (
@@ -127,11 +128,11 @@ export default function RoutePOIPanel() {
       )}
       {!isLoading && visiblePois.length > 0 && (
         <div className="-mx-4">
-          {stateGroups.map(({ state, pois: groupPois }) => (
-            <div key={state ?? "unknown"}>
-              {state && (
-                <div className="px-4 py-1.5 bg-gray-50 border-y border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  {state}
+          {stateGroups.map(({ abbr, name, pois: groupPois }) => (
+            <div key={abbr ?? "unknown"}>
+              {(name || abbr) && (
+                <div className="px-4 py-2 bg-gray-100 border-y border-gray-200 text-sm font-semibold text-gray-700">
+                  {name ?? abbr}
                 </div>
               )}
               <ul>
