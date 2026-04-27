@@ -43,7 +43,8 @@ export async function fetchRoute(
   start: RouteWaypoint,
   end: RouteWaypoint
 ): Promise<RouteResult> {
-  const res = await fetch("/api/route", {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  const res = await fetch(`${basePath}/api/route`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
