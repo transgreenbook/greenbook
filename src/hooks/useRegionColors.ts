@@ -75,6 +75,8 @@ export function useRegionColors(map: maplibregl.Map | null) {
     const mapRef = map;
 
     async function apply() {
+      if (!regionPOIs) return;
+
       // Wait until our custom sources (added by registerLayers) are actually
       // registered. isStyleLoaded() only confirms the base Stadia style is ready;
       // our programmatic sources may not exist yet (e.g. React Query cache is warm
