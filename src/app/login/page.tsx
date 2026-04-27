@@ -15,7 +15,8 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    console.log("auth result", { data, error });
     if (error) {
       setError(error.message);
       setLoading(false);
