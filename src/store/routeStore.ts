@@ -6,6 +6,9 @@ import { useMapStore } from "@/store/mapStore";
 export interface RoutePOI extends POIProperties {
   lng: number;
   lat: number;
+  state_abbr:   string | null;
+  effect_scope: string | null;
+  route_dist:   number | null;
 }
 
 interface RouteStore {

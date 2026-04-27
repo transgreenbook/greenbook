@@ -69,7 +69,27 @@ export default function RoutePOIPanel() {
     if (p.category_id != null) return !hiddenCategoryIds.includes(p.category_id);
     if (p.icon)                return !hiddenCategoryIcons.includes(p.icon);
     return true;
-  }).sort((a, b) => (a.severity ?? 0) - (b.severity ?? 0));
+  });
+
+  // Group by state in travel order (first appearance of each state along route).
+  // Within each state, sort by severity ascending (most negative/dangerous first).
+  const stateGroups: { state: string | null; pois: typeof visiblePois }[] = [];
+  const stateOrder: (string | null)[] = [];
+  const stateMap = new Map<string | null, typeof visiblePois>();
+
+  const sorted = [...visiblePois].sort((a, b) => (a.route_dist ?? 0) - (b.route_dist ?? 0));
+  for (const poi of sorted) {
+    const key = poi.state_abbr ?? null;
+    if (!stateMap.has(key)) {
+      stateOrder.push(key);
+      stateMap.set(key, []);
+    }
+    stateMap.get(key)!.push(poi);
+  }
+  for (const state of stateOrder) {
+    const pois = (stateMap.get(state) ?? []).sort((a, b) => (a.severity ?? 0) - (b.severity ?? 0));
+    stateGroups.push({ state, pois });
+  }
 
   const header = (
     <button
@@ -106,27 +126,41 @@ export default function RoutePOIPanel() {
         <p className="text-sm text-gray-400">All POIs along this route are hidden by your filters.</p>
       )}
       {!isLoading && visiblePois.length > 0 && (
-        <ul className="-mx-4">
-          {visiblePois.map((poi) => (
-            <li key={poi.id}>
-              <button
-                className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0 flex items-start gap-3"
-                onClick={() => handlePOIClick(poi)}
-              >
-                <span
-                  className="mt-1 w-3 h-3 rounded-full shrink-0"
-                  style={{ backgroundColor: poi.color ?? "#3b82f6" }}
-                />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-800 truncate">{poi.title}</div>
-                  {poi.description && (
-                    <div className="text-xs text-gray-400 truncate">{poi.description}</div>
-                  )}
+        <div className="-mx-4">
+          {stateGroups.map(({ state, pois: groupPois }) => (
+            <div key={state ?? "unknown"}>
+              {state && (
+                <div className="px-4 py-1.5 bg-gray-50 border-y border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  {state}
                 </div>
-              </button>
-            </li>
+              )}
+              <ul>
+                {groupPois.map((poi) => (
+                  <li key={poi.id}>
+                    <button
+                      className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0 flex items-start gap-3"
+                      onClick={() => handlePOIClick(poi)}
+                    >
+                      <span
+                        className="mt-1 w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: poi.color ?? "#3b82f6" }}
+                      />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">{poi.title}</div>
+                        {poi.description && (
+                          <div className="text-xs text-gray-400 truncate">{poi.description}</div>
+                        )}
+                        {poi.effect_scope && poi.effect_scope !== "point" && poi.effect_scope !== "state" && (
+                          <div className="text-xs text-gray-300 truncate capitalize">{poi.effect_scope}-level</div>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </>
   );
