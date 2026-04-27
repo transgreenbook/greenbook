@@ -30,17 +30,19 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
   if (request.nextUrl.pathname.startsWith("/admin") && !user) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL(`${basePath}/login`, request.url));
   }
 
-  if (request.nextUrl.pathname === "/login" && user) {
-    return NextResponse.redirect(new URL("/admin", request.url));
+  if (request.nextUrl.pathname === `${basePath}/login` && user) {
+    return NextResponse.redirect(new URL(`${basePath}/admin`, request.url));
   }
 
   return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/login"],
+  matcher: ["/admin/:path*", "/login", "/demo/admin/:path*", "/demo/login"],
 };
