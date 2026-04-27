@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.50.233"],
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   reactStrictMode: false,
   turbopack: {},
 
