@@ -74,6 +74,8 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
     const mapRef = map;
 
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
     async function apply() {
       if (!regionPOIs) return;
 
@@ -106,7 +108,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       // ── States ────────────────────────────────────────────────────────
       if (statePOIs.length || statePositivePOIs.length) {
-        const geo = await fetch("/state-centroids.geojson", { cache: "no-cache" }).then((r) => r.json());
+        const geo = await fetch(`${basePath}/state-centroids.geojson`).then((r) => r.json());
         const centroids = (geo.features as { properties: { STUSPS: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
             abbr: f.properties.STUSPS,
@@ -136,7 +138,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       // ── Cities ────────────────────────────────────────────────────────
       if (cityPOIs.length || cityPositivePOIs.length) {
-        const geo = await fetch("/city-centroids.geojson").then((r) => r.json());
+        const geo = await fetch(`${basePath}/city-centroids.geojson`).then((r) => r.json());
         const centroids = (geo.features as { properties: { NAME: string; STATEFP: string; PLACEFP: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
             placefp: f.properties.PLACEFP,
@@ -166,7 +168,7 @@ export function useRegionColors(map: maplibregl.Map | null) {
 
       // ── Counties ──────────────────────────────────────────────────────
       if (countyPOIs.length || countyPositivePOIs.length) {
-        const geo = await fetch("/county-centroids.geojson").then((r) => r.json());
+        const geo = await fetch(`${basePath}/county-centroids.geojson`).then((r) => r.json());
         const centroids = (geo.features as { properties: { STATEFP: string; COUNTYFP: string }; geometry: { coordinates: [number, number] } }[])
           .map((f) => ({
             geoid: f.properties.STATEFP + f.properties.COUNTYFP,

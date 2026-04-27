@@ -12,6 +12,7 @@ import type { Map, LayerSpecification, SourceSpecification } from "maplibre-gl";
 // ---------------------------------------------------------------------------
 
 const pmtilesUrl = process.env.NEXT_PUBLIC_PMTILES_URL;
+const basePath   = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 function boundarySource(
   promoteId?: Record<string, string>,
@@ -19,7 +20,7 @@ function boundarySource(
 ): SourceSpecification {
   if (pmtilesUrl) {
     const absolute = pmtilesUrl.startsWith("/")
-      ? `${typeof window !== "undefined" ? window.location.origin : ""}${pmtilesUrl}`
+      ? `${typeof window !== "undefined" ? window.location.origin : ""}${basePath}${pmtilesUrl}`
       : pmtilesUrl;
     return {
       type: "vector",
@@ -37,23 +38,23 @@ export const SOURCES: Record<string, SourceSpecification> = {
   states:           boundarySource({ states: "STUSPS" }),
   "states-centroids": {
     type: "geojson",
-    data: "/state-centroids.geojson",
+    data: `${basePath}/state-centroids.geojson`,
   },
   // Native American / Alaska Native / Hawaiian Home Land reservation boundaries.
   // Loaded from the TIGER/Line AIANNH shapefile via scripts/build-tiles.sh.
   // Served as a static GeoJSON file (not PMTiles) — ~500 features, manageable size.
   reservations: {
     type: "geojson",
-    data: "/reservations.geojson",
+    data: `${basePath}/reservations.geojson`,
     promoteId: "GEOID",
   },
   "reservations-centroids": {
     type: "geojson",
-    data: "/reservation-centroids.geojson",
+    data: `${basePath}/reservation-centroids.geojson`,
   },
   "counties-centroids": {
     type: "geojson",
-    data: "/county-centroids.geojson",
+    data: `${basePath}/county-centroids.geojson`,
   },
   // Counties and places tiles only go to zoom 12 (built with --maximum-zoom=12).
   // The merged boundaries.pmtiles reports maxzoom 14 (from states), so without
@@ -63,11 +64,11 @@ export const SOURCES: Record<string, SourceSpecification> = {
   places:   boundarySource({ places: "PLACEFP" }, 12),
   "cities-centroids": {
     type: "geojson",
-    data: "/city-centroids.geojson",
+    data: `${basePath}/city-centroids.geojson`,
   },
   "major-cities-centroids": {
     type: "geojson",
-    data: "/major-city-centroids.geojson",
+    data: `${basePath}/major-city-centroids.geojson`,
   },
   // POIs are loaded dynamically from Supabase — data is swapped in by the POI hook.
   // Positive/neutral POIs (severity >= 0 or null) — blue clusters.

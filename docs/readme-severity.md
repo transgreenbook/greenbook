@@ -23,7 +23,7 @@ Region colors are determined by the **most severe** POI in that region. Clicking
 | **-2** | Public officials actively making anti-trans statements or publicly advocating for legislation, even if nothing has been formally proposed |
 | **-1** | Anti-trans legislation passed in the last 5 years (minor in scope) |
 | **0** | Neutral — no notable laws or climate indicators in either direction |
-| **+1** | No anti-trans laws on the books in this jurisdiction |
+| **+1** | No anti-trans laws on the books in this jurisdiction, generally friendly reputation |
 | **+2** | Non-discrimination protections or pro-trans laws in place |
 | **+3** | Non-discrimination protections actively enforced with documented outcomes |
 | **+4** | Protections across multiple domains (employment, housing, public accommodations) |
