@@ -108,6 +108,14 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   },
+  // Region-selection POIs — swapped in when a state/county/city is selected.
+  "pois-region": {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+    cluster: true,
+    clusterMaxZoom: 12,
+    clusterRadius: 50,
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -637,6 +645,59 @@ export const LAYERS: LayerSpecification[] = [
       "circle-radius": 9,
       "circle-color": "#ef4444",
       "circle-stroke-width": 2.5,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 1,
+      "circle-stroke-opacity": 1,
+    },
+  },
+
+  // --- Region-selection POI clusters ---
+  {
+    id: "pois-region-cluster",
+    type: "circle",
+    source: "pois-region",
+    filter: ["has", "point_count"],
+    layout: { visibility: "none" },
+    paint: {
+      "circle-color": "#60a5fa",
+      "circle-radius": [
+        "step", ["get", "point_count"],
+        16,
+        10, 22,
+        50, 28,
+      ],
+      "circle-opacity": 1,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-opacity": 1,
+    },
+  },
+  {
+    id: "pois-region-cluster-count",
+    type: "symbol",
+    source: "pois-region",
+    filter: ["has", "point_count"],
+    layout: {
+      visibility: "none",
+      "text-field": "{point_count_abbreviated}",
+      "text-font": ["Open Sans Bold"],
+      "text-size": 12,
+    },
+    paint: {
+      "text-color": "#ffffff",
+      "text-opacity": 1,
+    },
+  },
+  {
+    id: "pois-region-unclustered",
+    type: "circle",
+    source: "pois-region",
+    filter: ["!", ["has", "point_count"]],
+    layout: { visibility: "none" },
+    paint: {
+      "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
+      "circle-radius": 6,
+      "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
       "circle-opacity": 1,
       "circle-stroke-opacity": 1,

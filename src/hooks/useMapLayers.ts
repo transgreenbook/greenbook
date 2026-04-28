@@ -74,12 +74,13 @@ export function useMapLayers(map: maplibregl.Map | null) {
     };
   }, [map]);
 
-  // Hide regular POI layers while box selection is active so they don't overlap
-  // the selection-specific dots.
+  // Hide regular POI layers while box selection OR region selection is active.
   const boxSelectionBounds = useMapStore((s) => s.boxSelectionBounds);
+  const selectedRegion     = useMapStore((s) => s.selectedRegion);
   useEffect(() => {
     if (!map) return;
-    const visibility = boxSelectionBounds ? "none" : "visible";
+    const hideRegular = !!(boxSelectionBounds || selectedRegion);
+    const regularVisibility = hideRegular ? "none" : "visible";
     const regularLayers = [
       "pois-cluster", "pois-cluster-count",
       "pois-negative-cluster", "pois-negative-cluster-count",
@@ -87,9 +88,18 @@ export function useMapLayers(map: maplibregl.Map | null) {
       "pois-unclustered-icons",
     ];
     for (const id of regularLayers) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", regularVisibility);
     }
-  }, [map, boxSelectionBounds]);
+    // Show region layers only when a region is selected (and no box selection)
+    const regionVisibility = (selectedRegion && !boxSelectionBounds) ? "visible" : "none";
+    const regionLayers = [
+      "pois-region-cluster", "pois-region-cluster-count",
+      "pois-region-unclustered",
+    ];
+    for (const id of regionLayers) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", regionVisibility);
+    }
+  }, [map, boxSelectionBounds, selectedRegion]);
 
   // Keep pois-bbox-selection source in sync with store
   const boxSelectionPois = useMapStore((s) => s.boxSelectionPois);
@@ -110,4 +120,24 @@ export function useMapLayers(map: maplibregl.Map | null) {
       })),
     });
   }, [map, boxSelectionPois]);
+
+  // Keep pois-region source in sync with store
+  const regionPois = useMapStore((s) => s.regionPois);
+  useEffect(() => {
+    if (!map) return;
+    const source = map.getSource("pois-region") as GeoJSONSource | undefined;
+    source?.setData({
+      type: "FeatureCollection",
+      features: regionPois.map((p) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+        properties: {
+          id: p.id, color: p.color, title: p.title,
+          description: p.description, category_id: p.category_id,
+          is_verified: p.is_verified, tags: JSON.stringify(p.tags ?? []),
+          icon: p.icon,
+        },
+      })),
+    });
+  }, [map, regionPois]);
 }

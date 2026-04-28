@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMobileSheet } from "@/hooks/useMobileSheet";
 import { useMapStore } from "@/store/mapStore";
 import { useRouteStore } from "@/store/routeStore";
@@ -20,9 +20,22 @@ const REGION_LABEL: Record<string, string> = {
 
 export default function RegionPOIPanel() {
   const { selectedRegion, setSelectedRegion, setSelectedPOI, flyTo } = useMapStore();
+  const setRegionPois = useMapStore((s) => s.setRegionPois);
   const isRoutingMode = useRouteStore((s) => s.isRoutingMode);
   const openPOI = useAppStore((s) => s.openPOI);
   const { data: pois, isLoading } = useRegionPOIs(selectedRegion);
+
+  // Sync loaded POIs to the map source so only region POIs appear as dots.
+  useEffect(() => {
+    if (pois) {
+      setRegionPois(pois.map((p) => ({
+        id: p.id, lng: p.lng, lat: p.lat, color: p.color,
+        title: p.title, description: p.description,
+        category_id: p.category_id, is_verified: p.is_verified,
+        tags: p.tags, icon: p.icon,
+      })));
+    }
+  }, [pois, setRegionPois]);
 
   const categories        = useFilterStore((s) => s.categories);
   const hiddenCategoryIds = useFilterStore((s) => s.hiddenCategoryIds);
