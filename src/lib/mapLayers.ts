@@ -104,6 +104,10 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   },
+  "pois-bbox-selection": {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -576,6 +580,21 @@ export const LAYERS: LayerSpecification[] = [
       "line-color": "#3b82f6",
       "line-width": 4,
       "line-opacity": 0.85,
+    },
+  },
+
+  // --- Box-selection POIs (highlighted) ---
+  {
+    id: "pois-bbox-selection",
+    type: "circle",
+    source: "pois-bbox-selection",
+    paint: {
+      "circle-color": ["coalesce", ["get", "color"], "#f59e0b"],
+      "circle-radius": 9,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": "#ffffff",
+      "circle-opacity": 1,
+      "circle-stroke-opacity": 1,
     },
   },
 

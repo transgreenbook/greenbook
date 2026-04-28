@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMobileSheet } from "@/hooks/useMobileSheet";
 import { useMapStore } from "@/store/mapStore";
 import { useRouteStore } from "@/store/routeStore";
@@ -13,8 +13,9 @@ import { supabase } from "@/lib/supabase";
 import POIFilter from "@/components/POIFilter";
 
 export default function BoxSelectionPanel() {
-  const boxSelectionBounds  = useMapStore((s) => s.boxSelectionBounds);
+  const boxSelectionBounds    = useMapStore((s) => s.boxSelectionBounds);
   const setBoxSelectionBounds = useMapStore((s) => s.setBoxSelectionBounds);
+  const setBoxSelectionPois   = useMapStore((s) => s.setBoxSelectionPois);
   const { setSelectedPOI, flyTo } = useMapStore();
   const isRoutingMode = useRouteStore((s) => s.isRoutingMode);
   const openPOI = useAppStore((s) => s.openPOI);
@@ -55,6 +56,23 @@ export default function BoxSelectionPanel() {
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
   const [showFilter, setShowFilter]             = useState(false);
   const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel();
+
+  // Push resolved POIs to the map source
+  useEffect(() => {
+    if (bboxPois) {
+      setBoxSelectionPois(bboxPois.map((p) => ({
+        id: p.id, lng: p.lng, lat: p.lat, color: p.color,
+        title: p.title, description: p.description,
+        category_id: p.category_id, is_verified: p.is_verified,
+        tags: p.tags, icon: p.icon,
+      })));
+    }
+  }, [bboxPois]);
+
+  // Clear map markers when panel is dismissed
+  useEffect(() => {
+    if (!boxSelectionBounds) setBoxSelectionPois([]);
+  }, [boxSelectionBounds]);
 
   if (!boxSelectionBounds || isRoutingMode) return null;
 

@@ -35,6 +35,12 @@ interface MapStore {
   setSelectedRegion: (region: SelectedRegion | null) => void;
   boxSelectionBounds: Bounds | null;
   setBoxSelectionBounds: (bounds: Bounds | null) => void;
+  boxSelectionPois: Array<{
+    id: number; lng: number; lat: number; color: string | null;
+    title: string; description: string | null; category_id: number | null;
+    is_verified: boolean; tags: string[] | null; icon: string | null;
+  }>;
+  setBoxSelectionPois: (pois: MapStore["boxSelectionPois"]) => void;
   pendingFlyTo: FlyToTarget | null;
   flyTo: (target: FlyToTarget) => void;
   clearFlyTo: () => void;
@@ -46,7 +52,9 @@ export const useMapStore = create<MapStore>((set) => ({
   selectedRegion: null,
   setSelectedRegion: (region) => set({ selectedRegion: region }),
   boxSelectionBounds: null,
-  setBoxSelectionBounds: (bounds) => set({ boxSelectionBounds: bounds }),
+  setBoxSelectionBounds: (bounds) => set({ boxSelectionBounds: bounds, boxSelectionPois: [] }),
+  boxSelectionPois: [],
+  setBoxSelectionPois: (pois) => set({ boxSelectionPois: pois }),
   pendingFlyTo: null,
   flyTo: (target) => set({ pendingFlyTo: target }),
   clearFlyTo: () => set({ pendingFlyTo: null }),

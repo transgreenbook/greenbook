@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import type maplibregl from "maplibre-gl";
+import type { GeoJSONSource } from "maplibre-gl";
 import { registerLayers } from "@/lib/mapLayers";
+import { useMapStore } from "@/store/mapStore";
 
 // ---------------------------------------------------------------------------
 // Icon loading — fetch an SVG, inject a fill color, rasterize via canvas,
@@ -63,10 +65,49 @@ export function useMapLayers(map: maplibregl.Map | null) {
       registerLayers(map!);
     }
 
+    // Re-load a specific icon if MapLibre requests one that isn't in the sprite.
+    // This fires after a style reload clears custom images.
+    const onImageMissing = async (e: { id: string }) => {
+      const icon = POI_ICONS.find((i) => i.name === e.id);
+      if (!icon) return;
+      try {
+        const image = await svgToMapImage(icon.url, icon.fill, ICON_SIZE);
+        if (!map.hasImage(icon.name)) map.addImage(icon.name, image, { pixelRatio: 2 });
+      } catch (err) {
+        console.warn(`Could not reload map icon "${e.id}":`, err);
+      }
+    };
+
+    map.on("styleimagemissing", onImageMissing);
+
     if (map.isStyleLoaded()) {
       setup();
     } else {
       map.once("load", () => setup());
     }
+
+    return () => {
+      map.off("styleimagemissing", onImageMissing);
+    };
   }, [map]);
+
+  // Keep pois-bbox-selection source in sync with store
+  const boxSelectionPois = useMapStore((s) => s.boxSelectionPois);
+  useEffect(() => {
+    if (!map) return;
+    const source = map.getSource("pois-bbox-selection") as GeoJSONSource | undefined;
+    source?.setData({
+      type: "FeatureCollection",
+      features: boxSelectionPois.map((p) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [p.lng, p.lat] },
+        properties: {
+          id: p.id, color: p.color, title: p.title,
+          description: p.description, category_id: p.category_id,
+          is_verified: p.is_verified, tags: JSON.stringify(p.tags ?? []),
+          icon: p.icon,
+        },
+      })),
+    });
+  }, [map, boxSelectionPois]);
 }

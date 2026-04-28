@@ -131,7 +131,7 @@ export function useMapClick(map: maplibregl.Map | null) {
     const handleContextMenu = (e: maplibregl.MapMouseEvent) => {
       // POI right-click: select without flying to it (skip clusters — no zoom action makes sense)
       if (map.getLayer("pois-unclustered")) {
-        const poiLayers = ["pois-unclustered", "pois-negative-unclustered", "pois-unclustered-icons", "pois-along-route"]
+        const poiLayers = ["pois-unclustered", "pois-negative-unclustered", "pois-unclustered-icons", "pois-along-route", "pois-bbox-selection"]
           .filter((l) => map.getLayer(l));
         const poiFeatures = map.queryRenderedFeatures(e.point, { layers: poiLayers });
         if (poiFeatures.length) {
@@ -178,7 +178,7 @@ export function useMapClick(map: maplibregl.Map | null) {
 
       // POI layers take priority
       if (map.getLayer("pois-cluster") && map.getLayer("pois-unclustered")) {
-        const poiLayers = ["pois-cluster", "pois-negative-cluster", "pois-unclustered", "pois-negative-unclustered", "pois-unclustered-icons", "pois-along-route"]
+        const poiLayers = ["pois-cluster", "pois-negative-cluster", "pois-unclustered", "pois-negative-unclustered", "pois-unclustered-icons", "pois-along-route", "pois-bbox-selection"]
           .filter((l) => map.getLayer(l));
         const poiFeatures = map.queryRenderedFeatures(e.point, {
           layers: poiLayers,
@@ -330,6 +330,7 @@ export function useMapClick(map: maplibregl.Map | null) {
       if (map.getLayer("pois-negative-unclustered")) clickableLayers.push("pois-negative-unclustered");
       if (map.getLayer("pois-unclustered-icons")) clickableLayers.push("pois-unclustered-icons");
       if (map.getLayer("pois-along-route"))       clickableLayers.push("pois-along-route");
+      if (map.getLayer("pois-bbox-selection"))    clickableLayers.push("pois-bbox-selection");
       if (!inStateBrowsing && zoom >= 9  && map.getLayer("cities-fill"))       clickableLayers.push("cities-fill");
       if (!inStateBrowsing && zoom >= 5  && map.getLayer("reservations-fill")) clickableLayers.push("reservations-fill");
       if (!inStateBrowsing && zoom >= 6  && map.getLayer("counties-fill"))     clickableLayers.push("counties-fill");
