@@ -10,8 +10,14 @@
 set -euo pipefail
 
 BACKUP_DIR="$HOME/greenbook-backups"
-CONTAINER="supabase_db_greenbook"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+# Auto-detect the Supabase DB container (works across different project names).
+CONTAINER="${CONTAINER:-$(docker ps --format '{{.Names}}' | grep -E 'supabase_db' | head -1)}"
+if [ -z "$CONTAINER" ]; then
+  echo "ERROR: No running Supabase DB container found. Is Supabase started?"
+  exit 1
+fi
 OUTFILE="$BACKUP_DIR/greenbook-$TIMESTAMP.sql.gz"
 
 mkdir -p "$BACKUP_DIR"

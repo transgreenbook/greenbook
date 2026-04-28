@@ -10,7 +10,17 @@
 set -euo pipefail
 
 BACKUP_DIR="$HOME/greenbook-backups"
-CONTAINER="supabase_db_greenbook"
+
+# Auto-detect the Supabase DB container (works across different project names).
+# Can be overridden: CONTAINER=my_container bash scripts/restore-db.sh
+CONTAINER="${CONTAINER:-$(docker ps --format '{{.Names}}' | grep -E 'supabase_db' | head -1)}"
+if [ -z "$CONTAINER" ]; then
+  echo "ERROR: No running Supabase DB container found. Is Supabase started?"
+  echo "       Start it with: supabase start"
+  echo "       Or set CONTAINER=<name> explicitly."
+  exit 1
+fi
+echo "Using container: $CONTAINER"
 
 # Resolve the target file
 if [ $# -ge 1 ]; then
