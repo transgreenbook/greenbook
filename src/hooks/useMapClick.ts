@@ -133,11 +133,13 @@ export function useMapClick(map: maplibregl.Map | null) {
     const handleContextMenu = (e: maplibregl.MapMouseEvent) => {
       // POI right-click: select without flying to it (skip clusters — no zoom action makes sense)
       if (map.getLayer("pois-unclustered")) {
-        const bboxOpen = useMapStore.getState().boxSelectionBounds !== null;
+        const bboxOpen   = useMapStore.getState().boxSelectionBounds !== null;
+        const regionOpen = useMapStore.getState().selectedRegion !== null;
         const poiLayers = [
           "pois-unclustered", "pois-negative-unclustered",
           "pois-unclustered-icons", "pois-along-route",
-          ...(bboxOpen ? ["pois-bbox-selection"] : []),
+          ...(bboxOpen   ? ["pois-bbox-selection"] : []),
+          ...(regionOpen ? ["pois-region-unclustered"] : []),
         ].filter((l) => map.getLayer(l));
         const poiFeatures = map.queryRenderedFeatures(e.point, { layers: poiLayers });
         if (poiFeatures.length) {
@@ -184,12 +186,14 @@ export function useMapClick(map: maplibregl.Map | null) {
 
       // POI layers take priority
       if (map.getLayer("pois-cluster") && map.getLayer("pois-unclustered")) {
-        const bboxOpen = useMapStore.getState().boxSelectionBounds !== null;
+        const bboxOpen    = useMapStore.getState().boxSelectionBounds !== null;
+        const regionOpen  = useMapStore.getState().selectedRegion !== null;
         const poiLayers = [
           "pois-cluster", "pois-negative-cluster",
           "pois-unclustered", "pois-negative-unclustered",
           "pois-unclustered-icons", "pois-along-route",
-          ...(bboxOpen ? ["pois-bbox-selection"] : []),
+          ...(bboxOpen   ? ["pois-bbox-selection"] : []),
+          ...(regionOpen ? ["pois-region-cluster", "pois-region-unclustered"] : []),
         ].filter((l) => map.getLayer(l));
         const poiFeatures = map.queryRenderedFeatures(e.point, {
           layers: poiLayers,
@@ -262,7 +266,7 @@ export function useMapClick(map: maplibregl.Map | null) {
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
         useMapStore.getState().setBoxSelectionBounds(null);
-        setSelectedRegion({ type: "city", name, statefp });
+        setSelectedRegion({ type: "city", name, statefp, bounds: bounds ?? undefined });
         useAppStore.getState().setMode("map");
         return;
       }
@@ -279,7 +283,7 @@ export function useMapClick(map: maplibregl.Map | null) {
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
         useMapStore.getState().setBoxSelectionBounds(null);
-        setSelectedRegion({ type: "reservation", name, geoid });
+        setSelectedRegion({ type: "reservation", name, geoid, bounds: bounds ?? undefined });
         useAppStore.getState().setMode("map");
         return;
       }
@@ -298,7 +302,7 @@ export function useMapClick(map: maplibregl.Map | null) {
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
         useMapStore.getState().setBoxSelectionBounds(null);
-        setSelectedRegion({ type: "county", name, fips5 });
+        setSelectedRegion({ type: "county", name, fips5, bounds: bounds ?? undefined });
         useAppStore.getState().setMode("map");
         return;
       }
@@ -309,8 +313,11 @@ export function useMapClick(map: maplibregl.Map | null) {
         const name      = props.NAME   ?? props.name ?? stateAbbr;
         if (!stateAbbr) return;
         const bbox = (stateBboxes as unknown as Record<string, [number, number, number, number]>)[stateAbbr];
-        if (bbox) {
-          flyTo({ lng: 0, lat: 0, bounds: [[bbox[0], bbox[1]], [bbox[2], bbox[3]]] });
+        const bounds: [[number, number], [number, number]] | undefined = bbox
+          ? [[bbox[0], bbox[1]], [bbox[2], bbox[3]]]
+          : undefined;
+        if (bounds) {
+          flyTo({ lng: 0, lat: 0, bounds });
         } else {
           const centroids = map.querySourceFeatures("states-centroids");
           const centroid  = centroids.find((f) => f.properties?.STUSPS === stateAbbr);
@@ -321,7 +328,7 @@ export function useMapClick(map: maplibregl.Map | null) {
         }
         setSelectedPOI(null);
         useMapStore.getState().setBoxSelectionBounds(null);
-        setSelectedRegion({ type: "state", name, stateAbbr });
+        setSelectedRegion({ type: "state", name, stateAbbr, bounds });
         useAppStore.getState().setMode("map");
         stateBrowsingRef.current = true;
         return;
@@ -347,6 +354,10 @@ export function useMapClick(map: maplibregl.Map | null) {
       if (map.getLayer("pois-along-route"))       clickableLayers.push("pois-along-route");
       if (useMapStore.getState().boxSelectionBounds !== null && map.getLayer("pois-bbox-selection"))
         clickableLayers.push("pois-bbox-selection");
+      if (useMapStore.getState().selectedRegion !== null) {
+        if (map.getLayer("pois-region-cluster"))     clickableLayers.push("pois-region-cluster");
+        if (map.getLayer("pois-region-unclustered")) clickableLayers.push("pois-region-unclustered");
+      }
       if (!inStateBrowsing && zoom >= 9  && map.getLayer("cities-fill"))       clickableLayers.push("cities-fill");
       if (!inStateBrowsing && zoom >= 5  && map.getLayer("reservations-fill")) clickableLayers.push("reservations-fill");
       if (!inStateBrowsing && zoom >= 6  && map.getLayer("counties-fill"))     clickableLayers.push("counties-fill");

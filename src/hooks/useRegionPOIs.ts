@@ -16,30 +16,64 @@ export interface RegionPOI {
   icon: string | null;
 }
 
+function sortBySeverity(rows: RegionPOI[]): RegionPOI[] {
+  return rows.sort((a, b) => Math.abs(b.severity ?? 0) - Math.abs(a.severity ?? 0));
+}
+
+// Merge two POI arrays, deduplicating by id.
+function merge(primary: RegionPOI[], secondary: RegionPOI[]): RegionPOI[] {
+  const seen = new Set(primary.map((p) => p.id));
+  return sortBySeverity([...primary, ...secondary.filter((p) => !seen.has(p.id))]);
+}
+
+// Fetch point-scoped POIs within a bounding box using pois_in_bbox, which
+// reliably uses ST_Within against a bbox parameter (no DB geometry columns needed).
+async function fetchPointPoisInBounds(
+  bounds: [[number, number], [number, number]],
+): Promise<RegionPOI[]> {
+  const [[west, south], [east, north]] = bounds;
+  const { data, error } = await supabase.rpc("pois_in_bbox", {
+    west, south, east, north,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .filter((p: RegionPOI & { effect_scope: string }) => p.effect_scope === "point")
+    .map((p: RegionPOI & { effect_scope: string }) => ({
+      id: p.id, title: p.title, description: p.description,
+      category_id: p.category_id, is_verified: p.is_verified, tags: p.tags,
+      lng: p.lng, lat: p.lat, color: p.color, severity: p.severity, icon: p.icon,
+    }));
+}
 
 async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
   if (region.type === "state") {
     const { data, error } = await supabase.rpc("pois_in_state", { p_abbr: region.stateAbbr });
     if (error) throw new Error(error.message);
-    return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => Math.abs(b.severity ?? 0) - Math.abs(a.severity ?? 0));
+    return sortBySeverity(data ?? []);
   }
 
   if (region.type === "county") {
-    const { data, error } = await supabase.rpc("pois_in_county", { p_fips: region.fips5 });
-    if (error) throw new Error(error.message);
-    return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => Math.abs(b.severity ?? 0) - Math.abs(a.severity ?? 0));
+    const [scopedResult, pointPois] = await Promise.all([
+      supabase.rpc("pois_in_county", { p_fips: region.fips5 }),
+      region.bounds ? fetchPointPoisInBounds(region.bounds) : Promise.resolve([]),
+    ]);
+    if (scopedResult.error) throw new Error(scopedResult.error.message);
+    return merge(scopedResult.data ?? [], pointPois);
   }
 
   if (region.type === "reservation") {
     const { data, error } = await supabase.rpc("pois_in_reservation", { p_geoid: region.geoid });
     if (error) throw new Error(error.message);
-    return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => Math.abs(b.severity ?? 0) - Math.abs(a.severity ?? 0));
+    return sortBySeverity(data ?? []);
   }
 
   // city
-  const { data, error } = await supabase.rpc("pois_in_city", { p_city_name: region.name, p_statefp: region.statefp });
-  if (error) throw new Error(error.message);
-  return (data ?? []).sort((a: RegionPOI, b: RegionPOI) => Math.abs(b.severity ?? 0) - Math.abs(a.severity ?? 0));
+  const [scopedResult, pointPois] = await Promise.all([
+    supabase.rpc("pois_in_city", { p_city_name: region.name, p_statefp: region.statefp }),
+    region.bounds ? fetchPointPoisInBounds(region.bounds) : Promise.resolve([]),
+  ]);
+  if (scopedResult.error) throw new Error(scopedResult.error.message);
+  return merge(scopedResult.data ?? [], pointPois);
 }
 
 function regionQueryKey(region: SelectedRegion): unknown[] {
