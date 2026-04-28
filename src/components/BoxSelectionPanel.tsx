@@ -53,8 +53,7 @@ export default function BoxSelectionPanel() {
     toggle: toggleMobile,
     handleProps: mobileHandleProps,
   } = useMobileSheet({ collapsedHeight: 64 });
-  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
-  const [showFilter, setShowFilter]             = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
   const { width: panelWidth, onDragHandleMouseDown } = useResizablePanel();
 
   // Push resolved POIs to the map source
@@ -170,23 +169,17 @@ export default function BoxSelectionPanel() {
   return (
     <>
       {/* ------------------------------------------------------------------ */}
-      {/* Desktop: collapsible right sidebar                                  */}
+      {/* Desktop: right sidebar                                             */}
       {/* ------------------------------------------------------------------ */}
       <div
-        className={`
-          hidden md:flex absolute top-0 right-0 h-full bg-white shadow-lg z-10
-          flex-col overflow-hidden
-          ${desktopCollapsed ? "w-0 transition-[width] duration-300" : ""}
-        `}
-        style={desktopCollapsed ? undefined : { width: panelWidth }}
+        className="hidden md:flex absolute top-0 right-0 h-full bg-white shadow-lg z-10 flex-col overflow-hidden"
+        style={{ width: panelWidth }}
       >
-        {!desktopCollapsed && (
-          <div
-            onMouseDown={onDragHandleMouseDown}
-            className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-20 transition-colors"
-            title="Drag to resize"
-          />
-        )}
+        <div
+          onMouseDown={onDragHandleMouseDown}
+          className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-20 transition-colors"
+          title="Drag to resize"
+        />
 
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
           {header}
@@ -205,15 +198,6 @@ export default function BoxSelectionPanel() {
               )}
             </button>
             <button
-              onClick={() => setDesktopCollapsed(true)}
-              className="text-gray-400 hover:text-gray-600 p-1"
-              aria-label="Collapse panel"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            <button
               onClick={() => setBoxSelectionBounds(null)}
               className="text-gray-400 hover:text-gray-600 text-xl leading-none"
               aria-label="Close"
@@ -229,26 +213,6 @@ export default function BoxSelectionPanel() {
           {content}
         </div>
       </div>
-
-      {desktopCollapsed && (
-        <button
-          onClick={() => setDesktopCollapsed(false)}
-          className="
-            hidden md:flex absolute top-1/2 -translate-y-1/2 right-0 z-10
-            bg-white shadow-md border border-gray-200 rounded-l-lg
-            flex-col items-center gap-1 px-1.5 py-3
-            text-gray-500 hover:text-gray-800 hover:bg-gray-50
-          "
-          aria-label="Open panel"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          <span className="text-xs font-medium [writing-mode:vertical-rl] rotate-180">
-            Selection
-          </span>
-        </button>
-      )}
 
       {/* ------------------------------------------------------------------ */}
       {/* Mobile: bottom sheet                                                */}

@@ -261,6 +261,7 @@ export function useMapClick(map: maplibregl.Map | null) {
         );
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
+        useMapStore.getState().setBoxSelectionBounds(null);
         setSelectedRegion({ type: "city", name, statefp });
         useAppStore.getState().setMode("map");
         return;
@@ -277,6 +278,7 @@ export function useMapClick(map: maplibregl.Map | null) {
         );
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
+        useMapStore.getState().setBoxSelectionBounds(null);
         setSelectedRegion({ type: "reservation", name, geoid });
         useAppStore.getState().setMode("map");
         return;
@@ -295,6 +297,7 @@ export function useMapClick(map: maplibregl.Map | null) {
         );
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
+        useMapStore.getState().setBoxSelectionBounds(null);
         setSelectedRegion({ type: "county", name, fips5 });
         useAppStore.getState().setMode("map");
         return;
@@ -317,6 +320,7 @@ export function useMapClick(map: maplibregl.Map | null) {
           }
         }
         setSelectedPOI(null);
+        useMapStore.getState().setBoxSelectionBounds(null);
         setSelectedRegion({ type: "state", name, stateAbbr });
         useAppStore.getState().setMode("map");
         stateBrowsingRef.current = true;
