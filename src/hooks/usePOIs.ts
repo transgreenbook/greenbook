@@ -36,7 +36,7 @@ async function fetchPOIs(bounds: Bounds): Promise<FeatureCollection<Point, POIPr
   const key = boundsKey(rounded);
 
   try {
-    const { data, error } = await supabase.rpc("pois_in_viewport", { ...rounded, zoom: rounded.zoom });
+    const { data, error } = await supabase.rpc("pois_in_viewport", { ...rounded, zoom: Math.round(rounded.zoom) });
     if (error) throw new Error(error.message);
 
     const geojson: FeatureCollection<Point, POIProperties> = {

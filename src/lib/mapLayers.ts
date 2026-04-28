@@ -724,7 +724,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "pois-unclustered",
     type: "circle",
     source: "pois",
-    filter: ["!", ["has", "point_count"]],
+    filter: ["all", ["!", ["has", "point_count"]], ["!", ["to-boolean", ["get", "icon"]]]],
     paint: {
       "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
       "circle-radius": 6,
@@ -761,7 +761,7 @@ export const LAYERS: LayerSpecification[] = [
       "icon-image": ["get", "icon"],
       "icon-size": 1,
       "icon-allow-overlap": true,
-      "icon-anchor": "bottom",
+      "icon-anchor": "center",
     },
   } as LayerSpecification,
 ];
