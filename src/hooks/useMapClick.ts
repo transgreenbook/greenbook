@@ -57,12 +57,14 @@ export function useMapClick(map: maplibregl.Map | null) {
   useEffect(() => {
     if (!map) return;
 
-    // Any user-initiated zoom (scroll wheel, pinch, double-click zoom) carries
-    // an originalEvent. Programmatic flyTo/easeTo does not.
+    // Any user-initiated zoom carries an originalEvent. Programmatic flyTo/easeTo does not.
     const handleZoomStart = (e: maplibregl.MapLibreEvent) => {
-      if (e.originalEvent) {
-        stateBrowsingRef.current = false;
-      }
+      if (e.originalEvent) stateBrowsingRef.current = false;
+    };
+    // When a programmatic zoom ends (e.g. the flyTo after clicking a state),
+    // exit state-browsing mode so the user can immediately click cities/counties.
+    const handleZoomEnd = (e: maplibregl.MapLibreEvent) => {
+      if (!e.originalEvent) stateBrowsingRef.current = false;
     };
 
     // Select a region from rendered features at a point, without zooming.
@@ -351,12 +353,14 @@ export function useMapClick(map: maplibregl.Map | null) {
     };
 
     map.on("zoomstart", handleZoomStart);
+    map.on("zoomend", handleZoomEnd);
     map.on("click", handleClick);
     map.on("contextmenu", handleContextMenu);
     map.on("mousemove", setCursor);
 
     return () => {
       map.off("zoomstart", handleZoomStart);
+      map.off("zoomend", handleZoomEnd);
       map.off("click", handleClick);
       map.off("contextmenu", handleContextMenu);
       map.off("mousemove", setCursor);

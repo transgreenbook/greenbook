@@ -258,8 +258,8 @@ export const LAYERS: LayerSpecification[] = [
     source: "counties",
     ...(pmtilesUrl ? { "source-layer": "counties" } : {}),
     paint: {
-      "line-color": "#cbd5e1",
-      "line-width": 0.5,
+      "line-color": "#b0bec5",
+      "line-width": 1,
       "line-opacity": [
         "interpolate", ["linear"], ["zoom"],
         5, 0,
@@ -412,11 +412,11 @@ export const LAYERS: LayerSpecification[] = [
     ...(pmtilesUrl ? { "source-layer": "places" } : {}),
     paint: {
       "line-color": "#94a3b8",
-      "line-width": 0.8,
+      "line-width": 1,
       "line-opacity": [
         "interpolate", ["linear"], ["zoom"],
         8, 0,
-        10, 0.8,
+        10, 1,
       ],
     },
   },
