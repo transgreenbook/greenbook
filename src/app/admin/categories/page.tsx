@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const CATEGORY_ICON_MAP: Record<string, string> = {
+  "nightlife": `${basePath}/icons/martini-glass-with-straw.svg`,
+  "restrooms": `${basePath}/icons/transgender-symbol.svg`,
+};
+
 type Category = {
   id: number;
   name: string;
@@ -73,6 +79,7 @@ export default function CategoriesPage() {
             <tr>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Name</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Icon slug</th>
+              <th className="text-left px-4 py-3 text-gray-500 font-medium">Icon</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Color</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">
                 Severity weight
@@ -86,6 +93,24 @@ export default function CategoriesPage() {
               <tr key={c.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-800">{c.name}</td>
                 <td className="px-4 py-3 text-gray-400 font-mono text-xs">{c.icon_slug}</td>
+                <td className="px-4 py-3">
+                  {CATEGORY_ICON_MAP[c.icon_slug] ? (
+                    <span
+                      className="inline-block w-5 h-5"
+                      style={{
+                        backgroundColor: c.color ?? "#ccc",
+                        WebkitMaskImage: `url(${CATEGORY_ICON_MAP[c.icon_slug]})`,
+                        maskImage: `url(${CATEGORY_ICON_MAP[c.icon_slug]})`,
+                        WebkitMaskSize: "contain",
+                        maskSize: "contain",
+                        WebkitMaskRepeat: "no-repeat",
+                        maskRepeat: "no-repeat",
+                      }}
+                    />
+                  ) : (
+                    <span className="text-gray-300">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <span
                     className="inline-block w-5 h-5 rounded-full border border-gray-200"
@@ -119,7 +144,7 @@ export default function CategoriesPage() {
             ))}
             {categories.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-gray-400">
                   No categories yet.
                 </td>
               </tr>

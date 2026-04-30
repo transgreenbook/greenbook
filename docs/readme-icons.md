@@ -1,60 +1,49 @@
 # Map Icons
 
-### Icon Sources
+## Icon Sources
+
 Free use:
-https://uxwing.com/transgender-symbol-icon/
+- https://uxwing.com/transgender-symbol-icon/
+- https://www.svgrepo.com/svg/116383/martini-glass-with-straw
 
+---
 
-## POI Category Icons
+## Adding a New POI Icon
 
-The `categories` table already has an `icon_slug` field designed for this.
+Icons are SVG files served as static assets and loaded at map startup via
+`useMapLayers.ts`. Each icon is registered under a name (e.g. `"poi-nightlife"`)
+that matches the `icon` column on `points_of_interest` rows.
 
 ### Steps
 
-1. **Choose an icon set** — [Maki](https://labs.mapbox.com/maki-icons/) is recommended.
-   It is free, open source, and designed specifically for maps. It covers parks,
-   restaurants, hotels, gas stations, hospitals, and many more.
+1. **Place the SVG in `public/icons/`**
 
-2. **Add icons to the map** — At map startup, load each icon image:
+2. **Register the icon in `src/hooks/useMapLayers.ts`** — add a line to `POI_ICONS`:
    ```ts
-   map.loadImage('/icons/poi/park.png', (err, image) => {
-     if (!image) return;
-     map.addImage('park', image);
-   });
+   { name: "poi-nightlife", url: `${basePath}/icons/martini-glass-with-straw.svg`, fill: "#9333ea" },
    ```
-   A good place to do this is in `src/hooks/useMapLayers.ts` after the style loads.
+   `fill` is injected into the SVG at load time, so the icon renders in that color on the map.
 
-3. **Store the slug in categories** — The `icon_slug` column in the `categories`
-   table should match the image name registered with `map.addImage` (e.g. `"park"`).
-
-4. **Include `icon_slug` in the GeoJSON** — Update `pois_in_viewport` to JOIN
-   categories and return `icon_slug` alongside `color`, then pass it through
-   in `usePOIs.ts`.
-
-5. **Switch `pois-unclustered` to a symbol layer** — In `src/lib/mapLayers.ts`,
-   change the layer type from `circle` to `symbol` and use a `match` expression:
+3. **Register the icon in `src/components/RegionPOIPanel.tsx`** — add a matching
+   entry to `POI_ICON_MAP` so the icon also appears in the sidebar list:
    ```ts
-   {
-     id: "pois-unclustered",
-     type: "symbol",
-     source: "pois",
-     filter: ["!", ["has", "point_count"]],
-     layout: {
-       "icon-image": [
-         "match", ["get", "icon_slug"],
-         "park",       "park",
-         "restaurant", "restaurant",
-         "hotel",      "lodging",
-         /* fallback */ "marker",
-       ],
-       "icon-size": 1,
-       "icon-allow-overlap": true,
-     },
-   }
+   "poi-nightlife": { url: `${basePath}/icons/martini-glass-with-straw.svg`, fill: "#9333ea" },
    ```
 
-6. **Provide a fallback** — Always register a generic `"marker"` image so POIs
-   without a matching icon still render.
+4. **Set the icon on POIs in the database** — update the `icon` column on the
+   relevant `points_of_interest` rows. To apply to all POIs in a category:
+   ```sql
+   UPDATE points_of_interest
+   SET icon = 'poi-nightlife'
+   WHERE category_id = 7;  -- 7 = Nightlife
+   ```
+
+### Current icons
+
+| Name | File | Category |
+|------|------|----------|
+| `poi-restroom` | `transgender-symbol.svg` | Restrooms / gender-neutral |
+| `poi-nightlife` | `martini-glass-with-straw.svg` | Nightlife (category 7) |
 
 ---
 

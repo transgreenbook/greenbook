@@ -14,7 +14,8 @@ import { severityColor } from "@/hooks/useRegionColors";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const POI_ICON_MAP: Record<string, { url: string; fill: string }> = {
-  "poi-restroom": { url: `${basePath}/icons/transgender-symbol.svg`, fill: "#1e40af" },
+  "poi-restroom":  { url: `${basePath}/icons/transgender-symbol.svg`,        fill: "#1e40af" },
+  "poi-nightlife": { url: `${basePath}/icons/martini-glass-with-straw.svg`,  fill: "#9333ea" },
 };
 
 const REGION_LABEL: Record<string, string> = {

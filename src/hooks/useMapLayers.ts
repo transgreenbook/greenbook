@@ -17,6 +17,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const POI_ICONS: Array<{ name: string; url: string; fill: string }> = [
   { name: "poi-restroom", url: `${basePath}/icons/transgender-symbol.svg`, fill: "#1e40af" },
+  { name: "poi-nightlife", url: `${basePath}/icons/martini-glass-with-straw.svg`, fill: "#9333ea" },
 ];
 
 
