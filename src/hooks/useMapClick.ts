@@ -61,11 +61,10 @@ export function useMapClick(map: maplibregl.Map | null) {
     const handleZoomStart = (e: maplibregl.MapLibreEvent) => {
       if (e.originalEvent) stateBrowsingRef.current = false;
     };
-    // When a programmatic zoom ends (e.g. the flyTo after clicking a state),
-    // exit state-browsing mode so the user can immediately click cities/counties.
-    const handleZoomEnd = (e: maplibregl.MapLibreEvent) => {
-      if (!e.originalEvent) stateBrowsingRef.current = false;
-    };
+    // Programmatic zoom ends (e.g. flyTo after clicking a state) do NOT clear
+    // state-browsing mode — the user should still be able to click neighboring
+    // states after auto-zoom. Only a manual scroll/pinch clears it (handleZoomStart).
+    const handleZoomEnd = (_e: maplibregl.MapLibreEvent) => {};
 
     // Select a region from rendered features at a point, without zooming.
     const selectRegionAt = (point: maplibregl.Point): boolean => {
@@ -78,7 +77,7 @@ export function useMapClick(map: maplibregl.Map | null) {
       const reservationFeatures = !inStateBrowsing && zoom >= 5 && map.getLayer("reservations-fill")
         ? map.queryRenderedFeatures(point, { layers: ["reservations-fill"] })
         : [];
-      const countyFeatures = !inStateBrowsing && zoom >= 6 && map.getLayer("counties-fill")
+      const countyFeatures = !inStateBrowsing && zoom > 7.5 && map.getLayer("counties-fill")
         ? map.queryRenderedFeatures(point, { layers: ["counties-fill"] })
         : [];
       const stateFeatures = map.getLayer("states-fill")
@@ -247,7 +246,7 @@ export function useMapClick(map: maplibregl.Map | null) {
       const reservationFeatures = !inStateBrowsing && zoom >= 5 && map.getLayer("reservations-fill")
         ? map.queryRenderedFeatures(e.point, { layers: ["reservations-fill"] })
         : [];
-      const countyFeatures = !inStateBrowsing && zoom >= 6 && map.getLayer("counties-fill")
+      const countyFeatures = !inStateBrowsing && zoom > 7.5 && map.getLayer("counties-fill")
         ? map.queryRenderedFeatures(e.point, { layers: ["counties-fill"] })
         : [];
       const stateFeatures = map.getLayer("states-fill")
@@ -363,7 +362,7 @@ export function useMapClick(map: maplibregl.Map | null) {
       }
       if (!inStateBrowsing && zoom >= 9  && map.getLayer("cities-fill"))       clickableLayers.push("cities-fill");
       if (!inStateBrowsing && zoom >= 5  && map.getLayer("reservations-fill")) clickableLayers.push("reservations-fill");
-      if (!inStateBrowsing && zoom >= 6  && map.getLayer("counties-fill"))     clickableLayers.push("counties-fill");
+      if (!inStateBrowsing && zoom > 7.5 && map.getLayer("counties-fill"))     clickableLayers.push("counties-fill");
       if (map.getLayer("states-fill"))                                          clickableLayers.push("states-fill");
 
       const features = map.queryRenderedFeatures(e.point, { layers: clickableLayers });
