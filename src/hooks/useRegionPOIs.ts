@@ -26,15 +26,17 @@ function merge(primary: RegionPOI[], secondary: RegionPOI[]): RegionPOI[] {
   return sortBySeverity([...primary, ...secondary.filter((p) => !seen.has(p.id))]);
 }
 
-// Fetch point-scoped POIs within a bounding box using pois_in_bbox, which
-// reliably uses ST_Within against a bbox parameter (no DB geometry columns needed).
+// Fetch point-scoped POIs within a bounding box.
+// When stateAbbr is provided, clips results to the actual state boundary via
+// pois_in_bbox_within_state so border-county queries don't bleed across state lines.
 async function fetchPointPoisInBounds(
   bounds: [[number, number], [number, number]],
+  stateAbbr?: string,
 ): Promise<RegionPOI[]> {
   const [[west, south], [east, north]] = bounds;
-  const { data, error } = await supabase.rpc("pois_in_bbox", {
-    west, south, east, north,
-  });
+  const { data, error } = stateAbbr
+    ? await supabase.rpc("pois_in_bbox_within_state", { west, south, east, north, p_state_abbr: stateAbbr })
+    : await supabase.rpc("pois_in_bbox", { west, south, east, north });
   if (error) throw new Error(error.message);
   return (data ?? [])
     .filter((p: RegionPOI & { effect_scope: string }) => p.effect_scope === "point")
@@ -60,7 +62,7 @@ async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
   if (region.type === "county") {
     const [scopedResult, pointPois, statePois] = await Promise.all([
       supabase.rpc("pois_in_county", { p_fips: region.fips5 }),
-      region.bounds ? fetchPointPoisInBounds(region.bounds) : Promise.resolve([]),
+      region.bounds ? fetchPointPoisInBounds(region.bounds, region.stateAbbr) : Promise.resolve([]),
       fetchStatePois(region.stateAbbr),
     ]);
     if (scopedResult.error) throw new Error(scopedResult.error.message);
@@ -76,7 +78,7 @@ async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
   // city
   const [scopedResult, pointPois, statePois] = await Promise.all([
     supabase.rpc("pois_in_city", { p_city_name: region.name, p_statefp: region.statefp }),
-    region.bounds ? fetchPointPoisInBounds(region.bounds) : Promise.resolve([]),
+    region.bounds ? fetchPointPoisInBounds(region.bounds, region.stateAbbr) : Promise.resolve([]),
     fetchStatePois(region.stateAbbr),
   ]);
   if (scopedResult.error) throw new Error(scopedResult.error.message);
