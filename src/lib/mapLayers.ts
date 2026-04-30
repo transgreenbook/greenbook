@@ -108,6 +108,11 @@ export const SOURCES: Record<string, SourceSpecification> = {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   },
+  // Single-feature source for the currently selected POI — drives the halo layer.
+  "pois-selected": {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  },
   // Region-selection POIs — swapped in when a state/county/city is selected.
   "pois-region": {
     type: "geojson",
@@ -588,6 +593,21 @@ export const LAYERS: LayerSpecification[] = [
       "line-color": "#3b82f6",
       "line-width": 4,
       "line-opacity": 0.85,
+    },
+  },
+
+  // --- Selected POI halo (renders behind all POI layers) ---
+  {
+    id: "pois-selected-halo",
+    type: "circle",
+    source: "pois-selected",
+    paint: {
+      "circle-radius": 20,
+      "circle-color": ["coalesce", ["get", "color"], "#f59e0b"],
+      "circle-opacity": 0.25,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-color": ["coalesce", ["get", "color"], "#f59e0b"],
+      "circle-stroke-opacity": 0.5,
     },
   },
 

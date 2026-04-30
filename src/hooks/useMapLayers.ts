@@ -101,6 +101,23 @@ export function useMapLayers(map: maplibregl.Map | null) {
     }
   }, [map, boxSelectionBounds, selectedRegion]);
 
+  // Keep pois-selected source in sync with the selected POI
+  const selectedPOI = useMapStore((s) => s.selectedPOI);
+  useEffect(() => {
+    if (!map) return;
+    const source = map.getSource("pois-selected") as GeoJSONSource | undefined;
+    source?.setData({
+      type: "FeatureCollection",
+      features: selectedPOI
+        ? [{
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [selectedPOI.lng, selectedPOI.lat] },
+            properties: { color: selectedPOI.color },
+          }]
+        : [],
+    });
+  }, [map, selectedPOI]);
+
   // Keep pois-bbox-selection source in sync with store
   const boxSelectionPois = useMapStore((s) => s.boxSelectionPois);
   useEffect(() => {
