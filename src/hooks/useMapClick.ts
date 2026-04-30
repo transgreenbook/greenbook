@@ -263,10 +263,11 @@ export function useMapClick(map: maplibregl.Map | null) {
           map, "places", "places",
           ["all", ["==", ["get", "NAME"], name], ["==", ["get", "STATEFP"], statefp]] as maplibregl.FilterSpecification,
         );
+        const stateAbbr = stateFeatures[0]?.properties?.STUSPS ?? undefined;
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
         useMapStore.getState().setBoxSelectionBounds(null);
-        setSelectedRegion({ type: "city", name, statefp, bounds: bounds ?? undefined });
+        setSelectedRegion({ type: "city", name, statefp, stateAbbr, bounds: bounds ?? undefined });
         useAppStore.getState().setMode("map");
         return;
       }
@@ -299,10 +300,11 @@ export function useMapClick(map: maplibregl.Map | null) {
           map, "counties", "counties",
           ["==", ["get", "GEOID"], fips5] as maplibregl.FilterSpecification,
         );
+        const stateAbbr = stateFeatures[0]?.properties?.STUSPS ?? undefined;
         if (bounds) flyTo({ lng: 0, lat: 0, bounds });
         setSelectedPOI(null);
         useMapStore.getState().setBoxSelectionBounds(null);
-        setSelectedRegion({ type: "county", name, fips5, bounds: bounds ?? undefined });
+        setSelectedRegion({ type: "county", name, fips5, stateAbbr, bounds: bounds ?? undefined });
         useAppStore.getState().setMode("map");
         return;
       }

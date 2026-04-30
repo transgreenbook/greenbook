@@ -45,20 +45,26 @@ async function fetchPointPoisInBounds(
     }));
 }
 
+async function fetchStatePois(stateAbbr: string | undefined): Promise<RegionPOI[]> {
+  if (!stateAbbr) return [];
+  const { data, error } = await supabase.rpc("pois_in_state", { p_abbr: stateAbbr });
+  if (error) throw new Error(error.message);
+  return sortBySeverity(data ?? []);
+}
+
 async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
   if (region.type === "state") {
-    const { data, error } = await supabase.rpc("pois_in_state", { p_abbr: region.stateAbbr });
-    if (error) throw new Error(error.message);
-    return sortBySeverity(data ?? []);
+    return fetchStatePois(region.stateAbbr);
   }
 
   if (region.type === "county") {
-    const [scopedResult, pointPois] = await Promise.all([
+    const [scopedResult, pointPois, statePois] = await Promise.all([
       supabase.rpc("pois_in_county", { p_fips: region.fips5 }),
       region.bounds ? fetchPointPoisInBounds(region.bounds) : Promise.resolve([]),
+      fetchStatePois(region.stateAbbr),
     ]);
     if (scopedResult.error) throw new Error(scopedResult.error.message);
-    return merge(scopedResult.data ?? [], pointPois);
+    return merge(merge(scopedResult.data ?? [], pointPois), statePois);
   }
 
   if (region.type === "reservation") {
@@ -68,12 +74,13 @@ async function fetchRegionPOIs(region: SelectedRegion): Promise<RegionPOI[]> {
   }
 
   // city
-  const [scopedResult, pointPois] = await Promise.all([
+  const [scopedResult, pointPois, statePois] = await Promise.all([
     supabase.rpc("pois_in_city", { p_city_name: region.name, p_statefp: region.statefp }),
     region.bounds ? fetchPointPoisInBounds(region.bounds) : Promise.resolve([]),
+    fetchStatePois(region.stateAbbr),
   ]);
   if (scopedResult.error) throw new Error(scopedResult.error.message);
-  return merge(scopedResult.data ?? [], pointPois);
+  return merge(merge(scopedResult.data ?? [], pointPois), statePois);
 }
 
 function regionQueryKey(region: SelectedRegion): unknown[] {
