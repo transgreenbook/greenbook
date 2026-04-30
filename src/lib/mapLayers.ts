@@ -692,7 +692,7 @@ export const LAYERS: LayerSpecification[] = [
     id: "pois-region-unclustered",
     type: "circle",
     source: "pois-region",
-    filter: ["!", ["has", "point_count"]],
+    filter: ["all", ["!", ["has", "point_count"]], ["!", ["to-boolean", ["get", "icon"]]]],
     layout: { visibility: "none" },
     paint: {
       "circle-color": ["coalesce", ["get", "color"], "#3b82f6"],
@@ -703,6 +703,19 @@ export const LAYERS: LayerSpecification[] = [
       "circle-stroke-opacity": 1,
     },
   },
+  {
+    id: "pois-region-unclustered-icons",
+    type: "symbol",
+    source: "pois-region",
+    filter: ["all", ["!", ["has", "point_count"]], ["to-boolean", ["get", "icon"]]],
+    layout: {
+      visibility: "none",
+      "icon-image": ["get", "icon"],
+      "icon-size": 1,
+      "icon-allow-overlap": true,
+      "icon-anchor": "center",
+    },
+  } as LayerSpecification,
 
   // --- POI clusters — positive/neutral (zoom 9–11, blue) ---
   {

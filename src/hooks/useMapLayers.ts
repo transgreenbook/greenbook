@@ -94,7 +94,7 @@ export function useMapLayers(map: maplibregl.Map | null) {
     const regionVisibility = (selectedRegion && !boxSelectionBounds) ? "visible" : "none";
     const regionLayers = [
       "pois-region-cluster", "pois-region-cluster-count",
-      "pois-region-unclustered",
+      "pois-region-unclustered", "pois-region-unclustered-icons",
     ];
     for (const id of regionLayers) {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", regionVisibility);

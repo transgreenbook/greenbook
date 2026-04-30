@@ -139,7 +139,7 @@ export function useMapClick(map: maplibregl.Map | null) {
           "pois-unclustered", "pois-negative-unclustered",
           "pois-unclustered-icons", "pois-along-route",
           ...(bboxOpen   ? ["pois-bbox-selection"] : []),
-          ...(regionOpen ? ["pois-region-unclustered"] : []),
+          ...(regionOpen ? ["pois-region-unclustered", "pois-region-unclustered-icons"] : []),
         ].filter((l) => map.getLayer(l));
         const poiFeatures = map.queryRenderedFeatures(e.point, { layers: poiLayers });
         if (poiFeatures.length) {
@@ -193,7 +193,7 @@ export function useMapClick(map: maplibregl.Map | null) {
           "pois-unclustered", "pois-negative-unclustered",
           "pois-unclustered-icons", "pois-along-route",
           ...(bboxOpen   ? ["pois-bbox-selection"] : []),
-          ...(regionOpen ? ["pois-region-cluster", "pois-region-unclustered"] : []),
+          ...(regionOpen ? ["pois-region-cluster", "pois-region-unclustered", "pois-region-unclustered-icons"] : []),
         ].filter((l) => map.getLayer(l));
         const poiFeatures = map.queryRenderedFeatures(e.point, {
           layers: poiLayers,
@@ -355,8 +355,9 @@ export function useMapClick(map: maplibregl.Map | null) {
       if (useMapStore.getState().boxSelectionBounds !== null && map.getLayer("pois-bbox-selection"))
         clickableLayers.push("pois-bbox-selection");
       if (useMapStore.getState().selectedRegion !== null) {
-        if (map.getLayer("pois-region-cluster"))     clickableLayers.push("pois-region-cluster");
-        if (map.getLayer("pois-region-unclustered")) clickableLayers.push("pois-region-unclustered");
+        if (map.getLayer("pois-region-cluster"))            clickableLayers.push("pois-region-cluster");
+        if (map.getLayer("pois-region-unclustered"))        clickableLayers.push("pois-region-unclustered");
+        if (map.getLayer("pois-region-unclustered-icons"))  clickableLayers.push("pois-region-unclustered-icons");
       }
       if (!inStateBrowsing && zoom >= 9  && map.getLayer("cities-fill"))       clickableLayers.push("cities-fill");
       if (!inStateBrowsing && zoom >= 5  && map.getLayer("reservations-fill")) clickableLayers.push("reservations-fill");
