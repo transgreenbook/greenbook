@@ -36,7 +36,7 @@ export default function POIFilter() {
         )}
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {categories.map((cat) => {
+        {categories.filter((cat) => cat.map_visible).map((cat) => {
           const isHidden = hiddenCategoryIds.includes(cat.id);
           return (
             <button

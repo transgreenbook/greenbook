@@ -27,6 +27,7 @@ type POI = {
   category_id: number | null;
   category_name: string | null;
   state_abbr: string | null;
+  effect_scope: string | null;
   source: string | null;
   review_after: string | null;
   review_note: string | null;
@@ -75,6 +76,7 @@ export default function AdminPOIsPage() {
   const [reviewOnly, setReviewOnly] = useState(false);
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<"all" | "negative" | "neutral" | "positive">("all");
+  const [missingGeoFilter, setMissingGeoFilter] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
@@ -153,7 +155,7 @@ export default function AdminPOIsPage() {
     }));
     setCategories(cats);
 
-    const POI_SELECT = "id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, source, review_after, review_note, severity, color";
+    const POI_SELECT = "id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, effect_scope, source, review_after, review_note, severity, color";
 
     // 2. Restore saved filters (or apply defaults)
     const saved = sessionStorage.getItem(FILTER_KEY);
@@ -229,6 +231,7 @@ export default function AdminPOIsPage() {
       category_id:   p.category_id as number | null,
       category_name: (p.categories as { name: string } | null)?.name ?? null,
       state_abbr:    p.state_abbr as string | null,
+      effect_scope:  p.effect_scope as string | null,
       source:        p.source as string | null,
       review_after:  p.review_after as string | null,
       review_note:   p.review_note as string | null,
@@ -252,7 +255,7 @@ export default function AdminPOIsPage() {
 
     let q = supabase
       .from("points_of_interest")
-      .select("id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, source, review_after, review_note")
+      .select("id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, effect_scope, source, review_after, review_note, severity, color")
       .eq("category_id", cat.id)
       .order("created_at", { ascending: false });
     if (selectedState) q = q.eq("state_abbr", selectedState);
@@ -282,6 +285,7 @@ export default function AdminPOIsPage() {
     .filter((p) => visibilityFilter === "both" || (visibilityFilter === "visible" ? p.is_visible : !p.is_visible))
     .filter((p) => !selectedState || p.state_abbr === selectedState)
     .filter((p) => !reviewOnly || (p.review_after && p.review_after <= today))
+    .filter((p) => !missingGeoFilter || isMissingGeo(p))
     .filter((p) =>
       severityFilter === "all"      ? true :
       severityFilter === "negative" ? p.severity < 0 :
@@ -289,10 +293,20 @@ export default function AdminPOIsPage() {
       p.severity === 0
     );
 
+  // A POI is "missing geo" if it has no state_abbr and no scope that implies
+  // its own location (federal, territory, reservation).
+  function isMissingGeo(poi: POI): boolean {
+    if (poi.state_abbr) return false;
+    const impliedScopes = new Set(["federal", "territory", "reservation"]);
+    return !poi.effect_scope || !impliedScopes.has(poi.effect_scope);
+  }
+
   // Distinct states from loaded POIs for the dropdown
   const availableStates = Array.from(
     new Set(pois.map((p) => p.state_abbr).filter(Boolean))
   ).sort() as string[];
+
+  const missingGeoCount = pois.filter(isMissingGeo).length;
 
   const reviewDueCount = pois.filter(
     (p) => p.review_after && p.review_after <= today
@@ -535,6 +549,20 @@ export default function AdminPOIsPage() {
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h1 className="text-lg font-semibold text-gray-800">Points of Interest</h1>
         <div className="flex items-center gap-2 flex-wrap">
+          {missingGeoCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setMissingGeoFilter((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium border transition-colors ${
+                missingGeoFilter
+                  ? "bg-yellow-100 border-yellow-400 text-yellow-800"
+                  : "bg-white border-yellow-300 text-yellow-600 hover:bg-yellow-50"
+              }`}
+            >
+              <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" />
+              {missingGeoCount} missing location{missingGeoCount !== 1 ? "s" : ""}
+            </button>
+          )}
           {reviewDueCount > 0 && (
             <button
               type="button"
@@ -863,6 +891,7 @@ export default function AdminPOIsPage() {
               <th className="text-right px-2 py-3 text-gray-400 font-medium w-10">#</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Title</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Category</th>
+              <th className="text-left px-4 py-3 text-gray-500 font-medium">State</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Status</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Visible</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">Created</th>
@@ -904,9 +933,9 @@ export default function AdminPOIsPage() {
                 </td>
                 <td className="px-4 py-3 text-gray-500">
                   {poi.category_name ?? "—"}
-                  {poi.state_abbr && (
-                    <span className="ml-2 text-xs text-gray-400">{poi.state_abbr}</span>
-                  )}
+                </td>
+                <td className="px-4 py-3 text-gray-500 tabular-nums">
+                  {poi.state_abbr ?? <span className="text-gray-300">—</span>}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -934,6 +963,14 @@ export default function AdminPOIsPage() {
                         className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-50 text-yellow-600 cursor-help"
                       >
                         Review {poi.review_after}
+                      </span>
+                    )}
+                    {isMissingGeo(poi) && (
+                      <span
+                        title="No state/territory/reservation assigned"
+                        className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700"
+                      >
+                        Missing location
                       </span>
                     )}
                   </div>
@@ -974,7 +1011,7 @@ export default function AdminPOIsPage() {
             {visiblePois.length === 0 && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-4 py-10 text-center text-gray-400"
                 >
                   {pois.length === 0
