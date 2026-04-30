@@ -13,6 +13,7 @@ import {
   type CsvRow,
   type ValidationError,
 } from "@/lib/poi-csv";
+import { severityColor } from "@/hooks/useRegionColors";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,8 @@ type POI = {
   source: string | null;
   review_after: string | null;
   review_note: string | null;
+  severity: number;
+  color: string | null;
   // Full fields for export (fetched lazily)
   description?: string | null;
   prominence?: string | null;
@@ -71,6 +74,7 @@ export default function AdminPOIsPage() {
   const [visibilityFilter, setVisibilityFilter] = useState<"both" | "visible" | "hidden">("both");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [selectedState, setSelectedState] = useState<string | null>(null);
+  const [severityFilter, setSeverityFilter] = useState<"all" | "negative" | "neutral" | "positive">("all");
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
@@ -83,6 +87,15 @@ export default function AdminPOIsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // ── Reset loaded state when state filter changes ────────────────────────────
+  // Categories may have been loaded without a state filter (or for a different
+  // state). When the filter changes, mark all as needing reload so that group
+  // toggle buttons re-fetch with the correct state scope.
+  useEffect(() => {
+    if (loading) return;
+    setCategories((prev) => prev.map((c) => ({ ...c, loaded: false })));
+  }, [selectedState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Persist filters across navigation ───────────────────────────────────────
 
@@ -98,9 +111,10 @@ export default function AdminPOIsPage() {
       visibilityFilter,
       reviewOnly,
       selectedState,
+      severityFilter,
       loadedCatIds:  categories.filter((c) => c.loaded).map((c) => c.id),
     }));
-  }, [hiddenCatIds, verifiedFilter, visibilityFilter, reviewOnly, selectedState, loading, categories]);
+  }, [hiddenCatIds, verifiedFilter, visibilityFilter, reviewOnly, selectedState, severityFilter, loading, categories]);
 
   // ── Initial load ────────────────────────────────────────────────────────────
 
@@ -139,16 +153,17 @@ export default function AdminPOIsPage() {
     }));
     setCategories(cats);
 
-    const POI_SELECT = "id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, source, review_after, review_note";
+    const POI_SELECT = "id, title, is_verified, is_visible, created_at, updated_at, category_id, categories(name), state_abbr, source, review_after, review_note, severity, color";
 
     // 2. Restore saved filters (or apply defaults)
     const saved = sessionStorage.getItem(FILTER_KEY);
     let savedLoadedCatIds: number[] = [];
     if (saved) {
-      const { hiddenCatIds: savedHidden, verifiedFilter: savedVerified, visibilityFilter: savedVisibility, reviewOnly: savedReview, selectedState: savedState, loadedCatIds: savedLoaded } = JSON.parse(saved);
+      const { hiddenCatIds: savedHidden, verifiedFilter: savedVerified, visibilityFilter: savedVisibility, reviewOnly: savedReview, selectedState: savedState, severityFilter: savedSeverity, loadedCatIds: savedLoaded } = JSON.parse(saved);
       setHiddenCatIds(new Set(savedHidden as number[]));
-      if (savedVerified) setVerifiedFilter(savedVerified as "both" | "verified" | "unverified");
+      if (savedVerified)  setVerifiedFilter(savedVerified as "both" | "verified" | "unverified");
       if (savedVisibility) setVisibilityFilter(savedVisibility as "both" | "visible" | "hidden");
+      if (savedSeverity)  setSeverityFilter(savedSeverity as "all" | "negative" | "neutral" | "positive");
       setReviewOnly(savedReview);
       setSelectedState(savedState ?? null);
       savedLoadedCatIds = (savedLoaded as number[] | undefined) ?? [];
@@ -217,6 +232,8 @@ export default function AdminPOIsPage() {
       source:        p.source as string | null,
       review_after:  p.review_after as string | null,
       review_note:   p.review_note as string | null,
+      severity:      (p.severity as number) ?? 0,
+      color:         p.color as string | null,
     }));
   }
 
@@ -264,7 +281,13 @@ export default function AdminPOIsPage() {
     .filter((p) => verifiedFilter === "both" || (verifiedFilter === "verified" ? p.is_verified : !p.is_verified))
     .filter((p) => visibilityFilter === "both" || (visibilityFilter === "visible" ? p.is_visible : !p.is_visible))
     .filter((p) => !selectedState || p.state_abbr === selectedState)
-    .filter((p) => !reviewOnly || (p.review_after && p.review_after <= today));
+    .filter((p) => !reviewOnly || (p.review_after && p.review_after <= today))
+    .filter((p) =>
+      severityFilter === "all"      ? true :
+      severityFilter === "negative" ? p.severity < 0 :
+      severityFilter === "positive" ? p.severity > 0 :
+      p.severity === 0
+    );
 
   // Distinct states from loaded POIs for the dropdown
   const availableStates = Array.from(
@@ -651,7 +674,7 @@ export default function AdminPOIsPage() {
         }
 
         function GroupToggle({ label, group, color }: { label: string; group: Category[]; color: string }) {
-          const anyVisible = group.some((c) => !c.loaded || !hiddenCatIds.has(c.id));
+          const anyVisible = group.some((c) => c.loaded && !hiddenCatIds.has(c.id));
           return (
             <button
               type="button"
@@ -722,6 +745,16 @@ export default function AdminPOIsPage() {
                 {availableStates.map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
+              </select>
+              <select
+                value={severityFilter}
+                onChange={(e) => setSeverityFilter(e.target.value as "all" | "negative" | "neutral" | "positive")}
+                className="text-xs border border-gray-200 rounded px-2 py-0.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+              >
+                <option value="all">All severity</option>
+                <option value="negative">Negative</option>
+                <option value="neutral">Neutral (0)</option>
+                <option value="positive">Positive</option>
               </select>
               <button
                 type="button"
@@ -840,7 +873,8 @@ export default function AdminPOIsPage() {
             {visiblePois.map((poi, i) => (
               <tr
                 key={poi.id}
-                className={`hover:bg-gray-50 ${selectedIds.has(poi.id) ? "bg-blue-50" : ""}`}
+                className={`hover:brightness-95 ${selectedIds.has(poi.id) ? "bg-blue-50" : ""}`}
+                style={!selectedIds.has(poi.id) ? { backgroundColor: severityColor(poi.severity, null, 40) ?? undefined } : undefined}
               >
                 <td className="px-4 py-3">
                   <input
