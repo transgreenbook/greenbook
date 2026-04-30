@@ -4,6 +4,7 @@
 -- weight=0 → invisible, weight=50 → half brightness, weight=100 → full brightness.
 -- Sort key for "most dominant POI wins" is |severity| * severity_weight.
 
+DROP FUNCTION IF EXISTS get_region_scoped_pois() CASCADE;
 CREATE OR REPLACE FUNCTION get_region_scoped_pois()
 RETURNS TABLE (
   id               integer,
