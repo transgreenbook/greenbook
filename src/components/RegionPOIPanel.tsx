@@ -10,6 +10,12 @@ import type { RegionPOI } from "@/hooks/useRegionPOIs";
 import { useResizablePanel } from "@/hooks/useResizablePanel";
 import { useFilterStore } from "@/store/filterStore";
 import POIFilter from "@/components/POIFilter";
+import { severityColor } from "@/hooks/useRegionColors";
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const POI_ICON_MAP: Record<string, { url: string; fill: string }> = {
+  "poi-restroom": { url: `${basePath}/icons/transgender-symbol.svg`, fill: "#1e40af" },
+};
 
 const REGION_LABEL: Record<string, string> = {
   state:       "State",
@@ -105,13 +111,29 @@ export default function RegionPOIPanel() {
           {visiblePois.map((poi) => (
             <li key={poi.id}>
               <button
-                className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0 flex items-start gap-3"
+                className="w-full text-left px-4 py-2.5 border-b border-gray-50 last:border-0 flex items-start gap-3 hover:brightness-95"
+                style={{ backgroundColor: severityColor(poi.severity, null, 50) ?? undefined }}
                 onClick={() => handlePOIClick(poi)}
               >
-                <span
-                  className="mt-1 w-3 h-3 rounded-full shrink-0"
-                  style={{ backgroundColor: poi.color ?? "#3b82f6" }}
-                />
+                {poi.icon && POI_ICON_MAP[poi.icon] ? (
+                  <span
+                    className="mt-1 w-4 h-4 shrink-0"
+                    style={{
+                      backgroundColor: POI_ICON_MAP[poi.icon].fill,
+                      WebkitMaskImage: `url(${POI_ICON_MAP[poi.icon].url})`,
+                      maskImage: `url(${POI_ICON_MAP[poi.icon].url})`,
+                      WebkitMaskSize: "contain",
+                      maskSize: "contain",
+                      WebkitMaskRepeat: "no-repeat",
+                      maskRepeat: "no-repeat",
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="mt-1 w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: poi.color ?? "#3b82f6" }}
+                  />
+                )}
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-gray-800 truncate">{poi.title}</div>
                   {poi.description && (

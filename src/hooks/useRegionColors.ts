@@ -39,7 +39,7 @@ function nearest<T extends LatLng>(items: T[], lat: number, lng: number): T | nu
 // Positive severity → green spectrum (affirming/safe).
 // severity_weight (0–100) scales the final opacity so low-weight categories
 // appear dim even at full severity (e.g. weight=25 → 25% as bright).
-function severityColor(severity: number | null, poiColor: string | null, weight = 100): string | null {
+export function severityColor(severity: number | null, poiColor: string | null, weight = 100): string | null {
   if (poiColor) return poiColor;
   if (!severity || weight === 0) return null;
   const intensity   = Math.abs(severity) / 10;
