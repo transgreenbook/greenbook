@@ -95,6 +95,28 @@ const resend    = RESEND_API_KEY
 
 const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
 
+// Token usage tracker — accumulated across all Claude calls in a run.
+// Haiku 4.5 pricing (as of May 2026): $0.80/MTok input, $4.00/MTok output.
+const tokenUsage = { input: 0, output: 0 };
+const HAIKU_INPUT_COST_PER_M  = 0.80;
+const HAIKU_OUTPUT_COST_PER_M = 4.00;
+
+function trackUsage(usage) {
+  if (!usage) return;
+  tokenUsage.input  += usage.input_tokens  ?? 0;
+  tokenUsage.output += usage.output_tokens ?? 0;
+}
+
+function logTokenSummary() {
+  const inputCost  = (tokenUsage.input  / 1_000_000) * HAIKU_INPUT_COST_PER_M;
+  const outputCost = (tokenUsage.output / 1_000_000) * HAIKU_OUTPUT_COST_PER_M;
+  const totalCost  = inputCost + outputCost;
+  console.log(`\nClaude token usage:`);
+  console.log(`  Input:  ${tokenUsage.input.toLocaleString()} tokens  ($${inputCost.toFixed(4)})`);
+  console.log(`  Output: ${tokenUsage.output.toLocaleString()} tokens  ($${outputCost.toFixed(4)})`);
+  console.log(`  Total estimated cost: $${totalCost.toFixed(4)}`);
+}
+
 // ---------------------------------------------------------------------------
 // RSS fetching
 // ---------------------------------------------------------------------------
@@ -401,6 +423,7 @@ A third-party policy summary covering the same state/topic is NOT a reason to sk
     system:     systemPrompt,
     messages:   [{ role: 'user', content: userPrompt }],
   });
+  trackUsage(message.usage);
 
   const raw = message.content[0]?.text ?? '{}';
   if (DEBUG) console.log('\n[DEBUG] Claude raw response:\n', raw.slice(0, 2000));
@@ -486,6 +509,7 @@ Extract the following fields. Return ONLY a raw JSON object — no commentary, n
       max_tokens: 1024,
       messages:   [{ role: 'user', content: prompt }],
     });
+    trackUsage(message.usage);
 
     const raw = message.content[0]?.text ?? '{}';
     const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
@@ -616,6 +640,7 @@ Only include findings with relevance "high" or "medium" — omit low-relevance a
       max_tokens: 1024,
       messages:   [{ role: 'user', content: prompt }],
     });
+    trackUsage(message.usage);
     const raw = message.content[0]?.text ?? '{}';
     const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
     const candidates = [raw.trim(), stripped, (() => { const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); return s !== -1 && e > s ? raw.slice(s, e + 1) : ''; })()];
@@ -1103,6 +1128,7 @@ async function main() {
     }
   }
 
+  logTokenSummary();
   console.log('\nDone.');
 }
 
