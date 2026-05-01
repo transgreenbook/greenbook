@@ -352,7 +352,7 @@ Respond with this JSON structure:
         "title": "<short descriptive title, e.g. 'Assault on trans woman in Dallas'>",
         "description": "<1-2 sentences describing what happened>",
         "incident_date": "<YYYY-MM-DD or null if unknown>",
-        "incident_type": "<one of: assault | murder | sexual_assault | harassment | property | other>",
+        "incident_type": "<one of the types below>",
         "jurisdiction_type": "<one of: federal | state | county | city | reservation | territory>",
         "city": "<city name or null>",
         "county_name": "<county name or null>",
@@ -363,8 +363,29 @@ Respond with this JSON structure:
   ]
 }
 
-Only populate "incident" when the article describes a specific physical incident (assault, murder, sexual assault, harassment, property crime) targeting a trans person or persons. Do NOT populate for legislation, policy, or general advocacy news.
-An article may have both a "suggested_poi" and an "incident" if it describes both a legal/policy development and a specific physical event.
+Incident types (use the most specific match):
+  Violence & threats:
+    assault              — physical attack on a trans person
+    murder               — killing of a trans person
+    sexual_assault       — sexual violence against a trans person
+    harassment           — verbal harassment, stalking, non-physical intimidation
+    property_crime       — vandalism, arson, or destruction of LGBTQ+ property
+    threat               — credible threat against a person, venue, or event
+  Institutional (traveler-relevant):
+    gov_discrimination   — government agency denying services (DMV, vital records, public accommodation)
+    law_enforcement_failure    — police not investigating or ignoring violence against trans people
+    law_enforcement_misconduct — police targeting, profiling, or mistreating trans people
+    border_incident      — TSA, CBP, or border crossing issue targeting a trans traveler
+    healthcare_denial    — hospital or clinic refusing care to a trans patient
+  Climate:
+    demonstration        — organized anti-trans rally or protest creating unsafe local conditions
+    political_rhetoric   — anti-trans statements by an elected official or law enforcement leader
+    vigilante            — private citizens confronting, filming, or reporting trans people
+  Fallback:
+    other
+
+Only populate "incident" when the article describes a specific, locatable incident relevant to trans traveler safety. Do NOT populate for general legislation, policy analysis, or national advocacy news with no specific incident.
+An article may have both a "suggested_poi" and an "incident" if warranted.
 
 Only include findings with relevance "high", "medium", or "low" — omit "skip" entries entirely.
 Only populate "suggested_poi" when ALL of these are true:
