@@ -65,14 +65,16 @@ const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KE
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
-// Fetch all LGBTQ-tagged bars/nightclubs/pubs in the US bounding box.
+// Fetch all LGBTQ-tagged bars/nightclubs/pubs in the continental US bounding box.
+// Bounding box (S,W,N,E): covers contiguous US + AK/HI approximation.
+// Using bbox instead of area[] — more reliable on Overpass for large queries.
 // We use `out center` on ways so we always get a single lat/lng point.
+const BBOX = '18.0,-180.0,72.0,-60.0'; // covers contiguous US, Alaska, Hawaii
 const QUERY = `
-[out:json][timeout:60];
-area["ISO3166-1"="US"][admin_level=2]->.usa;
+[out:json][timeout:120];
 (
-  node["lgbtq"~"^(yes|primary|only)$"]["amenity"~"^(bar|nightclub|pub)$"](area.usa);
-  way["lgbtq"~"^(yes|primary|only)$"]["amenity"~"^(bar|nightclub|pub)$"](area.usa);
+  node["lgbtq"~"^(yes|primary|only)$"]["amenity"~"^(bar|nightclub|pub)$"](${BBOX});
+  way["lgbtq"~"^(yes|primary|only)$"]["amenity"~"^(bar|nightclub|pub)$"](${BBOX});
 );
 out center;
 `;
