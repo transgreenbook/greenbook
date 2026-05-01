@@ -900,9 +900,8 @@ async function main() {
 
   console.log(`\n${allArticles.length} new articles total`);
 
-  // Mark all fetched articles as seen now, before analysis.
-  // This ensures skipped articles aren't re-analyzed on future runs.
-  if (!DRY_RUN) await markArticlesSeen(allArticles);
+  // Articles are marked seen after analysis completes (see step 11).
+  // Doing it here would swallow articles if the script is killed mid-run.
 
   if (allArticles.length === 0) {
     console.log('Nothing new — skipping analysis and email.');
@@ -1073,7 +1072,10 @@ async function main() {
     }).eq('id', runId);
   }
 
-  // 11. Build and send email
+  // 11. Mark articles as seen now that analysis is complete
+  if (!DRY_RUN) await markArticlesSeen(allArticles);
+
+  // 12. Build and send email
   const combinedAnalysis = {
     digest_summary: digestSummary,
     findings:       allFindings.map((f, i) => ({ ...f, article_index: i })),
