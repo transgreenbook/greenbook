@@ -835,7 +835,7 @@ async function main() {
         const { error } = await supabase.from('incidents').insert({
           title:             inc.title,
           description:       inc.description ?? null,
-          incident_date:     inc.incident_date ?? null,
+          incident_date:     /^\d{4}-\d{2}-\d{2}$/.test(inc.incident_date ?? '') ? inc.incident_date : null,
           incident_type:     inc.incident_type ?? null,
           jurisdiction_type: inc.jurisdiction_type ?? null,
           city:              inc.city ?? null,
