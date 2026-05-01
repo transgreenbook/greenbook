@@ -347,10 +347,24 @@ Respond with this JSON structure:
         "state_abbr": "<2-letter state, or null for federal>",
         "category_hint": "<one of: Law — Anti-Trans | Law — Bathroom Access | Law — Birth Certificate | Law — Driver's License | Law — Healthcare | Policy Rating — Anti-Trans | Policy Rating — Bathroom Access | Policy Rating — Birth Certificate | Policy Rating — Driver's License | Policy Rating — Healthcare | Policy Rating — Non-Binary Recognition | Safety Incident | null>\nUse Law — * for a specific individual law, bill, or court ruling. Use Policy Rating — * for executive orders, agency policies, or general state/regional policy summaries.",
         "source_url": "<direct URL to primary source — bill text, court ruling, or authoritative press release>"
+      },
+      "incident": null | {
+        "title": "<short descriptive title, e.g. 'Assault on trans woman in Dallas'>",
+        "description": "<1-2 sentences describing what happened>",
+        "incident_date": "<YYYY-MM-DD or null if unknown>",
+        "incident_type": "<one of: assault | murder | sexual_assault | harassment | property | other>",
+        "jurisdiction_type": "<one of: federal | state | county | city | reservation | territory>",
+        "city": "<city name or null>",
+        "county_name": "<county name or null>",
+        "state_abbr": "<2-letter state abbr or null>",
+        "confidence": <0.0 to 1.0>
       }
     }
   ]
 }
+
+Only populate "incident" when the article describes a specific physical incident (assault, murder, sexual assault, harassment, property crime) targeting a trans person or persons. Do NOT populate for legislation, policy, or general advocacy news.
+An article may have both a "suggested_poi" and an "incident" if it describes both a legal/policy development and a specific physical event.
 
 Only include findings with relevance "high", "medium", or "low" — omit "skip" entries entirely.
 Only populate "suggested_poi" when ALL of these are true:
@@ -776,13 +790,51 @@ async function main() {
       finding_type:     f._draft_poi_id ? 'suggested_poi' : 'news',
     }));
 
-    const { error: findingsErr } = await supabase
+    const { data: insertedFindings, error: findingsErr } = await supabase
       .from('digest_findings')
-      .upsert(rows, { onConflict: 'digest_run_id,article_url', ignoreDuplicates: true });
+      .upsert(rows, { onConflict: 'digest_run_id,article_url', ignoreDuplicates: true })
+      .select('id, article_url');
     if (findingsErr) console.warn('Failed to store findings:', findingsErr.message);
+
+    // Map article_url → finding id so incidents can link back
+    const findingIdByUrl = new Map((insertedFindings ?? []).map((r) => [r.article_url, r.id]));
+    for (const f of allFindings) {
+      f._finding_id = findingIdByUrl.get(f._article?.url ?? '') ?? null;
+    }
   }
 
-  // 7. Create new watch items suggested by Claude
+  // 7. Store incidents extracted by Claude
+  if (!DRY_RUN && allFindings.length > 0) {
+    const incidentFindings = allFindings.filter((f) => f.incident && f._finding_id);
+    const incidentFindingsAll = allFindings.filter((f) => f.incident);
+    if (incidentFindingsAll.length > 0) {
+      console.log(`\nStoring ${incidentFindingsAll.length} incident(s)…`);
+      for (const f of incidentFindingsAll) {
+        const inc = f.incident;
+        const stateAbbr = inc.state_abbr?.trim() ?? null;
+        const { error } = await supabase.from('incidents').insert({
+          title:             inc.title,
+          description:       inc.description ?? null,
+          incident_date:     inc.incident_date ?? null,
+          incident_type:     inc.incident_type ?? null,
+          jurisdiction_type: inc.jurisdiction_type ?? null,
+          city:              inc.city ?? null,
+          county_name:       inc.county_name ?? null,
+          state_abbr:        stateAbbr,
+          state_id:          stateAbbr ? (context.stateMap.get(stateAbbr) ?? null) : null,
+          source_url:        f._article?.url ?? null,
+          source_name:       f._article?.source_name ?? null,
+          digest_run_id:     runId,
+          digest_finding_id: f._finding_id ?? null,
+          confidence:        inc.confidence ?? null,
+        });
+        if (error) console.warn(`  Incident insert failed: ${inc.title} — ${error.message}`);
+        else console.log(`  Stored incident: "${inc.title}"`);
+      }
+    }
+  }
+
+  // 8. Create new watch items suggested by Claude
   if (!DRY_RUN && allFindings.length > 0) {
     for (const f of allFindings) {
       if (!f.new_watch_item) continue;
@@ -804,7 +856,7 @@ async function main() {
     }
   }
 
-  // 8. Update digest_run totals
+  // 9. Update digest_run totals
   if (!DRY_RUN && runId) {
     await supabase.from('digest_runs').update({
       articles_fetched: allArticles.length,
@@ -813,7 +865,7 @@ async function main() {
     }).eq('id', runId);
   }
 
-  // 9. Build and send email
+  // 10. Build and send email
   const combinedAnalysis = {
     digest_summary: digestSummary,
     findings:       allFindings.map((f, i) => ({ ...f, article_index: i })),
