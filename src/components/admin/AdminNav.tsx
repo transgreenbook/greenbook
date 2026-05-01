@@ -6,7 +6,9 @@ import { supabase } from "@/lib/supabase";
 
 const links = [
   { href: "/admin/pois", label: "POIs" },
-  { href: "/admin/categories", label: "Categories" },
+  { href: "/admin/categories", label: "POI Categories" },
+  { href: "/admin/incidents", label: "Incidents" },
+  { href: "/admin/incident-types", label: "Incident Types" },
   { href: "/admin/digest", label: "Digest" },
 ];
 
