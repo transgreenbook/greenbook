@@ -520,6 +520,148 @@ Extract the following fields. Return ONLY a raw JSON object — no commentary, n
 }
 
 // ---------------------------------------------------------------------------
+// Watch item check
+// ---------------------------------------------------------------------------
+
+function buildWatchItemSearchUrl(item) {
+  const q = encodeURIComponent(`"${item.title.slice(0, 80)}"`);
+  return `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
+}
+
+async function checkWatchItem(item, context, runId) {
+  // Fetch targeted articles for this watch item
+  let articles = [];
+  try {
+    const url = buildWatchItemSearchUrl(item);
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'TransSafeTravels-Digest/1.0' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.ok) {
+      const xml  = await res.text();
+      const doc  = xmlParser.parse(xml);
+      const channel = doc?.rss?.channel;
+      if (channel) {
+        const rawItems = channel.item ?? [];
+        const items = Array.isArray(rawItems) ? rawItems : [rawItems];
+        articles = items.slice(0, 10).map((a) => ({
+          title:       a.title ?? '(no title)',
+          url:         a.link  ?? '',
+          description: stripHtml(a.description ?? a.summary ?? ''),
+          published:   a.pubDate ?? null,
+        })).filter((a) => a.url);
+      }
+    }
+  } catch (err) {
+    console.warn(`  Watch item "${item.title}" — fetch failed: ${err.message}`);
+  }
+
+  console.log(`  "${item.title}" — ${articles.length} article(s) found`);
+
+  if (articles.length === 0) {
+    // Nothing found — push check date forward 30 days, don't create findings
+    const nextDate = new Date();
+    nextDate.setDate(nextDate.getDate() + 30);
+    await supabase.from('watch_items').update({
+      next_check_date: nextDate.toISOString().slice(0, 10),
+    }).eq('id', item.id);
+    return { item, articles: [], summary: 'No articles found.', next_check_days: 30, status: item.status };
+  }
+
+  // Ask Claude to analyze the articles in context of this specific watch item
+  const articlesText = articles.map((a, i) =>
+    `[${i}] TITLE: ${a.title}\nURL: ${a.url}\nSNIPPET: ${a.description}\nDATE: ${a.published ?? 'unknown'}`
+  ).join('\n\n');
+
+  const prompt = `You are monitoring a specific development for TransSafeTravels, a trans travel safety resource.
+
+Watch item: "${item.title}"
+Type: ${item.item_type}
+Jurisdiction: ${item.jurisdiction_type}
+${item.description ? `Description: ${item.description}` : ''}
+${item.severity_impact ? `What we're watching for: ${item.severity_impact}` : ''}
+
+Articles found (${articles.length}):
+${articlesText}
+
+Respond with a JSON object:
+{
+  "has_updates": true|false,
+  "summary": "<2-3 sentence summary of what was found and what it means for trans travelers>",
+  "status": "<monitoring|resolved|escalated>",
+  "next_check_days": <integer — see guidelines below>,
+  "findings": [
+    {
+      "article_index": <number>,
+      "relevance": "high|medium|low",
+      "summary": "<what this article means for the watch item>",
+      "suggested_action": "<what the reviewer should do>"
+    }
+  ]
+}
+
+Guidelines for next_check_days:
+- 1–7: Active safety emergency or rapidly developing legal situation requiring close monitoring
+- 7–14: High-priority development moving quickly
+- 14–30: Some activity, normal monitoring pace
+- 30–90: Low activity or stable situation
+- Default to 30 if nothing of significance was found
+Use "resolved" if the matter has clearly concluded. Use "escalated" if this requires immediate attention.
+Only include findings with relevance "high" or "medium" — omit low-relevance articles.`;
+
+  let result = { has_updates: false, summary: 'No updates found.', status: item.status, next_check_days: 30, findings: [] };
+  try {
+    const message = await anthropic.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages:   [{ role: 'user', content: prompt }],
+    });
+    const raw = message.content[0]?.text ?? '{}';
+    const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    const candidates = [raw.trim(), stripped, (() => { const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); return s !== -1 && e > s ? raw.slice(s, e + 1) : ''; })()];
+    for (const c of candidates) {
+      if (!c) continue;
+      try { result = JSON.parse(c); break; } catch {}
+    }
+  } catch (err) {
+    console.warn(`  Watch item Claude call failed: ${err.message}`);
+  }
+
+  // Store findings
+  const checkedAt = new Date().toISOString();
+  for (const f of (result.findings ?? [])) {
+    const article = articles[f.article_index];
+    if (!article) continue;
+    await supabase.from('digest_findings').insert({
+      digest_run_id:    runId,
+      watch_item_id:    item.id,
+      article_url:      article.url,
+      article_title:    article.title,
+      article_date:     article.published ? new Date(article.published).toISOString() : null,
+      summary:          f.summary ?? null,
+      suggested_action: f.suggested_action ?? null,
+      relevance:        f.relevance ?? null,
+      confidence:       0.8,
+      jurisdiction_type: item.jurisdiction_type,
+      finding_type:     'watch_item',
+    });
+  }
+
+  // Update watch item
+  const nextDate = new Date();
+  nextDate.setDate(nextDate.getDate() + Math.max(1, Math.min(90, result.next_check_days ?? 30)));
+  await supabase.from('watch_items').update({
+    status:          result.status ?? item.status,
+    next_check_date: nextDate.toISOString().slice(0, 10),
+  }).eq('id', item.id);
+
+  const findingCount = (result.findings ?? []).length;
+  console.log(`    → ${result.has_updates ? `${findingCount} finding(s)` : 'no updates'}, next check in ${result.next_check_days ?? 30} days (${result.status})`);
+
+  return { item, articles, summary: result.summary, next_check_days: result.next_check_days ?? 30, status: result.status, findings: result.findings ?? [] };
+}
+
+// ---------------------------------------------------------------------------
 // Draft POI creation
 // ---------------------------------------------------------------------------
 
@@ -580,7 +722,33 @@ function relevanceColor(r) {
   return r === 'high' ? '#dc2626' : r === 'medium' ? '#d97706' : '#6b7280';
 }
 
-function buildEmailHtml(analysis, articles, runDate) {
+function buildWatchItemUpdatesHtml(updates) {
+  if (!updates || updates.length === 0) return '';
+  const rows = updates.map((u) => {
+    const statusColor = u.status === 'escalated' ? '#dc2626' : u.status === 'resolved' ? '#6b7280' : '#2563eb';
+    const findingsList = (u.findings ?? []).filter((f) => f.relevance !== 'low').map((f) => {
+      const article = u.articles?.[f.article_index];
+      return `<div style="margin-top:8px;padding:8px;background:#f9fafb;border-radius:4px;font-size:12px">
+        ${article?.url ? `<a href="${article.url}" style="color:#2563eb;font-weight:600;text-decoration:none">${article.title ?? 'Article'}</a><br>` : ''}
+        <span style="color:#374151">${f.summary ?? ''}</span>
+        ${f.suggested_action ? `<br><span style="color:#6b7280"><strong>Action:</strong> ${f.suggested_action}</span>` : ''}
+      </div>`;
+    }).join('');
+    return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:12px;background:#fff">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="display:inline-block;padding:2px 8px;border-radius:9999px;background:${statusColor};color:#fff;font-size:11px;font-weight:700;text-transform:uppercase">${u.status}</span>
+        <span style="font-weight:600;font-size:14px;color:#111827">${u.item.title}</span>
+      </div>
+      <p style="margin:0 0 4px;font-size:13px;color:#374151">${u.summary ?? ''}</p>
+      <p style="margin:0 0 6px;font-size:12px;color:#6b7280">Next check in ${u.next_check_days ?? 30} days</p>
+      ${findingsList}
+    </div>`;
+  }).join('');
+
+  return `<h2 style="font-size:16px;font-weight:700;color:#7c3aed;margin:24px 0 10px;padding-bottom:6px;border-bottom:2px solid #7c3aed">🔭 Watch Item Updates (${updates.length})</h2>${rows}`;
+}
+
+function buildEmailHtml(analysis, articles, runDate, watchItemUpdates = []) {
   const { digest_summary, findings = [] } = analysis;
 
   const CONFIDENCE_THRESHOLD = 0.9;
@@ -656,6 +824,7 @@ function buildEmailHtml(analysis, articles, runDate) {
     ${federal.length ? renderSection('🏛️ Federal', federal.filter(f => f.relevance !== 'high' && f.relevance !== 'medium'), '#4f46e5') : ''}
     ${renderSection('🌎 International & Border', international, '#0369a1')}
     ${belowThreshold.length ? renderSection('🔘 Below Confidence Threshold (&lt;0.9) — FYI only', belowThreshold, '#d1d5db', true) : ''}
+    ${buildWatchItemUpdatesHtml(watchItemUpdates)}
 
     <div style="margin-top:28px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center">
       Generated by TransSafeTravels news-digest.mjs · For review only — no changes have been applied automatically.
@@ -876,7 +1045,26 @@ async function main() {
     }
   }
 
-  // 9. Update digest_run totals
+  // 9. Check overdue watch items
+  const watchItemUpdates = [];
+  if (!DRY_RUN) {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: overdueItems } = await supabase
+      .from('watch_items')
+      .select('*')
+      .eq('status', 'monitoring')
+      .lte('next_check_date', today);
+
+    if (overdueItems && overdueItems.length > 0) {
+      console.log(`\nChecking ${overdueItems.length} overdue watch item(s)…`);
+      for (const item of overdueItems) {
+        const update = await checkWatchItem(item, context, runId);
+        if (update) watchItemUpdates.push(update);
+      }
+    }
+  }
+
+  // 10. Update digest_run totals
   if (!DRY_RUN && runId) {
     await supabase.from('digest_runs').update({
       articles_fetched: allArticles.length,
@@ -885,12 +1073,12 @@ async function main() {
     }).eq('id', runId);
   }
 
-  // 10. Build and send email
+  // 11. Build and send email
   const combinedAnalysis = {
     digest_summary: digestSummary,
     findings:       allFindings.map((f, i) => ({ ...f, article_index: i })),
   };
-  const emailHtml = buildEmailHtml(combinedAnalysis, allFindings.map((f) => f._article), runDate);
+  const emailHtml = buildEmailHtml(combinedAnalysis, allFindings.map((f) => f._article), runDate, watchItemUpdates);
 
   if (DRY_RUN) {
     console.log('\n[DRY RUN] Email HTML written to /tmp/digest-preview.html');
@@ -900,7 +1088,7 @@ async function main() {
       const { data, error } = await resend.emails.send({
         from:    FROM_EMAIL,
         to:      TO_EMAIL,
-        subject: `TransSafeTravels Digest — ${runDate} (${allFindings.length} findings)`,
+        subject: `TransSafeTravels Digest — ${runDate} (${allFindings.length} findings${watchItemUpdates.length ? `, ${watchItemUpdates.length} watch updates` : ''})`,
         html:    emailHtml,
       });
       if (error) throw new Error(error.message);
