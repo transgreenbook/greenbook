@@ -63,7 +63,11 @@ const supabase = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KE
 // Overpass query
 // ---------------------------------------------------------------------------
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+];
 
 // Fetch all LGBTQ-tagged bars/nightclubs/pubs in the continental US bounding box.
 // Bounding box (S,W,N,E): covers contiguous US + AK/HI approximation.
@@ -80,15 +84,24 @@ out center;
 `;
 
 async function fetchFromOverpass() {
-  console.log('Querying Overpass API (this may take 30–60 seconds)…');
-  const res = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(QUERY)}`,
-  });
-  if (!res.ok) throw new Error(`Overpass returned ${res.status}`);
-  const json = await res.json();
-  return json.elements ?? [];
+  for (const url of OVERPASS_MIRRORS) {
+    console.log(`Querying ${new URL(url).hostname} (this may take 30–60 seconds)…`);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(QUERY)}`,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        return json.elements ?? [];
+      }
+      console.warn(`  ${url} returned ${res.status} — trying next mirror…`);
+    } catch (err) {
+      console.warn(`  ${url} failed (${err.message}) — trying next mirror…`);
+    }
+  }
+  throw new Error('All Overpass mirrors failed');
 }
 
 // ---------------------------------------------------------------------------
