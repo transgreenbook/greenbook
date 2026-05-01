@@ -89,7 +89,10 @@ async function fetchFromOverpass() {
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'TransSafeTravels/1.0 (zerosquaredio@gmail.com)',
+        },
         body: `data=${encodeURIComponent(QUERY)}`,
       });
       if (res.ok) {
