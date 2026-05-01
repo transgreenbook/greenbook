@@ -169,6 +169,7 @@ function buildDescription(tags) {
 
 async function main() {
   if (DRY_RUN) console.log('DRY RUN — no database writes will occur.\n');
+  const runDate = new Date().toISOString().slice(0, 10);
 
   // Look up the Entertainment category ID
   const { data: categories, error: catErr } = await supabase
@@ -191,7 +192,28 @@ async function main() {
     console.log(`  Deduplicated to ${elements.length} (removed ${raw.length - elements.length} near-duplicate(s)).`);
   }
 
+  // Pre-load existing OSM source_ids so we can insert vs update separately
+  // (source_date is set on insert only — use updated_at to see when records changed)
+  const existingIds = new Set();
+  if (!DRY_RUN) {
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('points_of_interest')
+        .select('source_id')
+        .eq('source', 'openstreetmap')
+        .order('id')
+        .range(from, from + 999);
+      if (error) throw error;
+      for (const r of (data ?? [])) existingIds.add(r.source_id);
+      if (!data || data.length < 1000) break;
+      from += 1000;
+    }
+    console.log(`  ${existingIds.size} existing OSM venue(s) in DB.`);
+  }
+
   let inserted = 0;
+  let updated = 0;
   let skipped = 0;
   let failed = 0;
 
@@ -237,25 +259,35 @@ async function main() {
       continue;
     }
 
-    const { error } = await supabase
-      .from('points_of_interest')
-      .upsert({ sheet_id: osmId, ...poi }, { onConflict: 'sheet_id' });
+    const isNew = !existingIds.has(osmId);
 
-    if (error) {
-      console.warn(`  Failed: ${name} — ${error.message}`);
-      failed++;
+    if (isNew) {
+      const { error } = await supabase
+        .from('points_of_interest')
+        .insert({ ...poi, source_date: runDate });
+      if (error) {
+        console.warn(`  Insert failed: ${name} — ${error.message}`);
+        failed++;
+      } else {
+        existingIds.add(osmId);
+        inserted++;
+      }
     } else {
-      inserted++;
+      const { error } = await supabase
+        .from('points_of_interest')
+        .update(poi)
+        .eq('source', 'openstreetmap')
+        .eq('source_id', osmId);
+      if (error) {
+        console.warn(`  Update failed: ${name} — ${error.message}`);
+        failed++;
+      } else {
+        updated++;
+      }
     }
   }
 
-  console.log(`\nDone. ${inserted} upserted, ${skipped} skipped (no name/coords), ${failed} failed.`);
-
-  // Sync the ID sequence in case rows were inserted with explicit IDs (e.g. via spreadsheet seed).
-  if (!DRY_RUN) {
-    const { error: seqErr } = await supabase.rpc('sync_poi_sequence');
-    if (seqErr) console.warn('sync_poi_sequence:', seqErr.message);
-  }
+  console.log(`\nDone. ${inserted} inserted, ${updated} updated, ${skipped} skipped (no name/coords), ${failed} failed.`);
 }
 
 main().catch(err => {

@@ -193,7 +193,7 @@ async function markArticlesSeen(articles) {
 }
 
 async function getDBContext() {
-  const [poisRes, watchRes, lawPoisRes, categoriesRes] = await Promise.all([
+  const [poisRes, watchRes, lawPoisRes, categoriesRes, statesRes] = await Promise.all([
     supabase
       .from('points_of_interest')
       .select('id, title, severity, effect_scope, state_abbr, county_name, city_name, description')
@@ -219,6 +219,9 @@ async function getDBContext() {
     supabase
       .from('categories')
       .select('id, name'),
+    supabase
+      .from('states')
+      .select('id, abbreviation'),
   ]);
 
   // Build category name → id map (lowercase keys for case-insensitive lookup)
@@ -226,11 +229,17 @@ async function getDBContext() {
     (categoriesRes.data ?? []).map((c) => [c.name.toLowerCase(), c.id])
   );
 
+  // Build state abbreviation → id map
+  const stateMap = new Map(
+    (statesRes.data ?? []).map((s) => [s.abbreviation.trim(), s.id])
+  );
+
   return {
-    pois:        poisRes.data   ?? [],
-    watchItems:  watchRes.data  ?? [],
+    pois:        poisRes.data    ?? [],
+    watchItems:  watchRes.data   ?? [],
     lawPois:     lawPoisRes.data ?? [],
     categoryMap,
+    stateMap,
   };
 }
 
@@ -761,6 +770,7 @@ async function main() {
       relevance:        f.relevance ?? null,
       legislation_url:  f.legislation_url ?? null,
       jurisdiction_type: f.jurisdiction_type ?? null,
+      state_id:         f.state_abbr ? (context.stateMap.get(f.state_abbr) ?? null) : null,
       severity_delta:   f.severity_delta ?? null,
       linked_poi_id:    f._draft_poi_id ?? null,
       finding_type:     f._draft_poi_id ? 'suggested_poi' : 'news',
@@ -781,6 +791,7 @@ async function main() {
         title:             f.new_watch_item.title,
         description:       f.new_watch_item.description,
         jurisdiction_type: f.jurisdiction_type ?? 'federal',
+        state_id:          f.state_abbr ? (context.stateMap.get(f.state_abbr) ?? null) : null,
         status:            'monitoring',
         next_check_date:   f.new_watch_item.next_check_date ?? null,
         source_url:        f._article?.url ?? null,

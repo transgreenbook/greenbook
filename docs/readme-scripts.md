@@ -119,23 +119,4 @@ bash scripts/build-tiles.sh
 
 ## Data imports
 
-### `scripts/import-lgbtq-venues.mjs`
-
-Queries OpenStreetMap via the Overpass API for LGBTQ+ bars, nightclubs, and drag
-venues across the US, then upserts them into the local Supabase DB.
-
-```bash
-node scripts/import-lgbtq-venues.mjs           # live import
-node scripts/import-lgbtq-venues.mjs --dry-run # preview without writing to DB
-```
-
-### `scripts/import-refuge-restrooms.mjs`
-
-Imports unisex/gender-neutral restrooms from the Refuge Restrooms API into
-Supabase. Filters for `unisex=true` and rating ≥ 75% (records with zero votes
-are included).
-
-```bash
-node scripts/import-refuge-restrooms.mjs         # daily update (since yesterday)
-node scripts/import-refuge-restrooms.mjs --full  # full import / periodic refresh
-```
+See **[docs/internal/sources/readme-imports.md](../internal/sources/readme-imports.md)** for documentation on all import scripts, their schedules, and one-time historical imports.

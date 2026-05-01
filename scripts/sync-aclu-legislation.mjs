@@ -338,6 +338,7 @@ async function main() {
       status_detail:  statusDetail,
       status_date:    statusDate,
       issues,
+      court_url:      row['In Court Link']?.trim() || null,
       sources:        { aclu: true },
       last_synced_at: new Date().toISOString(),
     });

@@ -150,9 +150,10 @@ function toPoiRecord(r, coords = null, categoryId = null) {
       ...(rating !== null && { rating }),
       ...(coords ? { geocoded: true } : {}),
     },
-    source:    SOURCE,
-    source_id: String(r.id),
-    icon:      'poi-restroom',
+    source:      SOURCE,
+    source_id:   String(r.id),
+    source_date: r.updated_at ? r.updated_at.slice(0, 10) : null,
+    icon:        'poi-restroom',
   };
 }
 
@@ -197,7 +198,7 @@ async function upsertBatch(records, existingMap, counters, seenIds = null, categ
     } else {
       const { data, error } = await supabase
         .from('points_of_interest')
-        .insert(poi)
+        .upsert(poi, { onConflict: 'source,source_id' })
         .select('id, source_id')
         .single();
       if (error) {
@@ -242,6 +243,7 @@ async function main() {
       .from('points_of_interest')
       .select('id, source_id')
       .eq('source', SOURCE)
+      .order('id')
       .range(from, from + LOAD_PAGE - 1);
     if (error) throw error;
     for (const r of (data ?? [])) existingMap.set(r.source_id, r.id);
