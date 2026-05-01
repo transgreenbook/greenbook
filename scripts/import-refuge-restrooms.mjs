@@ -198,7 +198,7 @@ async function upsertBatch(records, existingMap, counters, seenIds = null, categ
     } else {
       const { data, error } = await supabase
         .from('points_of_interest')
-        .upsert(poi, { onConflict: 'source,source_id' })
+        .insert(poi)
         .select('id, source_id')
         .single();
       if (error) {
