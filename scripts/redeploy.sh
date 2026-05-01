@@ -3,7 +3,8 @@
 # Run this on the server after pushing changes from your dev machine.
 #
 # Usage:
-#   bash scripts/redeploy.sh
+#   bash scripts/redeploy.sh           # normal deploy (skips if already up to date)
+#   bash scripts/redeploy.sh --force   # rebuild and restart even if nothing was pulled
 #
 # What it does:
 #   1. git pull
@@ -18,6 +19,11 @@
 
 set -euo pipefail
 
+FORCE=0
+for arg in "$@"; do
+  [ "$arg" = "--force" ] && FORCE=1
+done
+
 APP_DIR="/var/www/transsafetravels"
 cd "$APP_DIR"
 
@@ -29,9 +35,12 @@ echo "→ Pulling..."
 git pull
 NEW_SHA=$(git rev-parse HEAD)
 
-if [ "$PREV_SHA" = "$NEW_SHA" ]; then
+if [ "$PREV_SHA" = "$NEW_SHA" ] && [ "$FORCE" = "0" ]; then
   echo "  Already up to date ($(git rev-parse --short HEAD)). Nothing to do."
+  echo "  Tip: use --force to rebuild and restart anyway."
   exit 0
+elif [ "$PREV_SHA" = "$NEW_SHA" ]; then
+  echo "  Already up to date ($(git rev-parse --short HEAD)) — forcing rebuild."
 fi
 
 echo "  $(git rev-parse --short "$PREV_SHA") → $(git rev-parse --short "$NEW_SHA")"

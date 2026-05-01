@@ -10,7 +10,7 @@ const links = [
   { href: "/admin/incidents", label: "Incidents" },
   { href: "/admin/incident-types", label: "Incident Types" },
   { href: "/admin/watch-items", label: "Watch Items" },
-  { href: "/admin/digest", label: "Digest" },
+  { href: "/admin/digest", label: "Digest Log" },
 ];
 
 export default function AdminNav() {
