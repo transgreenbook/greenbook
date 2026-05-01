@@ -4,6 +4,11 @@
 # public schema so a restore is completely self-contained.
 # Keeps the 14 most recent backups and removes older ones.
 #
+# If RCLONE_REMOTE is set (e.g. "gdrive:greenbook-backups"), the backup is
+# also uploaded to that destination and old remote files are pruned to match
+# the local retention window. Set this in the systemd service on production;
+# leave it unset on dev to skip the upload.
+#
 # Run manually:   bash scripts/backup-db.sh
 # Run via systemd: systemctl --user start greenbook-backup.service
 
@@ -73,3 +78,27 @@ fi
 
 echo "[backup] Done. Current backups:"
 ls -lh "$BACKUP_DIR"/greenbook-*.sql.gz 2>/dev/null || echo "  (none)"
+
+# ── Optional: upload to Google Drive via rclone ──────────────────────────────
+if [ -n "${RCLONE_REMOTE:-}" ]; then
+  if ! command -v rclone &>/dev/null; then
+    echo "[backup] WARNING: RCLONE_REMOTE is set but rclone is not installed — skipping upload."
+  else
+    echo ""
+    echo "[backup] Uploading to $RCLONE_REMOTE ..."
+    rclone copy "$OUTFILE" "$RCLONE_REMOTE/"
+    echo "[backup] Upload done."
+
+    echo "[backup] Pruning remote backups (keeping $KEEP most recent)..."
+    rclone ls "$RCLONE_REMOTE/" \
+      | grep -o 'greenbook-[0-9-]*.sql.gz' \
+      | sort -r \
+      | tail -n +$((KEEP + 1)) \
+      | while read -r remote_file; do
+          echo "  deleting remote: $remote_file"
+          rclone deletefile "$RCLONE_REMOTE/$remote_file"
+        done
+    echo "[backup] Remote backups:"
+    rclone ls "$RCLONE_REMOTE/" | grep 'greenbook-.*\.sql\.gz' || echo "  (none)"
+  fi
+fi
