@@ -13,9 +13,9 @@
  *   NEXT_PUBLIC_SUPABASE_URL
  *   SUPABASE_SERVICE_ROLE_KEY
  *   ANTHROPIC_API_KEY
- *   DIGEST_GMAIL_USER         — Gmail address to send from
- *   DIGEST_GMAIL_APP_PASSWORD — Gmail App Password (not your account password)
- *   DIGEST_TO_EMAIL           — recipient (defaults to DIGEST_GMAIL_USER)
+ *   RESEND_API_KEY    — Resend API key for sending email
+ *   DIGEST_FROM_EMAIL — sender address (must be verified in Resend)
+ *   DIGEST_TO_EMAIL   — recipient address
  *
  * Run:
  *   node scripts/news-digest.mjs
@@ -25,7 +25,7 @@
 
 import { createClient }  from '@supabase/supabase-js';
 import Anthropic         from '@anthropic-ai/sdk';
-import nodemailer        from 'nodemailer';
+import { Resend }        from 'resend';
 import { XMLParser }     from 'fast-xml-parser';
 import fs                from 'node:fs';
 import path              from 'node:path';
@@ -62,12 +62,13 @@ const {
   NEXT_PUBLIC_SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY,
   ANTHROPIC_API_KEY,
-  DIGEST_GMAIL_USER,
-  DIGEST_GMAIL_APP_PASSWORD,
+  RESEND_API_KEY,
+  DIGEST_FROM_EMAIL,
   DIGEST_TO_EMAIL,
 } = process.env;
 
-const TO_EMAIL = DIGEST_TO_EMAIL ?? DIGEST_GMAIL_USER ?? 'transsafetravels@gmail.com';
+const FROM_EMAIL = DIGEST_FROM_EMAIL ?? 'digest@transsafetravels.com';
+const TO_EMAIL   = DIGEST_TO_EMAIL   ?? 'transsafetravels@gmail.com';
 
 if (!NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
@@ -77,8 +78,8 @@ if (!ANTHROPIC_API_KEY) {
   console.error('Missing ANTHROPIC_API_KEY');
   process.exit(1);
 }
-if ((!DIGEST_GMAIL_USER || !DIGEST_GMAIL_APP_PASSWORD) && !DRY_RUN) {
-  console.error('Missing DIGEST_GMAIL_USER or DIGEST_GMAIL_APP_PASSWORD (use --dry-run to skip email)');
+if (!RESEND_API_KEY && !DRY_RUN) {
+  console.error('Missing RESEND_API_KEY (use --dry-run to skip email)');
   process.exit(1);
 }
 
@@ -88,12 +89,10 @@ if ((!DIGEST_GMAIL_USER || !DIGEST_GMAIL_APP_PASSWORD) && !DRY_RUN) {
 
 const supabase  = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-const mailer    = (DIGEST_GMAIL_USER && DIGEST_GMAIL_APP_PASSWORD)
-  ? nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: DIGEST_GMAIL_USER, pass: DIGEST_GMAIL_APP_PASSWORD },
-    })
+const resend    = RESEND_API_KEY
+  ? new Resend(RESEND_API_KEY)
   : null;
+
 const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
 
 // ---------------------------------------------------------------------------
@@ -896,15 +895,16 @@ async function main() {
   if (DRY_RUN) {
     console.log('\n[DRY RUN] Email HTML written to /tmp/digest-preview.html');
     fs.writeFileSync('/tmp/digest-preview.html', emailHtml);
-  } else if (mailer) {
+  } else if (resend) {
     try {
-      const info = await mailer.sendMail({
-        from:    DIGEST_GMAIL_USER,
+      const { data, error } = await resend.emails.send({
+        from:    FROM_EMAIL,
         to:      TO_EMAIL,
         subject: `TransSafeTravels Digest — ${runDate} (${allFindings.length} findings)`,
         html:    emailHtml,
       });
-      console.log(`\nEmail sent (messageId=${info.messageId}) to ${TO_EMAIL}`);
+      if (error) throw new Error(error.message);
+      console.log(`\nEmail sent (id=${data.id}) to ${TO_EMAIL}`);
       await supabase.from('digest_runs').update({
         email_sent_at: new Date().toISOString(),
       }).eq('id', runId);
