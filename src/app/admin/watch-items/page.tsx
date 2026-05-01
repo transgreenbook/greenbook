@@ -59,6 +59,8 @@ export default function WatchItemsPage() {
   const [edits, setEdits] = useState<Record<number, Partial<WatchItem>>>({});
   const [saving, setSaving] = useState<number | null>(null);
   const [saved, setSaved] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -94,6 +96,14 @@ export default function WatchItemsPage() {
 
   function setEdit<K extends keyof WatchItem>(id: number, field: K, value: WatchItem[K]) {
     setEdits((e) => ({ ...e, [id]: { ...e[id], [field]: value } }));
+  }
+
+  async function deleteItem(id: number) {
+    setDeleting(id);
+    await supabase.from("watch_items").delete().eq("id", id);
+    setDeleting(null);
+    setConfirmDelete(null);
+    fetchItems();
   }
 
   async function saveItem(id: number) {
@@ -285,7 +295,7 @@ export default function WatchItemsPage() {
                               </div>
                             </div>
 
-                            <div className="flex gap-2 items-center">
+                            <div className="flex gap-2 items-center flex-wrap">
                               <button
                                 onClick={(e) => { e.stopPropagation(); saveItem(item.id); }}
                                 disabled={!dirty || saving === item.id}
@@ -305,6 +315,33 @@ export default function WatchItemsPage() {
                                   Linked POI #{item.linked_poi_id} →
                                 </a>
                               )}
+                              <div className="ml-auto flex gap-2 items-center">
+                                {confirmDelete === item.id ? (
+                                  <>
+                                    <span className="text-sm text-red-600">Delete this item?</span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
+                                      disabled={deleting === item.id}
+                                      className="px-3 py-1.5 text-sm font-medium bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                                    >
+                                      {deleting === item.id ? "Deleting…" : "Yes, delete"}
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }}
+                                      className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(item.id); }}
+                                    className="px-3 py-1.5 text-sm text-red-400 hover:text-red-600"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
