@@ -51,3 +51,7 @@ next-env.d.ts
 # internal docs — operational plans, costs, domain info, dev notes
 # keep locally and in nightly backup; not for public repo
 docs/internal/
+
+# one-time server setup scripts — contain infra details (bucket names, paths)
+# copy to server manually via scp; not for public repo
+scripts/setup-*.sh
