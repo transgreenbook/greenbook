@@ -9,6 +9,7 @@ const links = [
   { href: "/admin/categories", label: "POI Categories" },
   { href: "/admin/incidents", label: "Incidents" },
   { href: "/admin/incident-types", label: "Incident Types" },
+  { href: "/admin/watch-items", label: "Watch Items" },
   { href: "/admin/digest", label: "Digest" },
 ];
 
